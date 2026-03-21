@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SECUVION Logo Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #030712;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    color: white;
+    gap: 60px;
+  }
+  h1 { font-size: 14px; letter-spacing: 6px; text-transform: uppercase; color: #94a3b8; font-weight: 400; }
+  .row {
+    display: flex;
+    gap: 80px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .logo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-card span {
+    font-size: 12px;
+    color: #64748b;
+    letter-spacing: 2px;
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 40px;
+  }
+  .brand-row .name {
+    font-size: 22px;
+    letter-spacing: 5px;
+    font-weight: 700;
+    color: white;
+  }
+
+  @keyframes brand-orbit-ring { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes brand-orbit-ring2 { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+</style>
+</head>
+<body>
+
+<h1>SECUVION Logo Concept</h1>
+
+<div class="row">
+  <!-- Small 42px -->
+  <div class="logo-card">
+    <svg width="42" height="42" viewBox="0 0 200 200" style="overflow:visible">
+      <defs>
+        <linearGradient id="bg1s" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#7B6CF6"/>
+          <stop offset="50%" stop-color="#534AB7"/>
+          <stop offset="100%" stop-color="#3B2F9E"/>
+        </linearGradient>
+        <linearGradient id="bg2s" x1="0.2" y1="0" x2="0.9" y2="1">
+          <stop offset="0%" stop-color="#9B8FFF" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#6358D4" stop-opacity="0.7"/>
+        </linearGradient>
+        <linearGradient id="bg3s" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4A3DA8"/>
+          <stop offset="100%" stop-color="#2A1F7A"/>
+        </linearGradient>
+        <linearGradient id="orbs" x1="0" y1="0" x2="1" y2="0.5">
+          <stop offset="0%" stop-color="#06FFD0" stop-opacity="0"/>
+          <stop offset="30%" stop-color="#06FFD0" stop-opacity="0.8"/>
+          <stop offset="60%" stop-color="#7B6CF6" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+        </linearGradient>
+        <radialGradient id="cores" cx="0.45" cy="0.4" r="0.5">
+          <stop offset="0%" stop-color="#EEEDFE" stop-opacity="0.95"/>
+          <stop offset="40%" stop-color="#AFA9EC" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="glows" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+        <filter id="shs" x="-20%" y="-10%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="shadow"/>
+          <feOffset dx="0" dy="8" result="offsetShadow"/>
+          <feFlood flood-color="#1a0e4a" flood-opacity="0.5"/>
+          <feComposite in2="offsetShadow" operator="in"/>
+          <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <g filter="url(#shs)">
+        <path d="M100,22 L152,55 L152,130 L100,163 L100,163 L100,88Z" fill="url(#bg3s)" opacity="0.6"/>
+        <path d="M100,163 L152,130 L152,55 L100,88Z" fill="url(#bg3s)"/>
+        <path d="M100,163 L48,130 L48,55 L100,88Z" fill="url(#bg2s)"/>
+        <path d="M100,22 L152,55 L100,88 L48,55Z" fill="url(#bg1s)"/>
+        <path d="M100,22 L152,55 L100,88 L48,55Z" fill="white" opacity="0.08"/>
+        <path d="M100,22 L126,38 L100,54 L74,38Z" fill="white" opacity="0.12"/>
+      </g>
+      <path d="M100,52 L128,68 L128,108 L100,124 L72,108 L72,68Z" fill="#0d0b2a" fill-opacity="0.85"/>
+      <path d="M100,52 L128,68 L128,108 L100,124 L72,108 L72,68Z" fill="none" stroke="#9B8FFF" stroke-width="1" opacity="0.5"/>
+      <circle cx="100" cy="88" r="18" fill="url(#cores)" filter="url(#glows)">
+        <animate attributeName="r" values="18;20;18" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="100" cy="88" r="10" fill="#534AB7" opacity="0.9">
+        <animate attributeName="r" values="10;11.5;10" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="100" cy="88" r="5" fill="#EEEDFE" opacity="0.95"/>
+      <circle cx="100" cy="88" r="2.2" fill="#1a0e4a"/>
+      <circle cx="96" cy="84" r="2" fill="white" opacity="0.7"/>
+      <g style="transform-origin:100px 88px;animation:brand-orbit-ring 8s linear infinite">
+        <ellipse cx="100" cy="88" rx="80" ry="22" fill="none" stroke="url(#orbs)" stroke-width="3.5" stroke-linecap="round" transform="rotate(-25 100 88)"/>
+        <circle cx="178" cy="80" r="4.5" fill="#06FFD0" opacity="0.95" transform="rotate(-25 100 88)">
+          <animate attributeName="opacity" values="0.95;0.5;0.95" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="178" cy="80" r="8" fill="#06FFD0" opacity="0.15" transform="rotate(-25 100 88)"/>
+      </g>
+      <g style="transform-origin:100px 88px;animation:brand-orbit-ring2 12s linear infinite">
+        <ellipse cx="100" cy="88" rx="70" ry="16" fill="none" stroke="#7B6CF6" stroke-width="1.2" stroke-dasharray="6 12" opacity="0.3" transform="rotate(15 100 88)"/>
+      </g>
+      <circle cx="45" cy="40" r="3" fill="#06FFD0" opacity="0.7">
+        <animate attributeName="cy" values="40;36;40" dur="2.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="160" cy="48" r="2" fill="#FF3CAC" opacity="0.6">
+        <animate attributeName="cy" values="48;44;48" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0.25;0.6" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="155" cy="138" r="2.5" fill="#7B6CF6" opacity="0.5">
+        <animate attributeName="cy" values="138;134;138" dur="2.8s" repeatCount="indefinite"/>
+      </circle>
+      <path d="M100,22 L48,55" stroke="white" stroke-width="1.5" opacity="0.2" stroke-linecap="round"/>
+      <circle cx="100" cy="163" r="3" fill="#534AB7" opacity="0.6">
+        <animate attributeName="r" values="3;4.5;3" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0.3;0.6" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+    <span>42px NAVBAR</span>
+  </div>
+
+  <!-- Medium 72px -->
+  <div class="logo-card">
+    <svg width="72" height="72" viewBox="0 0 200 200" style="overflow:visible">
+      <use href="#logo-body"/>
+    </svg>
+    <span>72px HERO</span>
+  </div>
+
+  <!-- Large 160px -->
+  <div class="logo-card">
+    <svg width="160" height="160" viewBox="0 0 200 200" style="overflow:visible" id="logo-main">
+      <defs>
+        <linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#7B6CF6"/>
+          <stop offset="50%" stop-color="#534AB7"/>
+          <stop offset="100%" stop-color="#3B2F9E"/>
+        </linearGradient>
+        <linearGradient id="bg2" x1="0.2" y1="0" x2="0.9" y2="1">
+          <stop offset="0%" stop-color="#9B8FFF" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#6358D4" stop-opacity="0.7"/>
+        </linearGradient>
+        <linearGradient id="bg3" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4A3DA8"/>
+          <stop offset="100%" stop-color="#2A1F7A"/>
+        </linearGradient>
+        <linearGradient id="orb" x1="0" y1="0" x2="1" y2="0.5">
+          <stop offset="0%" stop-color="#06FFD0" stop-opacity="0"/>
+          <stop offset="30%" stop-color="#06FFD0" stop-opacity="0.8"/>
+          <stop offset="60%" stop-color="#7B6CF6" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+        </linearGradient>
+        <radialGradient id="core" cx="0.45" cy="0.4" r="0.5">
+          <stop offset="0%" stop-color="#EEEDFE" stop-opacity="0.95"/>
+          <stop offset="40%" stop-color="#AFA9EC" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+        <filter id="sh" x="-20%" y="-10%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="shadow"/>
+          <feOffset dx="0" dy="8" result="offsetShadow"/>
+          <feFlood flood-color="#1a0e4a" flood-opacity="0.5"/>
+          <feComposite in2="offsetShadow" operator="in"/>
+          <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <g filter="url(#sh)">
+        <path d="M100,22 L152,55 L152,130 L100,163 L100,163 L100,88Z" fill="url(#bg3)" opacity="0.6"/>
+        <path d="M100,163 L152,130 L152,55 L100,88Z" fill="url(#bg3)"/>
+        <path d="M100,163 L48,130 L48,55 L100,88Z" fill="url(#bg2)"/>
+        <path d="M100,22 L152,55 L100,88 L48,55Z" fill="url(#bg1)"/>
+        <path d="M100,22 L152,55 L100,88 L48,55Z" fill="white" opacity="0.08"/>
+        <path d="M100,22 L126,38 L100,54 L74,38Z" fill="white" opacity="0.12"/>
+      </g>
+
+      <path d="M100,52 L128,68 L128,108 L100,124 L72,108 L72,68Z" fill="#0d0b2a" fill-opacity="0.85"/>
+      <path d="M100,52 L128,68 L128,108 L100,124 L72,108 L72,68Z" fill="none" stroke="#9B8FFF" stroke-width="1" opacity="0.5"/>
+
+      <circle cx="100" cy="88" r="18" fill="url(#core)" filter="url(#glow)">
+        <animate attributeName="r" values="18;20;18" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="100" cy="88" r="10" fill="#534AB7" opacity="0.9">
+        <animate attributeName="r" values="10;11.5;10" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="100" cy="88" r="5" fill="#EEEDFE" opacity="0.95"/>
+      <circle cx="100" cy="88" r="2.2" fill="#1a0e4a"/>
+      <circle cx="96" cy="84" r="2" fill="white" opacity="0.7"/>
+
+      <g style="transform-origin:100px 88px;animation:brand-orbit-ring 8s linear infinite">
+        <ellipse cx="100" cy="88" rx="80" ry="22" fill="none" stroke="url(#orb)" stroke-width="3.5" stroke-linecap="round" transform="rotate(-25 100 88)"/>
+        <circle cx="178" cy="80" r="4.5" fill="#06FFD0" opacity="0.95" transform="rotate(-25 100 88)">
+          <animate attributeName="opacity" values="0.95;0.5;0.95" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="178" cy="80" r="8" fill="#06FFD0" opacity="0.15" transform="rotate(-25 100 88)"/>
+      </g>
+
+      <g style="transform-origin:100px 88px;animation:brand-orbit-ring2 12s linear infinite">
+        <ellipse cx="100" cy="88" rx="70" ry="16" fill="none" stroke="#7B6CF6" stroke-width="1.2" stroke-dasharray="6 12" opacity="0.3" transform="rotate(15 100 88)"/>
+      </g>
+
+      <circle cx="45" cy="40" r="3" fill="#06FFD0" opacity="0.7">
+        <animate attributeName="cy" values="40;36;40" dur="2.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="160" cy="48" r="2" fill="#FF3CAC" opacity="0.6">
+        <animate attributeName="cy" values="48;44;48" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0.25;0.6" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="155" cy="138" r="2.5" fill="#7B6CF6" opacity="0.5">
+        <animate attributeName="cy" values="138;134;138" dur="2.8s" repeatCount="indefinite"/>
+      </circle>
+
+      <path d="M100,22 L48,55" stroke="white" stroke-width="1.5" opacity="0.2" stroke-linecap="round"/>
+      <circle cx="100" cy="163" r="3" fill="#534AB7" opacity="0.6">
+        <animate attributeName="r" values="3;4.5;3" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0.3;0.6" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+    <span>160px LARGE</span>
+  </div>
+</div>
+
+<!-- Brand lockup -->
+<div class="brand-row">
+  <svg width="52" height="52" viewBox="0 0 200 200" style="overflow:visible">
+    <defs>
+      <linearGradient id="bg1b" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#7B6CF6"/>
+        <stop offset="50%" stop-color="#534AB7"/>
+        <stop offset="100%" stop-color="#3B2F9E"/>
+      </linearGradient>
+      <linearGradient id="bg2b" x1="0.2" y1="0" x2="0.9" y2="1">
+        <stop offset="0%" stop-color="#9B8FFF" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#6358D4" stop-opacity="0.7"/>
+      </linearGradient>
+      <linearGradient id="bg3b" x1="1" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4A3DA8"/>
+        <stop offset="100%" stop-color="#2A1F7A"/>
+      </linearGradient>
+      <linearGradient id="orbb" x1="0" y1="0" x2="1" y2="0.5">
+        <stop offset="0%" stop-color="#06FFD0" stop-opacity="0"/>
+        <stop offset="30%" stop-color="#06FFD0" stop-opacity="0.8"/>
+        <stop offset="60%" stop-color="#7B6CF6" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+      </linearGradient>
+      <radialGradient id="coreb" cx="0.45" cy="0.4" r="0.5">
+        <stop offset="0%" stop-color="#EEEDFE" stop-opacity="0.95"/>
+        <stop offset="40%" stop-color="#AFA9EC" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="glowb" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+      <filter id="shb" x="-20%" y="-10%" width="140%" height="140%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="shadow"/>
+        <feOffset dx="0" dy="8" result="offsetShadow"/>
+        <feFlood flood-color="#1a0e4a" flood-opacity="0.5"/>
+        <feComposite in2="offsetShadow" operator="in"/>
+        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <g filter="url(#shb)">
+      <path d="M100,22 L152,55 L152,130 L100,163 L100,163 L100,88Z" fill="url(#bg3b)" opacity="0.6"/>
+      <path d="M100,163 L152,130 L152,55 L100,88Z" fill="url(#bg3b)"/>
+      <path d="M100,163 L48,130 L48,55 L100,88Z" fill="url(#bg2b)"/>
+      <path d="M100,22 L152,55 L100,88 L48,55Z" fill="url(#bg1b)"/>
+      <path d="M100,22 L152,55 L100,88 L48,55Z" fill="white" opacity="0.08"/>
+      <path d="M100,22 L126,38 L100,54 L74,38Z" fill="white" opacity="0.12"/>
+    </g>
+    <path d="M100,52 L128,68 L128,108 L100,124 L72,108 L72,68Z" fill="#0d0b2a" fill-opacity="0.85"/>
+    <path d="M100,52 L128,68 L128,108 L100,124 L72,108 L72,68Z" fill="none" stroke="#9B8FFF" stroke-width="1" opacity="0.5"/>
+    <circle cx="100" cy="88" r="18" fill="url(#coreb)" filter="url(#glowb)">
+      <animate attributeName="r" values="18;20;18" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="100" cy="88" r="10" fill="#534AB7" opacity="0.9">
+      <animate attributeName="r" values="10;11.5;10" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="100" cy="88" r="5" fill="#EEEDFE" opacity="0.95"/>
+    <circle cx="100" cy="88" r="2.2" fill="#1a0e4a"/>
+    <circle cx="96" cy="84" r="2" fill="white" opacity="0.7"/>
+    <g style="transform-origin:100px 88px;animation:brand-orbit-ring 8s linear infinite">
+      <ellipse cx="100" cy="88" rx="80" ry="22" fill="none" stroke="url(#orbb)" stroke-width="3.5" stroke-linecap="round" transform="rotate(-25 100 88)"/>
+      <circle cx="178" cy="80" r="4.5" fill="#06FFD0" opacity="0.95" transform="rotate(-25 100 88)">
+        <animate attributeName="opacity" values="0.95;0.5;0.95" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="178" cy="80" r="8" fill="#06FFD0" opacity="0.15" transform="rotate(-25 100 88)"/>
+    </g>
+    <g style="transform-origin:100px 88px;animation:brand-orbit-ring2 12s linear infinite">
+      <ellipse cx="100" cy="88" rx="70" ry="16" fill="none" stroke="#7B6CF6" stroke-width="1.2" stroke-dasharray="6 12" opacity="0.3" transform="rotate(15 100 88)"/>
+    </g>
+    <circle cx="45" cy="40" r="3" fill="#06FFD0" opacity="0.7">
+      <animate attributeName="cy" values="40;36;40" dur="2.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="160" cy="48" r="2" fill="#FF3CAC" opacity="0.6">
+      <animate attributeName="cy" values="48;44;48" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="155" cy="138" r="2.5" fill="#7B6CF6" opacity="0.5">
+      <animate attributeName="cy" values="138;134;138" dur="2.8s" repeatCount="indefinite"/>
+    </circle>
+    <path d="M100,22 L48,55" stroke="white" stroke-width="1.5" opacity="0.2" stroke-linecap="round"/>
+    <circle cx="100" cy="163" r="3" fill="#534AB7" opacity="0.6">
+      <animate attributeName="r" values="3;4.5;3" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0.3;0.6" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+  <span class="name">S E C U V I O N</span>
+</div>
+
+</body>
+</html>

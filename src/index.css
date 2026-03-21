@@ -1,0 +1,37 @@
+/* ===============================
+   SECUVION GLOBAL LAYOUT SYSTEM
+   =============================== */
+
+.section-container{
+  width:100%;
+  max-width:1200px;
+  margin:0 auto;
+  padding:120px clamp(20px,5vw,80px);
+  position:relative;
+}
+
+.section-narrow{
+  width:100%;
+  max-width:720px;
+  margin:0 auto;
+}
+
+.section-medium{
+  width:100%;
+  max-width:1000px;
+  margin:0 auto;
+}
+
+.section-grid{
+  width:100%;
+  max-width:1100px;
+  margin:0 auto;
+}
+
+.hero-container{
+  width:100%;
+  max-width:1200px;
+  margin:0 auto;
+  padding:100px clamp(20px,5vw,80px);
+  position:relative;
+}
