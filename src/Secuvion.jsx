@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 import CinematicLoader from "./components/CinematicLoader";
 import CyberGlobe from "./components/CyberGlobe";
 import ThreatMapLive from "./components/ThreatMapLive";
@@ -1334,6 +1336,7 @@ const Footer = () => (
    MAIN APP
    ══════════════════════════════ */
 export default function SecuvionV2() {
+  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
@@ -1574,7 +1577,20 @@ div:hover > .family-icon {
               onMouseEnter={e => e.target.style.color = T.white}
               onMouseLeave={e => e.target.style.color = T.mutedDark}>{l.label}</span>
           ))}
-          <Button primary onClick={() => scrollTo("dashboard")} style={{ padding: "9px 22px", fontSize: 13 }}>Dashboard</Button>
+          {user ? (
+            <Link to="/dashboard" style={{ textDecoration: "none" }}>
+              <Button primary style={{ padding: "9px 22px", fontSize: 13 }}>Dashboard</Button>
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" style={{ textDecoration: "none" }}>
+                <Button style={{ padding: "9px 22px", fontSize: 13 }}>Login</Button>
+              </Link>
+              <Link to="/signup" style={{ textDecoration: "none" }}>
+                <Button primary style={{ padding: "9px 22px", fontSize: 13 }}>Sign Up</Button>
+              </Link>
+            </>
+          )}
         </div>
         <div className="nav-burger" style={{ flexDirection: "column", gap: 5, cursor: "pointer", padding: 8 }} onClick={() => setMenuOpen(!menuOpen)}>
           <div style={{ width: 22, height: 2, background: T.white, borderRadius: 2, transition: "all 0.3s", transform: menuOpen ? "rotate(45deg) translate(5px, 5px)" : "none" }} />
@@ -1601,8 +1617,21 @@ div:hover > .family-icon {
                 opacity: 0, animation: `card-enter 0.5s ease forwards ${i * 0.08}s`,
               }}>{l.label}</div>
           ))}
-          <div style={{ marginTop: 40, opacity: 0, animation: `card-enter 0.5s ease forwards ${navLinks.length * 0.08}s` }}>
-            <Button primary onClick={() => scrollTo("dashboard")} style={{ width: "100%", justifyContent: "center" }}>Open Dashboard</Button>
+          <div style={{ marginTop: 40, opacity: 0, animation: `card-enter 0.5s ease forwards ${navLinks.length * 0.08}s`, display: "flex", flexDirection: "column", gap: 12 }}>
+            {user ? (
+              <Link to="/dashboard" style={{ textDecoration: "none" }}>
+                <Button primary style={{ width: "100%", justifyContent: "center" }}>Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" style={{ textDecoration: "none" }}>
+                  <Button style={{ width: "100%", justifyContent: "center" }}>Login</Button>
+                </Link>
+                <Link to="/signup" style={{ textDecoration: "none" }}>
+                  <Button primary style={{ width: "100%", justifyContent: "center" }}>Sign Up</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
