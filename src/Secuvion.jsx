@@ -1312,16 +1312,37 @@ const Footer = () => (
         </p>
       </div>
       {[
-        { t: "Platform", l: ["Features", "Pricing", "Dashboard", "Analyzer"] },
-        { t: "Company", l: ["About", "Founder", "Mission", "Contact"] },
-        { t: "Legal", l: ["Privacy", "Terms", "Cookies"] },
+        { t: "Platform", l: [
+          { label: "Features", to: "/#features" },
+          { label: "Pricing", to: "/pricing" },
+          { label: "Dashboard", to: "/dashboard" },
+          { label: "Analyzer", to: "/fraud-analyzer" },
+        ]},
+        { t: "Company", l: [
+          { label: "About", to: "/founder" },
+          { label: "Founder", to: "/founder" },
+          { label: "Threat Map", to: "/threat-map" },
+          { label: "Contact", to: "/emergency-help" },
+        ]},
+        { t: "Resources", l: [
+          { label: "Learn", to: "/learn" },
+          { label: "Scam Database", to: "/scam-database" },
+          { label: "Security Score", to: "/security-score" },
+          { label: "Emergency Help", to: "/emergency-help" },
+        ]},
+        { t: "Legal", l: [
+          { label: "Privacy Policy", to: "/pricing" },
+          { label: "Terms of Service", to: "/pricing" },
+          { label: "Login", to: "/login" },
+          { label: "Sign Up", to: "/signup" },
+        ]},
       ].map((c, i) => (
         <div key={i}>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: T.muted, marginBottom: 18, fontWeight: 600 }}>{c.t}</div>
           {c.l.map((l, j) => (
-            <div key={j} className="footer-link" style={{ color: T.mutedDark, fontSize: 14, padding: "8px 0", cursor: "pointer", transition: "all 0.35s cubic-bezier(0.22, 1, 0.36, 1)", fontWeight: 400 }}
+            <Link key={j} to={l.to} className="footer-link" style={{ display: "block", color: T.mutedDark, fontSize: 14, padding: "8px 0", cursor: "pointer", transition: "all 0.35s cubic-bezier(0.22, 1, 0.36, 1)", fontWeight: 400, textDecoration: "none" }}
               onMouseEnter={e => { e.target.style.color = T.white; e.target.style.transform = "translateX(6px)"; }}
-              onMouseLeave={e => { e.target.style.color = T.mutedDark; e.target.style.transform = "translateX(0)"; }}>{l}</div>
+              onMouseLeave={e => { e.target.style.color = T.mutedDark; e.target.style.transform = "translateX(0)"; }}>{l.label}</Link>
           ))}
         </div>
       ))}
