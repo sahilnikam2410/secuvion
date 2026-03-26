@@ -257,7 +257,7 @@ const SectionHeader = ({ badge, title, subtitle, align = "center" }) => (
   <div style={{ marginBottom: 64, textAlign: align, maxWidth: align === "center" ? 700 : "none", margin: align === "center" ? "0 auto 64px" : "0 0 48px" }}>
     {badge && <div style={{ marginBottom: 16 }}><Badge>{badge}</Badge></div>}
     <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 700, color: T.white, margin: 0, lineHeight: 1.15, letterSpacing: "-0.03em" }}>{title}</h2>
-    {subtitle && <p style={{ fontFamily: "var(--font-body)", color: T.muted, fontSize: "clamp(15px, 1.3vw, 17px)", marginTop: 16, lineHeight: 1.7, maxWidth: align === "center" ? 540 : "none" }}>{subtitle}</p>}
+    {subtitle && <p style={{ fontFamily: "var(--font-body)", color: T.muted, fontSize: "clamp(15px, 1.3vw, 17px)", marginTop: 16, lineHeight: 1.7, maxWidth: align === "center" ? 540 : "none", marginLeft: align === "center" ? "auto" : 0, marginRight: align === "center" ? "auto" : 0 }}>{subtitle}</p>}
   </div>
 );
 
@@ -374,7 +374,7 @@ const Features = () => {
   return (
     <Section id="features">
       <Reveal><SectionHeader badge="Platform" title={<>Enterprise Security,<br /><GradientText>Built for Everyone</GradientText></>} subtitle="Six layers of AI-powered protection. No technical expertise required." /></Reveal>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }} className="features-grid">
         {features.map((f, i) => (
           <Reveal key={i} delay={i * 0.06}>
             <Card style={{ height: "100%", padding: "36px 32px" }}>
@@ -400,7 +400,7 @@ const HowItWorks = () => {
   return (
     <Section>
       <Reveal><SectionHeader badge="How It Works" title="Three Steps to Total Protection" subtitle="Simple for you. Powerful against threats. Always-on defense." /></Reveal>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, position: "relative" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, position: "relative" }} className="steps-grid">
         {/* Connecting line */}
         <div style={{ position: "absolute", top: 40, left: "15%", right: "15%", height: 1, background: `linear-gradient(90deg, transparent, ${T.border}, ${T.border}, transparent)`, zIndex: 0 }} className="how-connector" />
         {steps.map((s, i) => (
@@ -676,7 +676,7 @@ const BigNumbers = () => {
   ];
   return (
     <div style={{ background: "linear-gradient(180deg, rgba(99,102,241,0.03) 0%, transparent 100%)", borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: "80px clamp(24px, 5vw, 80px)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 48 }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 48 }} className="stats-grid">
         {stats.map((s, i) => (
           <Reveal key={i} delay={i * 0.1}>
             <div style={{ textAlign: "center" }}>
@@ -717,7 +717,7 @@ const SecurityTools = () => {
   return (
     <Section id="tools">
       <Reveal><SectionHeader badge="Security Tools" title={<>Free Security <GradientText>Assessment</GradientText></>} subtitle="Check your exposure and assess your security posture in seconds." /></Reveal>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 24 }} className="tools-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 24 }} className="tools-grid">
         {/* Breach Check */}
         <Reveal delay={0.1}>
           <Card style={{ height: "100%", padding: 36 }} hover={false}>
@@ -843,7 +843,7 @@ const Audience = () => {
   return (
     <Section>
       <Reveal><SectionHeader badge="Built For" title={<>Protection for <GradientText>Everyone</GradientText></>} subtitle="Security designed for real people, not just IT departments." /></Reveal>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }} className="audience-grid">
         {groups.map((g, i) => (
           <Reveal key={i} delay={i * 0.1}>
             <Card style={{ height: "100%", padding: "36px 28px" }}>
@@ -957,7 +957,7 @@ const PricingSection = () => {
   return (
     <Section id="pricing">
       <Reveal><SectionHeader badge="Pricing" title={<>Simple, Transparent <GradientText>Pricing</GradientText></>} subtitle="World-class protection at prices built for real people. No hidden fees." /></Reveal>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, maxWidth: 1100, margin: "0 auto", alignItems: "stretch" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, maxWidth: 1100, margin: "0 auto", alignItems: "stretch" }} className="pricing-grid">
         {plans.map((p, i) => (
           <Reveal key={i} delay={i * 0.12}>
             <div className="pricing-card" style={{
@@ -1007,7 +1007,7 @@ const Education = () => {
   return (
     <Section id="education">
       <Reveal><SectionHeader badge="Learn" title="Knowledge Base" subtitle="Concise, jargon-free guides to upgrade your digital literacy." /></Reveal>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, maxWidth: 920, margin: "0 auto" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, maxWidth: 920, margin: "0 auto" }} className="education-grid">
         {modules.map((m, i) => (
           <Reveal key={i} delay={i * 0.06}>
             <Card>
@@ -1204,6 +1204,11 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .analyzer-grid { grid-template-columns: 1fr !important; }
   .assistant-grid { grid-template-columns: 1fr !important; }
   .tools-grid { grid-template-columns: 1fr !important; }
+  .features-grid { grid-template-columns: 1fr 1fr !important; }
+  .audience-grid { grid-template-columns: 1fr 1fr !important; }
+  .pricing-grid { grid-template-columns: 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; }
+  .education-grid { grid-template-columns: 1fr 1fr !important; }
   .footer-grid { grid-template-columns: 1fr 1fr !important; }
 }
 
@@ -1212,6 +1217,11 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .nav-burger { display: flex !important; }
   .founder-grid { grid-template-columns: 1fr !important; }
   .how-connector { display: none !important; }
+  .steps-grid { grid-template-columns: 1fr !important; }
+  .features-grid { grid-template-columns: 1fr !important; }
+  .audience-grid { grid-template-columns: 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr !important; }
+  .education-grid { grid-template-columns: 1fr !important; }
 }
 
 @media (min-width: 769px) {
