@@ -22,7 +22,7 @@ const Footer = () => {
         <div>
           <h4>Platform</h4>
           <ul>
-            <li><Link to="/threat-map" style={{ color: "inherit", textDecoration: "none" }}>Threat Map</Link></li>
+            <li><Link to="/features" style={{ color: "inherit", textDecoration: "none" }}>Features</Link></li>
             <li><Link to="/fraud-analyzer" style={{ color: "inherit", textDecoration: "none" }}>Fraud Analyzer</Link></li>
             <li><Link to="/security-score" style={{ color: "inherit", textDecoration: "none" }}>Security Score</Link></li>
             <li><Link to="/pricing" style={{ color: "inherit", textDecoration: "none" }}>Pricing</Link></li>
@@ -33,10 +33,10 @@ const Footer = () => {
         <div>
           <h4>Company</h4>
           <ul>
-            <li><Link to="/founder" style={{ color: "inherit", textDecoration: "none" }}>About</Link></li>
+            <li><Link to="/about" style={{ color: "inherit", textDecoration: "none" }}>About</Link></li>
             <li><Link to="/founder" style={{ color: "inherit", textDecoration: "none" }}>Founder</Link></li>
-            <li>Mission</li>
-            <li>Contact</li>
+            <li><Link to="/threat-map" style={{ color: "inherit", textDecoration: "none" }}>Threat Map</Link></li>
+            <li><Link to="/contact" style={{ color: "inherit", textDecoration: "none" }}>Contact</Link></li>
           </ul>
         </div>
 
@@ -46,17 +46,17 @@ const Footer = () => {
             <li><Link to="/learn" style={{ color: "inherit", textDecoration: "none" }}>Learn</Link></li>
             <li><Link to="/scam-database" style={{ color: "inherit", textDecoration: "none" }}>Scam Database</Link></li>
             <li><Link to="/emergency-help" style={{ color: "inherit", textDecoration: "none" }}>Emergency Help</Link></li>
-            <li>Documentation</li>
+            <li><Link to="/protection" style={{ color: "inherit", textDecoration: "none" }}>Protection</Link></li>
           </ul>
         </div>
 
         <div>
           <h4>Legal</h4>
           <ul>
-            <li>Privacy Policy</li>
-            <li>Terms of Service</li>
-            <li>Cookie Policy</li>
-            <li>GDPR Compliance</li>
+            <li><Link to="/privacy" style={{ color: "inherit", textDecoration: "none" }}>Privacy Policy</Link></li>
+            <li><Link to="/terms" style={{ color: "inherit", textDecoration: "none" }}>Terms of Service</Link></li>
+            <li><Link to="/login" style={{ color: "inherit", textDecoration: "none" }}>Login</Link></li>
+            <li><Link to="/signup" style={{ color: "inherit", textDecoration: "none" }}>Sign Up</Link></li>
           </ul>
         </div>
       </div>

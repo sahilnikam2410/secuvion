@@ -1095,10 +1095,10 @@ const Footer = () => (
         </div>
       </div>
       {[
-        { t: "Platform", l: [{ label: "Features", to: "/#features" }, { label: "Pricing", to: "/pricing" }, { label: "Dashboard", to: "/dashboard" }, { label: "Analyzer", to: "/fraud-analyzer" }] },
-        { t: "Company", l: [{ label: "About", to: "/founder" }, { label: "Founder", to: "/founder" }, { label: "Threat Map", to: "/threat-map" }, { label: "Contact", to: "/emergency-help" }] },
+        { t: "Platform", l: [{ label: "Features", to: "/features" }, { label: "Pricing", to: "/pricing" }, { label: "Dashboard", to: "/dashboard" }, { label: "Analyzer", to: "/fraud-analyzer" }] },
+        { t: "Company", l: [{ label: "About", to: "/about" }, { label: "Founder", to: "/founder" }, { label: "Threat Map", to: "/threat-map" }, { label: "Contact", to: "/contact" }] },
         { t: "Resources", l: [{ label: "Learn", to: "/learn" }, { label: "Scam Database", to: "/scam-database" }, { label: "Security Score", to: "/security-score" }, { label: "Emergency Help", to: "/emergency-help" }] },
-        { t: "Legal", l: [{ label: "Privacy Policy", to: "/pricing" }, { label: "Terms of Service", to: "/pricing" }, { label: "Login", to: "/login" }, { label: "Sign Up", to: "/signup" }] },
+        { t: "Legal", l: [{ label: "Privacy Policy", to: "/privacy" }, { label: "Terms of Service", to: "/terms" }, { label: "Login", to: "/login" }, { label: "Sign Up", to: "/signup" }] },
       ].map((c, i) => (
         <div key={i}>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: T.white, marginBottom: 18, fontWeight: 600 }}>{c.t}</div>

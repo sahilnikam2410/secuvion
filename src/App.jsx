@@ -18,6 +18,11 @@ import Signup from "./assets/pages/Signup.jsx";
 import AdminDashboard from "./assets/pages/AdminDashboard.jsx";
 import UserDashboard from "./assets/pages/UserDashboard.jsx";
 import Checkout from "./assets/pages/Checkout.jsx";
+import Privacy from "./assets/pages/Privacy.jsx";
+import Terms from "./assets/pages/Terms.jsx";
+import Contact from "./assets/pages/Contact.jsx";
+import About from "./assets/pages/About.jsx";
+import FeaturesPage from "./assets/pages/FeaturesPage.jsx";
 
 function App() {
   return (
@@ -38,6 +43,11 @@ function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/features" element={<FeaturesPage />} />
 
           {/* Dashboard redirect */}
           <Route path="/dashboard" element={<DashboardRedirect />} />
