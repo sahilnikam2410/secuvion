@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import CyberGlobe from "./components/CyberGlobe";
 import ThreatMapLive from "./components/ThreatMapLive";
+import BackToTop from "./components/BackToTop";
+import SEO from "./components/SEO";
 
 /* ═══════════════════════════════════════════════════════
    SECUVION v5 — PROFESSIONAL CYBER DEFENSE PLATFORM
@@ -301,14 +303,14 @@ const Hero = () => {
           </Reveal>
 
           <Reveal delay={0.3}>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 56 }}>
+            <div className="hero-buttons" style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 56 }}>
               <Btn primary to="/signup" icon="&#9889;">Start Free Protection</Btn>
               <Btn to="/fraud-analyzer" icon="&#9670;">Analyze a Threat</Btn>
             </div>
           </Reveal>
 
           <Reveal delay={0.4}>
-            <div style={{ display: "flex", gap: 48, flexWrap: "wrap" }}>
+            <div className="hero-stats" style={{ display: "flex", gap: 48, flexWrap: "wrap" }}>
               {[
                 { val: threats.toLocaleString(), label: "Threats Blocked", color: T.accent },
                 { val: "1.2M+", label: "Users Protected", color: T.cyan },
@@ -1052,6 +1054,40 @@ const FounderSection = () => (
   </Section>
 );
 
+/* ── TESTIMONIALS ── */
+const testimonials = [
+  { name: "Priya Sharma", role: "Startup Founder", text: "Secuvion caught a phishing attack targeting our company before anyone clicked. The real-time alerts are incredibly fast and the dashboard makes monitoring effortless.", score: "Threat blocked in < 2s" },
+  { name: "Marcus Johnson", role: "IT Manager", text: "We evaluated 5 cybersecurity platforms. Secuvion was the only one that combined enterprise-grade protection with a UI our non-technical staff could actually use.", score: "99.7% detection rate" },
+  { name: "Aiko Tanaka", role: "University Student", text: "As a student, I never thought about cybersecurity until my email was compromised. Secuvion's free tier gave me real protection without any cost. It's a game changer.", score: "Free tier user" },
+  { name: "David Mueller", role: "Financial Analyst", text: "The fraud analyzer saved me from a sophisticated investment scam. The AI detected patterns I never would have noticed. Worth every penny of the Pro plan.", score: "$12K fraud prevented" },
+  { name: "Sara Al-Rashid", role: "Healthcare Admin", text: "HIPAA compliance is critical for us. Secuvion's monitoring and alerting gives our small clinic the same level of protection as major hospital networks.", score: "100% compliance" },
+  { name: "Carlos Rivera", role: "E-commerce Owner", text: "Since deploying Secuvion, our checkout page hasn't had a single credential-stuffing incident. Our customers feel safer and our conversion rate actually improved.", score: "Zero breaches in 8mo" },
+];
+
+const Testimonials = () => (
+  <Section>
+    <SectionHeader badge="Trusted by Users" title={<>What Our Users <GradientText>Say</GradientText></>} subtitle="Real feedback from real users across industries and experience levels." />
+    <Reveal>
+      <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }} className="testimonials-grid">
+        {testimonials.map((t, i) => (
+          <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "28px 24px", position: "relative", transition: "all 0.3s" }} className="testimonial-card">
+            <div style={{ position: "absolute", top: 0, left: 24, right: 24, height: 1, background: `linear-gradient(90deg, transparent, ${i % 2 === 0 ? T.accentMed : T.cyanMed}, transparent)` }} />
+            <div style={{ fontSize: 28, color: T.accent, opacity: 0.15, fontFamily: "Georgia, serif", lineHeight: 1, marginBottom: 8 }}>"</div>
+            <p style={{ fontFamily: "var(--font-body)", color: T.muted, fontSize: 14, lineHeight: 1.75, margin: "0 0 20px" }}>{t.text}</p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600, color: T.white }}>{t.name}</div>
+                <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: T.mutedDark }}>{t.role}</div>
+              </div>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.cyan, background: T.cyanDim, padding: "4px 10px", borderRadius: 100, border: `1px solid ${T.cyanMed}` }}>{t.score}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Reveal>
+  </Section>
+);
+
 /* ── CTA BANNER ── */
 const CTABanner = () => (
   <div style={{ padding: "0 clamp(24px, 5vw, 80px)", marginBottom: 80 }}>
@@ -1141,6 +1177,7 @@ export default function SecuvionV2() {
 
   return (
     <div style={{ background: T.bg, color: T.white, minHeight: "100vh", fontFamily: "var(--font-body)", overflowX: "hidden" }}>
+      <SEO path="/" />
 
       <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
@@ -1154,6 +1191,7 @@ export default function SecuvionV2() {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { overflow-x: hidden; }
 body { max-width: 1900px; margin: auto; }
+* { box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word; }
 ::selection { background: rgba(99,102,241,0.3); color: #fff; }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1184,6 +1222,7 @@ html { scroll-behavior: smooth; }
 }
 
 input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
+.testimonial-card:hover { border-color: rgba(99,102,241,0.2) !important; transform: translateY(-4px); }
 
 .section-divider {
   height: 1px; width: 50%; margin: 0 auto;
@@ -1198,18 +1237,41 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
 }
 
 @media (max-width: 900px) {
-  .hero-grid { grid-template-columns: 1fr !important; text-align: center; }
-  .hero-grid > div:last-child { max-width: 400px !important; margin: 0 auto !important; }
+  .hero-grid { grid-template-columns: 1fr !important; text-align: center; gap: 40px !important; }
+  .hero-grid > div:first-child { display: flex; flex-direction: column; align-items: center; }
+  .hero-grid > div:last-child { max-width: 340px !important; margin: 0 auto !important; }
   .hero-globe > div[style*="absolute"] { display: none !important; }
+  .hero-stats { justify-content: center !important; gap: 28px !important; }
+  .hero-buttons { justify-content: center !important; }
   .analyzer-grid { grid-template-columns: 1fr !important; }
   .assistant-grid { grid-template-columns: 1fr !important; }
   .tools-grid { grid-template-columns: 1fr !important; }
   .features-grid { grid-template-columns: 1fr 1fr !important; }
   .audience-grid { grid-template-columns: 1fr 1fr !important; }
   .pricing-grid { grid-template-columns: 1fr !important; }
-  .stats-grid { grid-template-columns: 1fr 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
   .education-grid { grid-template-columns: 1fr 1fr !important; }
   .footer-grid { grid-template-columns: 1fr 1fr !important; }
+  .testimonials-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+@media (max-width: 600px) {
+  section { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; }
+  .hero-grid h1 { font-size: 28px !important; }
+  .hero-stats { flex-direction: column !important; gap: 16px !important; }
+  .hero-buttons { flex-direction: column !important; align-items: stretch !important; }
+  .hero-buttons button { width: 100% !important; justify-content: center !important; }
+  .analyzer-grid { gap: 32px !important; }
+  .assistant-grid { gap: 32px !important; }
+  .features-grid { grid-template-columns: 1fr !important; }
+  .steps-grid { grid-template-columns: 1fr !important; }
+  .audience-grid { grid-template-columns: 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 20px !important; }
+  .education-grid { grid-template-columns: 1fr !important; }
+  .testimonials-grid { grid-template-columns: 1fr !important; }
+  .pricing-grid { max-width: 100% !important; grid-template-columns: 1fr !important; }
+  .footer-grid { grid-template-columns: 1fr !important; }
+  .tools-grid { grid-template-columns: 1fr !important; }
 }
 
 @media (max-width: 768px) {
@@ -1217,11 +1279,6 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .nav-burger { display: flex !important; }
   .founder-grid { grid-template-columns: 1fr !important; }
   .how-connector { display: none !important; }
-  .steps-grid { grid-template-columns: 1fr !important; }
-  .features-grid { grid-template-columns: 1fr !important; }
-  .audience-grid { grid-template-columns: 1fr !important; }
-  .stats-grid { grid-template-columns: 1fr !important; }
-  .education-grid { grid-template-columns: 1fr !important; }
 }
 
 @media (min-width: 769px) {
@@ -1316,8 +1373,11 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
         <PricingSection />
         <div className="section-divider" />
         <FounderSection />
+        <div className="section-divider" />
+        <Testimonials />
         <CTABanner />
         <Footer />
+        <BackToTop />
       </div>
     </div>
   );

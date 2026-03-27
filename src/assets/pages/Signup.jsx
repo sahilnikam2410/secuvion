@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import Navbar from "../../components/Navbar";
+import SEO from "../../components/SEO";
 
 const s = {
   page: {
@@ -109,7 +111,8 @@ export default function Signup() {
 
   return (
     <div style={s.page}>
-      <Link to="/" style={s.homeLink}>Go to Homepage</Link>
+      <SEO title="Sign Up" description="Create your free Secuvion account and start protecting your digital life." path="/signup" />
+      <Navbar />
       <div style={s.gridBg} />
       <div style={s.glow1} />
       <div style={s.glow2} />
@@ -157,7 +160,7 @@ export default function Signup() {
         </form>
 
         <div style={s.terms}>
-          By signing up, you agree to our <span style={{ color: "#14e3c5" }}>Terms of Service</span> and <span style={{ color: "#14e3c5" }}>Privacy Policy</span>.
+          By signing up, you agree to our <Link to="/terms" style={{ color: "#14e3c5", textDecoration: "none" }}>Terms of Service</Link> and <Link to="/privacy" style={{ color: "#14e3c5", textDecoration: "none" }}>Privacy Policy</Link>.
         </div>
 
         <div style={s.footer}>

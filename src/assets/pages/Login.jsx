@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import Navbar from "../../components/Navbar";
+import SEO from "../../components/SEO";
 
 const styles = {
   page: {
@@ -114,7 +116,8 @@ export default function Login() {
 
   return (
     <div style={styles.page}>
-      <Link to="/" style={styles.homeLink}>Go to Homepage</Link>
+      <SEO title="Login" description="Login to your Secuvion account to access your cybersecurity dashboard." path="/login" />
+      <Navbar />
       <div style={styles.gridBg} />
       <div style={styles.circuitLines}>
         <div style={styles.glow1} />

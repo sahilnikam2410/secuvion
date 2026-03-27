@@ -1,17 +1,75 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
+
+const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", ember: "#f97316", red: "#ef4444", gold: "#eab308", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)" };
+
+const protocols = [
+  { code: "ALPHA", title: "Bank Fraud / Unauthorized Transactions", color: T.red, urgency: "CRITICAL", steps: ["Call your bank's 24/7 fraud helpline immediately", "Request a freeze on all accounts and cards", "Document every unauthorized transaction with screenshots", "File a complaint on cybercrime.gov.in (India) or local portal", "File a police report and keep the reference number", "Follow up with bank within 48 hours for reversal", "Enable transaction alerts and set spending limits"] },
+  { code: "BRAVO", title: "Account Takeover / Hacked Account", color: T.ember, urgency: "HIGH", steps: ["Attempt password recovery through the official platform", "If recovery fails, use the platform's 'hacked account' support", "Change password immediately to a strong, unique one", "Enable 2FA (use authenticator app, not SMS)", "Revoke access from all unknown devices", "Remove unauthorized connected apps", "Check for email forwarding rules", "Alert contacts — hacker may impersonate you"] },
+  { code: "CHARLIE", title: "Phishing / Clicked Suspicious Link", color: T.gold, urgency: "HIGH", steps: ["Do NOT enter any more information on the page", "If you entered credentials: change those passwords NOW", "Run a full antivirus/malware scan", "Clear browser cache, cookies, and saved passwords", "Check affected accounts for unauthorized activity", "Enable 2FA on compromised accounts", "Report the URL to Google Safe Browsing", "Monitor accounts closely for 30 days"] },
+  { code: "DELTA", title: "Identity Theft / Data Leaked", color: T.red, urgency: "CRITICAL", steps: ["Freeze credit with all major bureaus", "Change passwords on ALL financial accounts", "Enable fraud alerts on bank and credit cards", "File identity theft report with authorities", "Monitor credit report weekly for 6 months", "Set alerts for new accounts in your name", "Consider identity monitoring service", "Lock biometrics on government portals if applicable"] },
+  { code: "ECHO", title: "Ransomware / Device Infected", color: T.ember, urgency: "HIGH", steps: ["Disconnect device from WiFi and all networks", "Do NOT pay the ransom", "Photo any ransom message on screen", "Boot in Safe Mode if possible", "Run offline antivirus scan from USB", "Report to cybercrime authorities", "Restore from clean backup if available", "Change ALL passwords from a clean device"] },
+];
+
 export default function EmergencyHelp() {
+  const [open, setOpen] = useState(null);
   return (
-    <div style={{color:"white", padding:"40px"}}>
-      <h1>Cyber Emergency Help</h1>
-
-      <p>If your account is hacked or you are a victim of cyber fraud,
-      Secuvion will guide you with recovery steps.</p>
-
-      <ul>
-        <li>Bank fraud recovery</li>
-        <li>Social media account hacked</li>
-        <li>Phishing attack response</li>
-      </ul>
-
+    <div style={{ background: T.bg, minHeight: "100vh", color: T.white, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <Navbar />
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "120px 24px 80px" }}>
+        <div style={{ marginBottom: 48 }}><Link to="/" style={{ color: T.mutedDark, textDecoration: "none", fontSize: 13, fontWeight: 500 }}>&larr; Back to Home</Link></div>
+        <div style={{ padding: "16px 24px", background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 12, marginBottom: 36, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.red, flexShrink: 0 }} />
+          <span style={{ color: T.red, fontSize: 13, fontWeight: 600 }}>If in immediate physical danger, call your local emergency number (112) first.</span>
+        </div>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <span style={{ display: "inline-block", padding: "5px 14px", borderRadius: 100, background: `${T.red}0c`, border: `1px solid ${T.red}20`, fontSize: 11, fontWeight: 600, color: T.red, marginBottom: 16, letterSpacing: 0.5 }}>Emergency Response</span>
+          <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "clamp(36px, 4vw, 48px)", fontWeight: 700, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Incident Recovery Protocols</h1>
+          <p style={{ color: T.muted, fontSize: 16, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>Select your situation for immediate, actionable recovery steps.</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {protocols.map((p, i) => (
+            <div key={i} style={{ background: T.card, border: `1px solid ${open === i ? p.color + "20" : T.border}`, borderRadius: 14, overflow: "hidden", transition: "all 0.3s", cursor: "pointer" }} onClick={() => setOpen(open === i ? null : i)}>
+              <div style={{ padding: "22px 28px", display: "flex", alignItems: "center", gap: 14 }}>
+                <span style={{ padding: "4px 10px", borderRadius: 6, background: `${p.color}0a`, border: `1px solid ${p.color}18`, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, color: p.color, letterSpacing: 1.5, flexShrink: 0 }}>{p.code}</span>
+                <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 600, margin: 0, flex: 1 }}>{p.title}</h3>
+                <span style={{ padding: "3px 10px", borderRadius: 6, background: `${p.color}08`, fontSize: 10, fontWeight: 600, color: p.color, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>{p.urgency}</span>
+                <span style={{ color: T.accent, fontSize: 20, transition: "transform 0.4s", transform: open === i ? "rotate(45deg)" : "none", fontWeight: 300 }}>+</span>
+              </div>
+              {open === i && (
+                <div style={{ padding: "0 28px 28px", borderTop: `1px solid ${T.border}`, paddingTop: 20 }}>
+                  {p.steps.map((s, j) => (
+                    <div key={j} style={{ display: "flex", gap: 16, padding: "12px 0", borderBottom: j < p.steps.length - 1 ? `1px solid ${T.border}` : "none" }}>
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", color: p.color, fontSize: 13, fontWeight: 700, minWidth: 24 }}>0{j + 1}</span>
+                      <span style={{ color: T.white, fontSize: 14, lineHeight: 1.7 }}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 56, background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 36 }}>
+          <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 600, margin: "0 0 24px" }}>Emergency Helplines</h3>
+          <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
+            {[{ name: "Cyber Crime Helpline (India)", num: "1930", sub: "cybercrime.gov.in" }, { name: "National Emergency", num: "112", sub: "Police, Fire, Ambulance" }, { name: "Women Helpline", num: "181", sub: "For online harassment" }, { name: "Banking Fraud", num: "14440", sub: "RBI fraud reports" }].map((h, i) => (
+              <div key={i} style={{ padding: "16px 20px", background: "rgba(0,0,0,0.2)", borderRadius: 10, border: `1px solid ${T.border}` }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 700, color: T.cyan }}>{h.num}</div>
+                <div style={{ fontSize: 14, color: T.white, fontWeight: 500, marginTop: 4 }}>{h.name}</div>
+                <div style={{ fontSize: 12, color: T.mutedDark, marginTop: 2 }}>{h.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <style>{`
+  @media (max-width: 768px) {
+    .resp-grid-2 { grid-template-columns: 1fr !important; }
+  }
+`}</style>
+      <Footer />
     </div>
   );
 }

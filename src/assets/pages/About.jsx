@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import SEO from "../../components/SEO";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", accentSoft: "#818cf8", cyan: "#14e3c5", ember: "#f97316", red: "#ef4444", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)" };
 
 export default function About() {
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.white, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <SEO title="About" description="Learn about Secuvion's mission to democratize cybersecurity for everyone." path="/about" />
       <Navbar />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
         <div style={{ marginBottom: 48 }}>
@@ -25,7 +27,7 @@ export default function About() {
         </div>
 
         {/* Mission */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 80 }}>
+        <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 80 }}>
           <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 36 }}>
             <div style={{ fontSize: 28, marginBottom: 16 }}>&#x1F3AF;</div>
             <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 600, margin: "0 0 12px" }}>Our Mission</h3>
@@ -43,7 +45,7 @@ export default function About() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, marginBottom: 80, textAlign: "center" }}>
+        <div className="resp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, marginBottom: 80, textAlign: "center" }}>
           {[
             { val: "1.2M+", label: "Users Protected", color: T.cyan },
             { val: "84", label: "Countries Covered", color: T.accent },
@@ -60,7 +62,7 @@ export default function About() {
         {/* Values */}
         <div style={{ marginBottom: 80 }}>
           <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 32, fontWeight: 700, textAlign: "center", margin: "0 0 48px", letterSpacing: "-0.02em" }}>Our Core Values</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+          <div className="resp-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
               { icon: "\uD83D\uDD12", title: "Privacy First", desc: "Your data belongs to you. We use zero-knowledge architecture and never sell personal information." },
               { icon: "\uD83E\uDD16", title: "AI-Powered Defense", desc: "Leveraging neural networks trained on billions of threat patterns for real-time, intelligent protection." },
@@ -105,6 +107,14 @@ export default function About() {
         </div>
       </div>
       <Footer />
+      <style>{`
+  @media (max-width: 768px) {
+    .resp-grid-2, .resp-grid-3, .resp-grid-4 { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 900px) and (min-width: 769px) {
+    .resp-grid-3, .resp-grid-4 { grid-template-columns: 1fr 1fr !important; }
+  }
+`}</style>
     </div>
   );
 }

@@ -1,6 +1,14 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute, DashboardRedirect } from "./components/ProtectedRoute";
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
 import Secuvion from "./Secuvion";
 import Home from "./assets/pages/Home.jsx";
@@ -23,11 +31,14 @@ import Terms from "./assets/pages/Terms.jsx";
 import Contact from "./assets/pages/Contact.jsx";
 import About from "./assets/pages/About.jsx";
 import FeaturesPage from "./assets/pages/FeaturesPage.jsx";
+import NotFound from "./assets/pages/NotFound.jsx";
 
 function App() {
   return (
+    <HelmetProvider>
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <Routes>
           {/* Public */}
           <Route path="/" element={<Secuvion />} />
@@ -72,9 +83,12 @@ function App() {
               <Checkout />
             </ProtectedRoute>
           } />
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </AuthProvider>
+    </HelmetProvider>
   );
 }
 

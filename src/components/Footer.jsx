@@ -1,74 +1,117 @@
 import { Link } from "react-router-dom";
+import BackToTop from "./BackToTop";
 
-const Footer = () => {
-  return (
-    <footer className="footer">
-      <div className="footer-grid">
+const T = {
+  bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b",
+  cyan: "#14e3c5", accent: "#6366f1", border: "rgba(148,163,184,0.08)",
+};
+
+const FooterLink = ({ to, children }) => (
+  <li style={{ marginBottom: 10 }}>
+    <Link to={to} style={{ color: T.mutedDark, textDecoration: "none", fontSize: 14, fontFamily: "var(--font-body)", transition: "color 0.2s" }}
+      onMouseEnter={e => e.currentTarget.style.color = T.white}
+      onMouseLeave={e => e.currentTarget.style.color = T.mutedDark}
+    >{children}</Link>
+  </li>
+);
+
+const Footer = () => (
+  <footer style={{ borderTop: `1px solid ${T.border}`, padding: "64px clamp(24px, 5vw, 80px) 40px", background: T.bg }}>
+    <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+      {/* Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(4, 1fr)", gap: "clamp(32px, 4vw, 60px)", alignItems: "start", marginBottom: 48 }}>
+        {/* Brand */}
         <div>
-          <h3>SECUVION</h3>
-          <p>Click with care, we are always there.</p>
-          <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
-            {["X", "In", "Gh", "Yt"].map((s) => (
-              <span key={s} style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: "rgba(148,163,184,0.06)", border: "1px solid rgba(148,163,184,0.1)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, color: "#94a3b8", cursor: "pointer",
-              }}>{s}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg, ${T.cyan}, ${T.accent})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: T.bg }}>S</div>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 3, color: T.white, fontWeight: 700 }}>SECUVION</span>
+          </div>
+          <p style={{ fontFamily: "var(--font-body)", color: T.mutedDark, fontSize: 14, lineHeight: 1.8, marginBottom: 20, maxWidth: 240 }}>
+            AI-powered cyber defense for everyone. Enterprise security made accessible.
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            {[
+              { label: "X",  href: "https://x.com" },
+              { label: "In", href: "https://linkedin.com" },
+              { label: "Gh", href: "https://github.com" },
+              { label: "Yt", href: "https://youtube.com" },
+            ].map(s => (
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(148,163,184,0.04)", border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.mutedDark, fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 600, cursor: "pointer", transition: "all 0.3s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)"; e.currentTarget.style.color = T.white; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.mutedDark; }}
+                >{s.label}</div>
+              </a>
             ))}
           </div>
         </div>
 
+        {/* Platform */}
         <div>
-          <h4>Platform</h4>
-          <ul>
-            <li><Link to="/features" style={{ color: "inherit", textDecoration: "none" }}>Features</Link></li>
-            <li><Link to="/fraud-analyzer" style={{ color: "inherit", textDecoration: "none" }}>Fraud Analyzer</Link></li>
-            <li><Link to="/security-score" style={{ color: "inherit", textDecoration: "none" }}>Security Score</Link></li>
-            <li><Link to="/pricing" style={{ color: "inherit", textDecoration: "none" }}>Pricing</Link></li>
-            <li><Link to="/dashboard" style={{ color: "inherit", textDecoration: "none" }}>Dashboard</Link></li>
+          <h4 style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, color: T.white, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 20 }}>Platform</h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <FooterLink to="/features">Features</FooterLink>
+            <FooterLink to="/fraud-analyzer">Fraud Analyzer</FooterLink>
+            <FooterLink to="/security-score">Security Score</FooterLink>
+            <FooterLink to="/pricing">Pricing</FooterLink>
+            <FooterLink to="/dashboard">Dashboard</FooterLink>
           </ul>
         </div>
 
+        {/* Company */}
         <div>
-          <h4>Company</h4>
-          <ul>
-            <li><Link to="/about" style={{ color: "inherit", textDecoration: "none" }}>About</Link></li>
-            <li><Link to="/founder" style={{ color: "inherit", textDecoration: "none" }}>Founder</Link></li>
-            <li><Link to="/threat-map" style={{ color: "inherit", textDecoration: "none" }}>Threat Map</Link></li>
-            <li><Link to="/contact" style={{ color: "inherit", textDecoration: "none" }}>Contact</Link></li>
+          <h4 style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, color: T.white, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 20 }}>Company</h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <FooterLink to="/about">About</FooterLink>
+            <FooterLink to="/founder">Founder</FooterLink>
+            <FooterLink to="/threat-map">Threat Map</FooterLink>
+            <FooterLink to="/contact">Contact</FooterLink>
           </ul>
         </div>
 
+        {/* Resources */}
         <div>
-          <h4>Resources</h4>
-          <ul>
-            <li><Link to="/learn" style={{ color: "inherit", textDecoration: "none" }}>Learn</Link></li>
-            <li><Link to="/scam-database" style={{ color: "inherit", textDecoration: "none" }}>Scam Database</Link></li>
-            <li><Link to="/emergency-help" style={{ color: "inherit", textDecoration: "none" }}>Emergency Help</Link></li>
-            <li><Link to="/protection" style={{ color: "inherit", textDecoration: "none" }}>Protection</Link></li>
+          <h4 style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, color: T.white, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 20 }}>Resources</h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <FooterLink to="/learn">Learn</FooterLink>
+            <FooterLink to="/scam-database">Scam Database</FooterLink>
+            <FooterLink to="/emergency-help">Emergency Help</FooterLink>
+            <FooterLink to="/protection">Protection</FooterLink>
           </ul>
         </div>
 
+        {/* Legal */}
         <div>
-          <h4>Legal</h4>
-          <ul>
-            <li><Link to="/privacy" style={{ color: "inherit", textDecoration: "none" }}>Privacy Policy</Link></li>
-            <li><Link to="/terms" style={{ color: "inherit", textDecoration: "none" }}>Terms of Service</Link></li>
-            <li><Link to="/login" style={{ color: "inherit", textDecoration: "none" }}>Login</Link></li>
-            <li><Link to="/signup" style={{ color: "inherit", textDecoration: "none" }}>Sign Up</Link></li>
+          <h4 style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 600, color: T.white, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 20 }}>Legal</h4>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <FooterLink to="/privacy">Privacy Policy</FooterLink>
+            <FooterLink to="/terms">Terms of Service</FooterLink>
+            <FooterLink to="/login">Login</FooterLink>
+            <FooterLink to="/signup">Sign Up</FooterLink>
           </ul>
         </div>
       </div>
 
-      <div className="footer-bottom" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <div>&copy; 2026 SECUVION. All rights reserved.</div>
-        <div style={{ fontSize: 12, opacity: 0.7 }}>
+      {/* Bottom */}
+      <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 28, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: T.mutedDark }}>&copy; 2026 SECUVION. All rights reserved.</div>
+        <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(100,116,139,0.6)" }}>
           Founded by Sahil Anil Nikam | Built with security in mind | Protecting digital lives worldwide
         </div>
       </div>
-    </footer>
-  );
-};
+    </div>
+
+    {/* Responsive */}
+    <style>{`
+      @media (max-width: 900px) {
+        footer > div > div:first-child { grid-template-columns: 1fr 1fr !important; }
+      }
+      @media (max-width: 560px) {
+        footer > div > div:first-child { grid-template-columns: 1fr !important; }
+      }
+    `}</style>
+    <BackToTop />
+  </footer>
+);
 
 export default Footer;

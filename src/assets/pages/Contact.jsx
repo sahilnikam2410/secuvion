@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import SEO from "../../components/SEO";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", accentSoft: "#818cf8", cyan: "#14e3c5", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)" };
 
@@ -24,6 +25,7 @@ export default function Contact() {
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.white, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <SEO title="Contact" description="Get in touch with the Secuvion team for support, partnerships, or inquiries." path="/contact" />
       <Navbar />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
         <div style={{ marginBottom: 48 }}>
@@ -36,7 +38,7 @@ export default function Contact() {
           <p style={{ color: T.muted, fontSize: 16, maxWidth: 500, margin: "0 auto", lineHeight: 1.7 }}>Have questions, feedback, or need help? We'd love to hear from you.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}>
+        <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}>
           {/* Contact Form */}
           <div style={{ background: T.card, border: `1px solid ${T.border}`, backdropFilter: "blur(8px)", borderRadius: 16, padding: 36 }}>
             {sent ? (
@@ -107,6 +109,12 @@ export default function Contact() {
         </div>
       </div>
       <Footer />
+      <style>{`
+  @media (max-width: 768px) {
+    .resp-grid-2 { grid-template-columns: 1fr !important; }
+    .resp-grid-2 { gap: 24px !important; }
+  }
+`}</style>
     </div>
   );
 }
