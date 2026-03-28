@@ -5,167 +5,288 @@ import SEO from "../../components/SEO";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", accent: "#6366f1", cyan: "#14e3c5", green: "#22c55e", border: "rgba(148,163,184,0.08)" };
 
-function generateMemberCertificate(userName, email, memberId) {
+function loadImg(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function generateMemberCertificate(userName, email, memberId) {
+  const W = 1600, H = 1130;
   const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 850;
+  canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
+  const cx = W / 2;
+  const dark = "#1F1F1F";
+  const gray = "#636363";
+  const light = "#9E9E9E";
 
-  // Background
-  ctx.fillStyle = "#0a0f1e";
-  ctx.fillRect(0, 0, 1200, 850);
+  // Load real images
+  const [sigImg, logoImg, stampImg] = await Promise.all([
+    loadImg("/images/signature.png"),
+    loadImg("/images/academy-logo.png"),
+    loadImg("/images/stamp.png"),
+  ]);
 
-  // Border gradient
-  const borderGrad = ctx.createLinearGradient(0, 0, 1200, 850);
-  borderGrad.addColorStop(0, "#6366f1");
-  borderGrad.addColorStop(1, "#14e3c5");
-  ctx.strokeStyle = borderGrad;
-  ctx.lineWidth = 4;
-  ctx.strokeRect(20, 20, 1160, 810);
+  // ── Clean white background ──
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
 
-  // Inner border
-  ctx.strokeStyle = "rgba(148,163,184,0.1)";
+  // ── Top accent bar (brand gradient) ──
+  const topBar = ctx.createLinearGradient(0, 0, W, 0);
+  topBar.addColorStop(0, "#6366f1");
+  topBar.addColorStop(0.5, "#14e3c5");
+  topBar.addColorStop(1, "#6366f1");
+  ctx.fillStyle = topBar;
+  ctx.fillRect(0, 0, W, 8);
+
+  // ── Thin border ──
+  ctx.strokeStyle = "#e5e7eb";
   ctx.lineWidth = 1;
-  ctx.strokeRect(40, 40, 1120, 770);
+  ctx.strokeRect(40, 40, W - 80, H - 80);
 
-  // Corner decorations
-  [[50, 50], [1140, 50], [50, 790], [1140, 790]].forEach(([x, y]) => {
+  // ── SECUVION Logo (top-left) ──
+  if (logoImg) {
+    const logoH = 90;
+    const logoW = logoH * (logoImg.width / logoImg.height);
+    ctx.drawImage(logoImg, 80, 55, logoW, logoH);
+    if (logoW < 200) {
+      ctx.textAlign = "left";
+      ctx.font = "bold 22px 'Arial', sans-serif";
+      ctx.fillStyle = dark;
+      ctx.fillText("SECUVION", 80 + logoW + 16, 98);
+      ctx.font = "11px 'Arial', sans-serif";
+      ctx.fillStyle = light;
+      ctx.fillText("AI-Powered Cyber Defense", 80 + logoW + 16, 116);
+    }
+  } else {
+    ctx.save();
+    ctx.translate(120, 100);
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = "#14e3c5";
+    ctx.moveTo(0, -22);
+    ctx.bezierCurveTo(-18, -20, -24, -10, -24, 0);
+    ctx.bezierCurveTo(-24, 14, -10, 24, 0, 30);
+    ctx.bezierCurveTo(10, 24, 24, 14, 24, 0);
+    ctx.bezierCurveTo(24, -10, 18, -20, 0, -22);
+    ctx.closePath();
+    const shGrad = ctx.createLinearGradient(-24, -22, 24, 30);
+    shGrad.addColorStop(0, "#6366f1");
+    shGrad.addColorStop(1, "#14e3c5");
+    ctx.fillStyle = shGrad;
     ctx.fill();
+    ctx.font = "bold 20px 'Arial', sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.fillText("S", 0, 8);
+    ctx.restore();
+    ctx.textAlign = "left";
+    ctx.font = "bold 28px 'Arial', sans-serif";
+    ctx.fillStyle = dark;
+    ctx.fillText("SECUVION", 158, 100);
+    ctx.font = "12px 'Arial', sans-serif";
+    ctx.fillStyle = light;
+    ctx.fillText("PLATFORM", 158, 118);
+  }
+
+  // ── Member badge (top-right) ──
+  ctx.textAlign = "right";
+  ctx.font = "10px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("Official", W - 120, 88);
+  ctx.font = "bold 16px 'Arial', sans-serif";
+  ctx.fillStyle = "#14e3c5";
+  ctx.fillText("MEMBERSHIP", W - 120, 108);
+  ctx.font = "10px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("Verified Member", W - 120, 124);
+
+  // ── Separator line ──
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(80, 155); ctx.lineTo(W - 80, 155); ctx.stroke();
+
+  // ── Certificate label ──
+  ctx.textAlign = "left";
+  ctx.font = "600 14px 'Arial', sans-serif";
+  ctx.fillStyle = "#6366f1";
+  ctx.fillText("MEMBERSHIP CERTIFICATE", 120, 220);
+
+  // ── Small accent line under label ──
+  ctx.fillStyle = "#14e3c5";
+  ctx.fillRect(120, 232, 60, 3);
+
+  // ── Member Name (largest element) ──
+  ctx.font = "bold 56px 'Georgia', serif";
+  ctx.fillStyle = dark;
+  ctx.fillText(userName || "Member", 120, 310);
+
+  // ── Description ──
+  ctx.font = "18px 'Arial', sans-serif";
+  ctx.fillStyle = gray;
+  ctx.fillText("is now a verified member of the SECUVION platform and is authorized", 120, 365);
+  ctx.fillText("to access enterprise-grade cybersecurity tools and resources.", 120, 393);
+
+  // ── Membership Plan ──
+  ctx.font = "bold 28px 'Georgia', serif";
+  ctx.fillStyle = dark;
+  ctx.fillText("SECUVION Platform — Official Member", 120, 460);
+
+  // ── Details line ──
+  ctx.font = "16px 'Arial', sans-serif";
+  ctx.fillStyle = gray;
+  ctx.fillText("with full access to AI-powered cyber defense, threat intelligence, and security training.", 120, 500);
+
+  // ── Member details section ──
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(120, 545); ctx.lineTo(W - 120, 545); ctx.stroke();
+
+  // Member ID (left)
+  ctx.font = "12px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("MEMBER ID", 120, 580);
+  ctx.font = "14px 'Courier New', monospace";
+  ctx.fillStyle = dark;
+  ctx.fillText(memberId, 120, 605);
+
+  // Email (center)
+  ctx.textAlign = "center";
+  ctx.font = "12px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("EMAIL", cx, 580);
+  ctx.font = "14px 'Arial', sans-serif";
+  ctx.fillStyle = dark;
+  ctx.fillText(email, cx, 605);
+
+  // Date (right)
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  ctx.textAlign = "right";
+  ctx.font = "12px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("JOINED", W - 120, 580);
+  ctx.font = "14px 'Arial', sans-serif";
+  ctx.fillStyle = dark;
+  ctx.fillText(dateStr, W - 120, 605);
+
+  // ── Separator ──
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.beginPath(); ctx.moveTo(120, 640); ctx.lineTo(W - 120, 640); ctx.stroke();
+
+  // ── Signature (real image or fallback) ──
+  ctx.textAlign = "left";
+
+  if (sigImg) {
+    const sigH = 55;
+    const sigW = sigH * (sigImg.width / sigImg.height);
+    ctx.drawImage(sigImg, 120, 700, sigW, sigH);
+  } else {
+    ctx.save();
+    ctx.strokeStyle = "#2d3748"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    let px = 120;
+    "Sahil Nikam".split("").forEach((ch, i) => {
+      const baseY = 740 + Math.sin(i * 0.8) * 4;
+      if (i === 0) { ctx.moveTo(px, baseY); ctx.quadraticCurveTo(px + 5, baseY - 18, px + 12, baseY - 12); ctx.quadraticCurveTo(px + 18, baseY - 6, px + 10, baseY + 2); ctx.quadraticCurveTo(px + 5, baseY + 8, px + 20, baseY); px += 22; }
+      else if (ch === " ") { px += 8; ctx.moveTo(px, baseY); }
+      else { ctx.quadraticCurveTo(px + 3, baseY - 6 + Math.random() * 4, px + 7, baseY + Math.random() * 3 - 1); px += 7 + Math.random() * 3; }
+    });
+    ctx.stroke(); ctx.restore();
+  }
+  ctx.strokeStyle = "#d1d5db";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(120, 760); ctx.lineTo(380, 760); ctx.stroke();
+  ctx.font = "bold 14px 'Arial', sans-serif";
+  ctx.fillStyle = dark;
+  ctx.fillText("Sahil Anil Nikam", 120, 785);
+  ctx.font = "13px 'Arial', sans-serif";
+  ctx.fillStyle = gray;
+  ctx.fillText("Founder & CEO, SECUVION", 120, 765);
+
+  // Signature 2
+  ctx.strokeStyle = "#d1d5db";
+  ctx.beginPath(); ctx.moveTo(500, 760); ctx.lineTo(760, 760); ctx.stroke();
+  ctx.font = "bold 14px 'Arial', sans-serif";
+  ctx.fillStyle = dark;
+  ctx.fillText("SECUVION Platform", 500, 785);
+  ctx.font = "13px 'Arial', sans-serif";
+  ctx.fillStyle = gray;
+  ctx.fillText("Membership Division", 500, 765);
+
+  // ── Official Stamp / Verified Badge ──
+  if (stampImg) {
+    const stSize = 130;
+    ctx.drawImage(stampImg, W - 300, 680, stSize, stSize);
+  } else {
+    const bx = W - 280, by = 680;
+    ctx.beginPath();
+    ctx.arc(bx + 30, by + 30, 28, 0, Math.PI * 2);
+    const badgeGrad = ctx.createLinearGradient(bx, by, bx + 60, by + 60);
+    badgeGrad.addColorStop(0, "#6366f1");
+    badgeGrad.addColorStop(1, "#14e3c5");
+    ctx.fillStyle = badgeGrad;
+    ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(bx + 18, by + 30); ctx.lineTo(bx + 27, by + 40); ctx.lineTo(bx + 44, by + 20);
+    ctx.stroke();
+    ctx.textAlign = "left";
+    ctx.font = "bold 13px 'Arial', sans-serif";
+    ctx.fillStyle = "#6366f1";
+    ctx.fillText("VERIFIED", bx + 68, by + 26);
+    ctx.font = "12px 'Arial', sans-serif";
+    ctx.fillStyle = gray;
+    ctx.fillText("MEMBER", bx + 68, by + 44);
+  }
+
+  // ── What's included section ──
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.beginPath(); ctx.moveTo(120, 800); ctx.lineTo(W - 120, 800); ctx.stroke();
+
+  ctx.font = "12px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.textAlign = "left";
+  ctx.fillText("MEMBER BENEFITS", 120, 835);
+
+  const benefits = ["AI Threat Detection", "Security Score Monitoring", "Fraud Analyzer Access", "Academy Courses", "Priority Support"];
+  ctx.font = "13px 'Arial', sans-serif";
+  ctx.fillStyle = gray;
+  benefits.forEach((b, i) => {
+    const bxx = 120 + i * 240;
+    // Checkmark
+    ctx.fillStyle = "#14e3c5";
+    ctx.font = "bold 14px 'Arial', sans-serif";
+    ctx.fillText("✓", bxx, 865);
+    ctx.fillStyle = gray;
+    ctx.font = "13px 'Arial', sans-serif";
+    ctx.fillText(b, bxx + 18, 865);
   });
 
-  // Shield icon (top center)
-  ctx.save();
-  ctx.translate(600, 95);
-  ctx.beginPath();
-  ctx.moveTo(0, -30);
-  ctx.bezierCurveTo(-25, -28, -35, -15, -35, 0);
-  ctx.bezierCurveTo(-35, 20, -15, 35, 0, 42);
-  ctx.bezierCurveTo(15, 35, 35, 20, 35, 0);
-  ctx.bezierCurveTo(35, -15, 25, -28, 0, -30);
-  ctx.closePath();
-  const shieldGrad = ctx.createLinearGradient(-35, -30, 35, 42);
-  shieldGrad.addColorStop(0, "#6366f1");
-  shieldGrad.addColorStop(1, "#14e3c5");
-  ctx.fillStyle = shieldGrad;
-  ctx.fill();
-  // Checkmark inside shield
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  ctx.moveTo(-10, 2);
-  ctx.lineTo(-3, 10);
-  ctx.lineTo(12, -8);
-  ctx.stroke();
-  ctx.restore();
+  // ── Bottom separator ──
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.beginPath(); ctx.moveTo(80, H - 120); ctx.lineTo(W - 80, H - 120); ctx.stroke();
 
-  // SECUVION
-  ctx.font = "bold 22px 'Space Grotesk', sans-serif";
-  ctx.fillStyle = "#14e3c5";
-  ctx.textAlign = "center";
-  ctx.fillText("SECUVION", 600, 160);
+  // ── Footer ──
+  ctx.textAlign = "left";
+  ctx.font = "11px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("Verify at secuvion.onrender.com/verify/" + memberId, 120, H - 85);
 
-  // Subtitle
-  ctx.font = "12px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#94a3b8";
-  ctx.fillText("AI-POWERED CYBER DEFENSE PLATFORM", 600, 180);
+  ctx.textAlign = "right";
+  ctx.font = "11px 'Arial', sans-serif";
+  ctx.fillStyle = light;
+  ctx.fillText("© 2026 SECUVION. All rights reserved.", W - 120, H - 85);
 
-  // MEMBERSHIP CERTIFICATE
-  ctx.font = "14px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#6366f1";
-  ctx.fillText("OFFICIAL MEMBERSHIP CERTIFICATE", 600, 230);
-
-  // Decorative line
-  const lineGrad = ctx.createLinearGradient(300, 250, 900, 250);
-  lineGrad.addColorStop(0, "transparent");
-  lineGrad.addColorStop(0.2, "#6366f1");
-  lineGrad.addColorStop(0.8, "#14e3c5");
-  lineGrad.addColorStop(1, "transparent");
-  ctx.strokeStyle = lineGrad;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(300, 250);
-  ctx.lineTo(900, 250);
-  ctx.stroke();
-
-  // "This certifies that"
-  ctx.font = "16px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#94a3b8";
-  ctx.fillText("This is to certify that", 600, 300);
-
-  // Name
-  ctx.font = "bold 42px 'Space Grotesk', sans-serif";
-  ctx.fillStyle = "#f1f5f9";
-  ctx.fillText(userName, 600, 360);
-
-  // Underline
-  const nameW = ctx.measureText(userName).width;
-  ctx.strokeStyle = "rgba(99,102,241,0.3)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(600 - nameW / 2 - 20, 375);
-  ctx.lineTo(600 + nameW / 2 + 20, 375);
-  ctx.stroke();
-
-  // Description
-  ctx.font = "16px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#94a3b8";
-  ctx.fillText("is now a verified member of the SECUVION platform", 600, 420);
-  ctx.fillText("and is authorized to access enterprise-grade cybersecurity tools.", 600, 445);
-
-  // Member details box
-  ctx.fillStyle = "rgba(99,102,241,0.06)";
-  ctx.strokeStyle = "rgba(99,102,241,0.15)";
-  ctx.lineWidth = 1;
-  const boxW = 400, boxH = 70, boxX = 600 - boxW / 2, boxY = 475;
-  ctx.beginPath();
-  ctx.roundRect(boxX, boxY, boxW, boxH, 10);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.font = "11px 'JetBrains Mono', monospace";
-  ctx.fillStyle = "#64748b";
-  ctx.textAlign = "center";
-  ctx.fillText(`Member ID: ${memberId}`, 600, 500);
-  ctx.fillText(`Email: ${email}`, 600, 518);
-  ctx.fillText(`Joined: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, 600, 536);
-
-  // Signature lines
-  ctx.strokeStyle = "rgba(148,163,184,0.15)";
-  ctx.lineWidth = 1;
-  // Left
-  ctx.beginPath(); ctx.moveTo(220, 670); ctx.lineTo(440, 670); ctx.stroke();
-  ctx.font = "italic 18px 'Space Grotesk', sans-serif";
-  ctx.fillStyle = "#14e3c5";
-  ctx.fillText("Sahil Anil Nikam", 330, 660);
-  ctx.font = "12px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#64748b";
-  ctx.fillText("Founder, SECUVION", 330, 690);
-
-  // Right
-  ctx.beginPath(); ctx.moveTo(760, 670); ctx.lineTo(980, 670); ctx.stroke();
-  ctx.font = "italic 18px 'Space Grotesk', sans-serif";
-  ctx.fillStyle = "#6366f1";
-  ctx.fillText("SECUVION Platform", 870, 660);
-  ctx.font = "12px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#64748b";
-  ctx.fillText("Membership Division", 870, 690);
-
-  // Footer
-  ctx.font = "10px 'Plus Jakarta Sans', sans-serif";
-  ctx.fillStyle = "#475569";
-  ctx.fillText("Verify this certificate at secuvion.onrender.com/verify", 600, 770);
-
-  // Watermark
-  ctx.globalAlpha = 0.03;
-  ctx.font = "bold 300px 'Space Grotesk', sans-serif";
-  ctx.fillStyle = "#14e3c5";
-  ctx.fillText("S", 600, 550);
-  ctx.globalAlpha = 1;
+  // ── Bottom accent bar ──
+  const btmBar = ctx.createLinearGradient(0, 0, W, 0);
+  btmBar.addColorStop(0, "#6366f1");
+  btmBar.addColorStop(0.5, "#14e3c5");
+  btmBar.addColorStop(1, "#6366f1");
+  ctx.fillStyle = btmBar;
+  ctx.fillRect(0, H - 8, W, 8);
 
   return canvas.toDataURL("image/png");
 }
@@ -187,8 +308,8 @@ export default function Welcome() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [user, navigate]);
 
-  const handleGenerateCert = () => {
-    const img = generateMemberCertificate(user?.name || "Member", user?.email || "", memberId);
+  const handleGenerateCert = async () => {
+    const img = await generateMemberCertificate(user?.name || "Member", user?.email || "", memberId);
     setCertImage(img);
     // Save to localStorage
     const certs = JSON.parse(localStorage.getItem("secuvion_member_certs") || "[]");

@@ -34,6 +34,11 @@ import About from "./assets/pages/About.jsx";
 import FeaturesPage from "./assets/pages/FeaturesPage.jsx";
 import NotFound from "./assets/pages/NotFound.jsx";
 import Welcome from "./assets/pages/Welcome.jsx";
+import DarkWebMonitor from "./assets/pages/DarkWebMonitor.jsx";
+import PasswordVault from "./assets/pages/PasswordVault.jsx";
+import VulnerabilityScanner from "./assets/pages/VulnerabilityScanner.jsx";
+import AIChatbot from "./components/AIChatbot.jsx";
+import Blog from "./assets/pages/Blog.jsx";
 
 function App() {
   return (
@@ -42,6 +47,7 @@ function App() {
     <AuthProvider>
       <Router>
         <ScrollToTop />
+        <AIChatbot />
         <Routes>
           {/* Public */}
           <Route path="/" element={<Secuvion />} />
@@ -52,7 +58,11 @@ function App() {
           <Route path="/protection" element={<Protection />} />
           <Route path="/scam-database" element={<ScamDatabase />} />
           <Route path="/emergency-help" element={<EmergencyHelp />} />
-          <Route path="/learn" element={<Learn />} />
+          <Route path="/learn" element={
+            <ProtectedRoute>
+              <Learn />
+            </ProtectedRoute>
+          } />
           <Route path="/founder" element={<Founder />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<Login />} />
@@ -62,6 +72,10 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/about" element={<About />} />
           <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/dark-web-monitor" element={<DarkWebMonitor />} />
+          <Route path="/password-vault" element={<PasswordVault />} />
+          <Route path="/vulnerability-scanner" element={<VulnerabilityScanner />} />
+          <Route path="/blog" element={<Blog />} />
 
           {/* Welcome page after signup/login */}
           <Route path="/welcome" element={
