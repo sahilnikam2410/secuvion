@@ -22,24 +22,30 @@ function getCredits() {
   const basePlan = loggedIn ? "free" : "guest";
   const baseCredits = PLANS[basePlan].credits;
 
-  // Reset daily for guest/free, or if no data exists
-  if (!data || ((data.plan === "free" || data.plan === "guest") && data.resetDate !== today)) {
-    const d = { plan: basePlan, credits: baseCredits, used: 0, resetDate: today, totalUsed: data?.totalUsed || 0 };
+  // No data exists — create fresh
+  if (!data) {
+    const d = { plan: basePlan, credits: baseCredits, used: 0, resetDate: today, totalUsed: 0 };
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(d));
     return d;
   }
 
-  // User just logged in but was on guest plan — upgrade to free
-  if (loggedIn && data.plan === "guest") {
-    data.plan = "free";
-    data.credits = PLANS.free.credits;
-    // Keep used count but give them the higher limit
+  // NOT logged in — force guest plan (no paid plans without login)
+  if (!loggedIn && data.plan !== "guest") {
+    data.plan = "guest";
+    data.used = Math.min(data.used, PLANS.guest.credits); // cap used at guest limit
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
   }
 
-  // User logged out but was on free plan — downgrade to guest
-  if (!loggedIn && data.plan === "free") {
-    data.plan = "guest";
+  // Logged in but on guest plan — upgrade to free
+  if (loggedIn && data.plan === "guest") {
+    data.plan = "free";
+    localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
+  }
+
+  // Daily reset for guest/free plans
+  if ((data.plan === "free" || data.plan === "guest") && data.resetDate !== today) {
+    data.used = 0;
+    data.resetDate = today;
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
   }
 
