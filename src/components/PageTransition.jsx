@@ -1,0 +1,19 @@
+import { useEffect, useState } from "react";
+
+export default function PageTransition({ children }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true));
+    return () => setMounted(false);
+  }, []);
+
+  return (
+    <div style={{
+      opacity: mounted ? 1 : 0,
+      transform: mounted ? "translateY(0)" : "translateY(12px)",
+      transition: "opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+    }}>
+      {children}
+    </div>
+  );
+}

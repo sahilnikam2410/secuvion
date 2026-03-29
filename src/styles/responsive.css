@@ -1,0 +1,118 @@
+/* ===============================
+   SECUVION RESPONSIVE SYSTEM
+   =============================== */
+
+/* Tablet: 768px - 1024px */
+@media (max-width: 1024px) {
+  .section-container {
+    padding: 80px clamp(16px, 4vw, 40px) !important;
+  }
+  .hero-container {
+    padding: 60px clamp(16px, 4vw, 40px) !important;
+  }
+}
+
+/* Mobile: below 768px */
+@media (max-width: 768px) {
+  .section-container {
+    padding: 60px 16px !important;
+  }
+  .hero-container {
+    padding: 40px 16px !important;
+  }
+
+  /* Fix text overflow */
+  h1, h2, h3 {
+    word-break: break-word;
+  }
+
+  /* Make grids stack on mobile */
+  .section-grid {
+    max-width: 100%;
+  }
+
+  /* Fix fixed elements */
+  [style*="position: fixed"][style*="bottom: 24"] {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+}
+
+/* Small Mobile: below 480px */
+@media (max-width: 480px) {
+  .section-container {
+    padding: 40px 12px !important;
+  }
+  .hero-container {
+    padding: 30px 12px !important;
+  }
+
+  /* Chatbot responsive */
+  [style*="width: 400"][style*="height: 580"] {
+    width: calc(100vw - 24px) !important;
+    height: calc(100vh - 120px) !important;
+    bottom: 12px !important;
+    right: 12px !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 768px) {
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+
+  input, textarea, select {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+  }
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Improved scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #030712;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: #f1f5f9;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
