@@ -326,11 +326,31 @@ export default function AIChatbot() {
     }
   };
 
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+
   const handleUpgrade = (plan) => {
-    upgradePlan(plan);
+    const loggedIn = isUserLoggedIn();
+    // Guest users must log in first
+    if (!loggedIn) {
+      setMessages(p => [...p, { role: "bot", text: "You need to **log in or sign up** first before upgrading your plan! 🔒", time: new Date(), isError: true, showLogin: true }]);
+      setView("chat");
+      return;
+    }
+    // Free logged-in users — show paywall
+    setSelectedPlan(plan);
+    setShowPaywall(true);
+  };
+
+  const confirmPurchase = () => {
+    if (!selectedPlan) return;
+    // Simulate purchase (in production, integrate Razorpay/Stripe here)
+    upgradePlan(selectedPlan);
     refreshCredits();
+    setShowPaywall(false);
+    setSelectedPlan(null);
     setView("chat");
-    setMessages(p => [...p, { role: "bot", text: `Upgraded to **${PLANS[plan].name}** plan! You now have **${PLANS[plan].credits} credits**. Enjoy!`, time: new Date() }]);
+    setMessages(p => [...p, { role: "bot", text: `🎉 Payment successful! Upgraded to **${PLANS[selectedPlan].name}** plan. You now have **${PLANS[selectedPlan].credits === Infinity ? "Unlimited" : PLANS[selectedPlan].credits} credits**. Enjoy!`, time: new Date() }]);
   };
 
   // ─── Format markdown-like text ───
@@ -513,36 +533,67 @@ export default function AIChatbot() {
           {/* Login prompt for guests */}
           {creditData.plan === "guest" && (
             <div style={{ background: "rgba(20,227,197,0.08)", border: `1px solid rgba(20,227,197,0.2)`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.cyan, marginBottom: 4 }}>🔓 Log in for more credits!</div>
-              <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.cyan, marginBottom: 6 }}>🔓 Log in for more credits!</div>
+              <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6, marginBottom: 10 }}>
                 Guest: <strong style={{ color: T.white }}>25 credits/day</strong><br/>
                 Logged in: <strong style={{ color: T.cyan }}>50 credits/day</strong> (2x more!)
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { navigate("/login"); setOpen(false); }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer",
+                  background: "linear-gradient(135deg, #6366f1, #14e3c5)", color: "#fff", fontSize: 12, fontWeight: 700,
+                }}>Log In</button>
+                <button onClick={() => { navigate("/signup"); setOpen(false); }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, cursor: "pointer",
+                  border: `1px solid rgba(99,102,241,0.3)`, background: "rgba(99,102,241,0.1)",
+                  color: T.accent, fontSize: 12, fontWeight: 700,
+                }}>Sign Up</button>
               </div>
             </div>
           )}
 
-          {/* Plans */}
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.white, marginBottom: 12 }}>Upgrade Plan</div>
-          {Object.entries(PLANS).filter(([k]) => k !== "guest").map(([key, plan]) => (
-            <div key={key} onClick={() => key === "free" ? null : handleUpgrade(key)} style={{
-              padding: 14, borderRadius: 10, marginBottom: 10, cursor: key === "free" ? "default" : "pointer",
-              background: creditData.plan === key ? "rgba(99,102,241,0.1)" : "rgba(3,7,18,0.4)",
-              border: `1px solid ${creditData.plan === key ? "rgba(99,102,241,0.3)" : T.border}`,
-              transition: "all 0.2s",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: plan.color }}>{plan.name}</span>
-                  <span style={{ fontSize: 12, color: T.muted, marginLeft: 8 }}>{plan.credits === Infinity ? "Unlimited" : plan.credits} credits{plan.daily ? "/day" : ""}</span>
+          {/* Subscription Plans */}
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.white, marginBottom: 12 }}>
+            {isUserLoggedIn() ? "Upgrade Plan" : "Subscription Plans"}
+          </div>
+          {Object.entries(PLANS).filter(([k]) => k !== "guest" && k !== "free").map(([key, plan]) => {
+            const isCurrent = creditData.plan === key;
+            return (
+              <div key={key} onClick={() => handleUpgrade(key)} style={{
+                padding: 14, borderRadius: 10, marginBottom: 10, cursor: "pointer",
+                background: isCurrent ? "rgba(99,102,241,0.1)" : "rgba(3,7,18,0.4)",
+                border: `1px solid ${isCurrent ? "rgba(99,102,241,0.3)" : T.border}`,
+                transition: "all 0.2s",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: plan.color }}>{plan.name}</span>
+                    <span style={{ fontSize: 12, color: T.muted, marginLeft: 8 }}>{plan.credits === Infinity ? "Unlimited" : plan.credits} credits</span>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.white }}>{plan.price}</span>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.white }}>{plan.price || "Login required"}</span>
+                {isCurrent
+                  ? <div style={{ fontSize: 11, color: T.green, marginTop: 4 }}>✓ Current plan</div>
+                  : <div style={{ fontSize: 11, color: T.accent, marginTop: 4 }}>Buy now →</div>
+                }
               </div>
-              {creditData.plan === key && <div style={{ fontSize: 11, color: T.green, marginTop: 4 }}>Current plan</div>}
-            </div>
-          ))}
+            );
+          })}
 
-          <div style={{ fontSize: 11, color: T.muted, marginTop: 8, textAlign: "center" }}>
-            Guest: 25/day · Free (logged in): 50/day · Resets automatically
+          {/* Free tier info */}
+          <div style={{ background: "rgba(148,163,184,0.04)", borderRadius: 8, padding: 12, marginTop: 4, border: `1px solid ${T.border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: T.muted }}>Free Tier</span>
+                <span style={{ fontSize: 11, color: T.muted, marginLeft: 8 }}>{isUserLoggedIn() ? "50" : "25"} credits/day</span>
+              </div>
+              <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}>{(creditData.plan === "free" || creditData.plan === "guest") ? "✓ Active" : ""}</span>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 11, color: T.muted, marginTop: 12, textAlign: "center", lineHeight: 1.6 }}>
+            Guest: 25/day · Logged in: 50/day · Resets at midnight<br/>
+            Paid plans give more credits instantly
           </div>
         </div>
       )}
@@ -643,6 +694,66 @@ export default function AIChatbot() {
             </button>
           </div>
         </>
+      )}
+
+      {/* ─── Paywall / Purchase Confirmation Overlay ─── */}
+      {showPaywall && selectedPlan && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 10,
+          background: "rgba(3,7,18,0.92)", backdropFilter: "blur(8px)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: 24, borderRadius: 16,
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>💎</div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: T.white, fontFamily: "'Space Grotesk'", marginBottom: 4 }}>
+            Upgrade to {PLANS[selectedPlan]?.name}
+          </h3>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.cyan, marginBottom: 4 }}>
+            {PLANS[selectedPlan]?.price}
+          </div>
+          <div style={{ fontSize: 13, color: T.muted, marginBottom: 20, textAlign: "center" }}>
+            {PLANS[selectedPlan]?.credits === Infinity ? "Unlimited" : PLANS[selectedPlan]?.credits} AI credits
+            {PLANS[selectedPlan]?.daily ? " per day" : " per month"}
+          </div>
+
+          {/* Features */}
+          <div style={{ width: "100%", marginBottom: 20 }}>
+            {[
+              "Real AI responses on any topic",
+              selectedPlan === "unlimited" ? "No credit limits ever" : `${PLANS[selectedPlan]?.credits} credits per month`,
+              "Priority response speed",
+              "Chat history saved",
+              selectedPlan === "pro" || selectedPlan === "unlimited" ? "Advanced cybersecurity analysis" : "Standard cybersecurity help",
+            ].map((f, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
+                <span style={{ color: T.green, fontSize: 14 }}>✓</span>
+                <span style={{ fontSize: 12, color: T.white }}>{f}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Buy button */}
+          <button onClick={confirmPurchase} style={{
+            width: "100%", padding: "12px 0", borderRadius: 10, border: "none", cursor: "pointer",
+            background: "linear-gradient(135deg, #6366f1, #14e3c5)", color: "#fff",
+            fontSize: 14, fontWeight: 800, marginBottom: 10,
+            boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
+          }}>
+            Buy Now — {PLANS[selectedPlan]?.price}
+          </button>
+
+          <button onClick={() => { setShowPaywall(false); setSelectedPlan(null); }} style={{
+            width: "100%", padding: "10px 0", borderRadius: 10, cursor: "pointer",
+            border: `1px solid ${T.border}`, background: "transparent",
+            color: T.muted, fontSize: 12,
+          }}>
+            Cancel
+          </button>
+
+          <div style={{ fontSize: 10, color: T.muted, marginTop: 12, textAlign: "center" }}>
+            🔒 Secure payment · Cancel anytime · Instant activation
+          </div>
+        </div>
       )}
     </div>
   );
