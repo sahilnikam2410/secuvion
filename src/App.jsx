@@ -39,6 +39,11 @@ import PasswordVault from "./assets/pages/PasswordVault.jsx";
 import VulnerabilityScanner from "./assets/pages/VulnerabilityScanner.jsx";
 import AIChatbot from "./components/AIChatbot.jsx";
 import Blog from "./assets/pages/Blog.jsx";
+import IPLookup from "./assets/pages/IPLookup.jsx";
+import SecurityChecklist from "./assets/pages/SecurityChecklist.jsx";
+import EmailAnalyzer from "./assets/pages/EmailAnalyzer.jsx";
+import CyberNews from "./assets/pages/CyberNews.jsx";
+import QRScanner from "./assets/pages/QRScanner.jsx";
 
 function App() {
   return (
@@ -76,6 +81,11 @@ function App() {
           <Route path="/password-vault" element={<PasswordVault />} />
           <Route path="/vulnerability-scanner" element={<VulnerabilityScanner />} />
           <Route path="/blog" element={<Blog />} />
+          <Route path="/ip-lookup" element={<IPLookup />} />
+          <Route path="/security-checklist" element={<SecurityChecklist />} />
+          <Route path="/email-analyzer" element={<EmailAnalyzer />} />
+          <Route path="/cyber-news" element={<CyberNews />} />
+          <Route path="/qr-scanner" element={<QRScanner />} />
 
           {/* Welcome page after signup/login */}
           <Route path="/welcome" element={
