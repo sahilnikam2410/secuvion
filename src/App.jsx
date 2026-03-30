@@ -44,6 +44,7 @@ import SecurityChecklist from "./assets/pages/SecurityChecklist.jsx";
 import EmailAnalyzer from "./assets/pages/EmailAnalyzer.jsx";
 import CyberNews from "./assets/pages/CyberNews.jsx";
 import QRScanner from "./assets/pages/QRScanner.jsx";
+import ForgotPassword from "./assets/pages/ForgotPassword.jsx";
 
 function App() {
   return (
@@ -72,6 +73,7 @@ function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />
