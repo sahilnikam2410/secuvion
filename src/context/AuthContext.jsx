@@ -25,6 +25,9 @@ const DEMO_USERS = [
   { id: 2, email: "user@secuvion.com", password: "user123", name: "Demo User", role: "user", avatar: null, plan: "pro" },
 ];
 
+// Admin emails — these users get admin role automatically
+const ADMIN_EMAILS = ["sahilnikam133@gmail.com", "sahilnikam1212@gmail.com", "admin@secuvion.com"];
+
 /**
  * Merge Firebase Auth user object with Firestore profile data.
  */
@@ -57,16 +60,30 @@ export function AuthProvider({ children }) {
 
           if (!profile) {
             const providerName = firebaseUser.providerData?.[0]?.providerId || "email";
-            await createUserProfile(firebaseUser.uid, {
-              name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "",
-              email: firebaseUser.email || "",
-              role: "user",
-              plan: "free",
-              avatar: firebaseUser.photoURL || null,
-              phoneNumber: firebaseUser.phoneNumber || null,
-              provider: providerName,
-            });
-            profile = await getUserProfile(firebaseUser.uid);
+            const isAdminEmail = ADMIN_EMAILS.includes(firebaseUser.email?.toLowerCase());
+            try {
+              await createUserProfile(firebaseUser.uid, {
+                name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "",
+                email: firebaseUser.email || "",
+                role: isAdminEmail ? "admin" : "user",
+                plan: isAdminEmail ? "enterprise" : "free",
+                avatar: firebaseUser.photoURL || null,
+                phoneNumber: firebaseUser.phoneNumber || null,
+                provider: providerName,
+              });
+              profile = await getUserProfile(firebaseUser.uid);
+            } catch (createErr) {
+              console.error("Failed to create user profile in Firestore:", createErr.code, createErr.message);
+            }
+          }
+
+          // Auto-upgrade admin emails to admin role
+          if (profile && ADMIN_EMAILS.includes(firebaseUser.email?.toLowerCase()) && profile.role !== "admin") {
+            try {
+              await firestoreUpdateProfile(firebaseUser.uid, { role: "admin", plan: "enterprise" });
+              profile.role = "admin";
+              profile.plan = "enterprise";
+            } catch {}
           }
 
           const merged = mergeUserData(firebaseUser, profile);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Navbar from "../../components/Navbar";
@@ -114,7 +114,12 @@ const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
 
 export default function Signup() {
   const navigate = useNavigate();
-  const { signup, loginWithGoogle, loginWithGithub, loginWithFacebook } = useAuth();
+  const { user, signup, loginWithGoogle, loginWithGithub, loginWithFacebook } = useAuth();
+
+  // Redirect if already logged in (handles social signup race condition)
+  useEffect(() => {
+    if (user) navigate("/home", { replace: true });
+  }, [user, navigate]);
 
   const [form, setForm] = useState({
     firstName: "",

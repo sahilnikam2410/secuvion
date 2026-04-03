@@ -11,16 +11,28 @@ const PLANS = {
   unlimited: { name: "Unlimited", credits: Infinity,  daily: false, price: "$19.99/mo", color: "#14e3c5" },
 };
 
+// userObj is optional — pass from useAuth() for accurate detection
+let _currentUser = null;
+function setCurrentUser(u) { _currentUser = u; }
+
 function isUserLoggedIn() {
-  try { return !!JSON.parse(localStorage.getItem("secuvion_session")); } catch { return false; }
+  return !!_currentUser;
+}
+
+function getUserPlan() {
+  if (!_currentUser) return "guest";
+  const p = _currentUser.plan || "free";
+  return PLANS[p] ? p : "free";
 }
 
 function getCredits() {
   const loggedIn = isUserLoggedIn();
+  const userPlan = getUserPlan();
   const data = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "null");
   const today = new Date().toDateString();
-  const basePlan = loggedIn ? "free" : "guest";
-  const baseCredits = PLANS[basePlan].credits;
+  // Use actual subscription plan for logged-in users
+  const basePlan = loggedIn ? userPlan : "guest";
+  const baseCredits = PLANS[basePlan]?.credits ?? PLANS.guest.credits;
 
   // No data exists — create fresh
   if (!data) {
@@ -32,13 +44,13 @@ function getCredits() {
   // NOT logged in — force guest plan (no paid plans without login)
   if (!loggedIn && data.plan !== "guest") {
     data.plan = "guest";
-    data.used = Math.min(data.used, PLANS.guest.credits); // cap used at guest limit
+    data.used = Math.min(data.used, PLANS.guest.credits);
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
   }
 
-  // Logged in but on guest plan — upgrade to free
-  if (loggedIn && data.plan === "guest") {
-    data.plan = "free";
+  // Logged in — sync plan from Firestore subscription
+  if (loggedIn && data.plan !== basePlan) {
+    data.plan = basePlan;
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
   }
 
@@ -99,6 +111,7 @@ About SECUVION:
 You are powered by SECUVION AI. Be the most helpful assistant possible.`;
 
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const BUILT_IN_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
 let chatHistory = [];
 
 function initAI(apiKey) {
@@ -185,8 +198,8 @@ function getSmartResponse(message) {
   if (best) return best.a;
   // Generic helpful response for unmatched queries
   if (lower.includes("help") || lower.includes("what") || lower.includes("how"))
-    return "Great question! I can help with many topics. Try asking about:\n\n- **Phishing** and email scams\n- **Password** security\n- **Ransomware** protection\n- **VPN** and network privacy\n- **Encryption** and 2FA\n- **Dark web** monitoring\n- **Social engineering** attacks\n\nOr connect a **Groq API key** (⚙️) for full AI-powered responses on any topic!";
-  return "I'm your AI assistant! I can help with topics like **phishing, passwords, malware, VPNs, encryption, dark web safety**, and more.\n\nTry asking something specific, or connect a **Groq API key** (⚙️ icon) for full AI-powered conversations!";
+    return "Great question! I can help with many topics. Try asking about:\n\n- **Phishing** and email scams\n- **Password** security\n- **Ransomware** protection\n- **VPN** and network privacy\n- **Encryption** and 2FA\n- **Dark web** monitoring\n- **Social engineering** attacks\n\nJust type your question and I'll answer!";
+  return "I'm your **SECUVION AI Assistant**! I can help with **cybersecurity, programming, science, math**, and more.\n\nJust type your question — I'm powered by real AI!";
 }
 
 // ─── Styles ───
@@ -208,20 +221,27 @@ export default function AIChatbot() {
   const msgsRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Load saved API key
+  // Sync auth user into credit system
+  useEffect(() => {
+    setCurrentUser(user || null);
+  }, [user]);
+
+  // Auto-connect: use built-in key or saved custom key
   useEffect(() => {
     const saved = localStorage.getItem("secuvion_ai_key");
-    if (saved) {
-      setApiKey(saved);
-      initAI(saved);
+    const key = saved || BUILT_IN_KEY;
+    if (key) {
+      setApiKey(key);
+      initAI(key);
       setConnected(true);
     }
     setCredits(getRemainingCredits());
     setCreditData(getCredits());
   }, []);
 
-  // React to login/logout — refresh credits
+  // React to login/logout — refresh credits & sync plan
   useEffect(() => {
+    setCurrentUser(user || null);
     const data = getCredits();
     setCredits(getRemainingCredits());
     setCreditData(data);
@@ -230,13 +250,15 @@ export default function AIChatbot() {
   // Welcome message
   useEffect(() => {
     if (messages.length === 0) {
-      const saved = localStorage.getItem("secuvion_ai_key");
       const loggedIn = isUserLoggedIn();
+      const plan = getUserPlan();
+      const planCredits = PLANS[plan]?.credits;
+      const creditText = planCredits === Infinity ? "**Unlimited** credits" : `**${planCredits} ${PLANS[plan]?.daily ? "daily" : ""} credits**`;
       setMessages([{
         role: "bot",
-        text: saved
-          ? `Welcome back! I'm your **SECUVION AI Assistant** powered by real AI. ${loggedIn ? "You have **50 daily credits**" : "You have **25 guest credits** — log in for 50!"}. Ask me anything! 🚀`
-          : `Hi! I'm **SECUVION AI Assistant**. ${loggedIn ? "You get **50 free credits daily**!" : "You get **25 guest credits** — **log in** for 50 daily!"} Set up your free API key (⚙️) for full AI responses!`,
+        text: loggedIn
+          ? `Welcome! I'm your **SECUVION AI Assistant** — powered by real AI. You have ${creditText} on your **${PLANS[plan]?.name}** plan. Ask me anything! 🚀`
+          : `Hi! I'm **SECUVION AI Assistant** — powered by real AI. You have **25 guest credits**. **Log in** to get **50 daily credits** and unlock more! Ask me anything!`,
         time: new Date(),
       }]);
     }
@@ -260,14 +282,15 @@ export default function AIChatbot() {
     // Check credits
     if (!useCredit()) {
       const loggedIn = isUserLoggedIn();
+      const plan = getUserPlan();
+      const planCredits = PLANS[plan]?.credits || 25;
       if (!loggedIn) {
-        // Guest ran out — show login prompt
         setMessages(p => [...p, { role: "user", text: msg, time: new Date() }, {
           role: "bot", text: "You've used all your **25 guest credits** for today! 🔒\n\n**Log in or sign up** to get **50 daily credits** — that's 2x more!", time: new Date(), isError: true, showLogin: true,
         }]);
       } else {
         setMessages(p => [...p, { role: "user", text: msg, time: new Date() }, {
-          role: "bot", text: "You've used all your **50 daily credits**! Upgrade your plan for more, or wait until tomorrow for credits to reset.", time: new Date(), isError: true,
+          role: "bot", text: `You've used all your **${planCredits} ${PLANS[plan]?.name || "Free"} credits**! ${PLANS[plan]?.daily ? "Wait until tomorrow for credits to reset, or u" : "U"}pgrade your plan for more credits.`, time: new Date(), isError: true,
         }]);
       }
       refreshCredits();
@@ -278,19 +301,23 @@ export default function AIChatbot() {
     refreshCredits();
     setTyping(true);
 
-    if (connected && apiKey) {
+    // Resolve which key to use — custom saved > built-in
+    const activeKey = apiKey || BUILT_IN_KEY;
+
+    if (activeKey) {
       // Real AI — answers everything like ChatGPT
-      const response = await askAI(msg, apiKey);
+      const response = await askAI(msg, activeKey);
       setTyping(false);
 
       if (response === "ERROR_API_KEY") {
-        setMessages(p => [...p, { role: "bot", text: "Your API key seems invalid. Please update it in Settings (⚙️).", time: new Date(), isError: true }]);
+        // Fallback to knowledge base if key fails
+        const fallback = getSmartResponse(msg);
+        setMessages(p => [...p, { role: "bot", text: fallback, time: new Date() }]);
         return;
       }
       if (response === "ERROR_QUOTA") {
-        // Fallback to knowledge base on rate limit
         const fallback = getSmartResponse(msg);
-        setMessages(p => [...p, { role: "bot", text: fallback + "\n\n*⚡ Rate limit hit — using offline knowledge. Try again in a few seconds for full AI.*", time: new Date() }]);
+        setMessages(p => [...p, { role: "bot", text: fallback + "\n\n*⚡ High traffic — using offline knowledge. Try again in a few seconds for full AI.*", time: new Date() }]);
         return;
       }
 
@@ -298,13 +325,13 @@ export default function AIChatbot() {
       return;
     }
 
-    // No API key — use built-in knowledge base
+    // No key available at all — use built-in knowledge base
     setTimeout(() => {
       const smartReply = getSmartResponse(msg);
       setMessages(p => [...p, { role: "bot", text: smartReply, time: new Date() }]);
       setTyping(false);
     }, 600 + Math.random() * 800);
-  }, [input, typing, connected]);
+  }, [input, typing, apiKey]);
 
   const handleKeySetup = async () => {
     if (!keyInput.trim()) return;
@@ -336,7 +363,7 @@ export default function AIChatbot() {
   const [selectedPlan, setSelectedPlan] = useState(null);
 
   const handleUpgrade = (plan) => {
-    const loggedIn = isUserLoggedIn();
+    const loggedIn = !!user;
     // Guest users must log in first
     if (!loggedIn) {
       setMessages(p => [...p, { role: "bot", text: "You need to **log in or sign up** first before upgrading your plan! 🔒", time: new Date(), isError: true, showLogin: true }]);
@@ -425,9 +452,9 @@ export default function AIChatbot() {
         <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #14e3c5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>S</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>SECUVION AI</div>
-          <div style={{ fontSize: 11, color: connected ? T.green : T.muted, display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? T.green : T.muted }} />
-            {connected ? "Powered by SECUVION AI" : "Setup required"}
+          <div style={{ fontSize: 11, color: T.green, display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.green }} />
+            Powered by SECUVION AI
           </div>
         </div>
         {/* Credits badge */}
@@ -447,31 +474,36 @@ export default function AIChatbot() {
       {/* ─── Setup View ─── */}
       {view === "setup" && (
         <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'", marginBottom: 8 }}>API Key Setup</h3>
-          <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, marginBottom: 16 }}>
-            Get your <strong style={{ color: T.cyan }}>free</strong> Groq API key to unlock real AI that answers <strong style={{ color: T.white }}>everything</strong> — like ChatGPT!
-          </p>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'", marginBottom: 8 }}>Settings</h3>
 
-          <div style={{ background: "rgba(99,102,241,0.06)", border: `1px solid rgba(99,102,241,0.15)`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: T.accent, marginBottom: 8 }}>How to get your free key (30 seconds):</div>
-            <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.8 }}>
-              1. Go to <strong style={{ color: T.white }}>console.groq.com</strong><br/>
-              2. Sign up free (Google/GitHub login)<br/>
-              3. Go to <strong style={{ color: T.white }}>API Keys</strong> in sidebar<br/>
-              4. Click <strong style={{ color: T.white }}>"Create API Key"</strong><br/>
-              5. Copy and paste it below
+          <div style={{ background: "rgba(34,197,94,0.06)", border: `1px solid rgba(34,197,94,0.15)`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green, boxShadow: `0 0 8px ${T.green}` }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.green }}>AI is Active</span>
+            </div>
+            <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
+              SECUVION AI is powered and ready. No setup needed — just ask anything!
             </div>
           </div>
 
-          <div style={{ background: "rgba(20,227,197,0.06)", border: `1px solid rgba(20,227,197,0.15)`, borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 11, color: T.cyan }}>
-            ⚡ Groq is <strong>100% free</strong> — 14,400 requests/day, no credit card needed!
+          <div style={{ background: "rgba(99,102,241,0.06)", border: `1px solid rgba(99,102,241,0.15)`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.accent, marginBottom: 6 }}>Your Plan Credits</div>
+            <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.8 }}>
+              <strong style={{ color: T.white }}>{PLANS[getUserPlan()]?.name}</strong> plan — <strong style={{ color: T.cyan }}>{credits === Infinity ? "Unlimited" : credits}</strong> credits remaining<br/>
+              {PLANS[getUserPlan()]?.daily ? "Credits reset daily at midnight" : "Credits reset on subscription renewal"}
+            </div>
           </div>
+
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.muted, marginBottom: 8, marginTop: 8 }}>Custom API Key (Optional)</div>
+          <p style={{ fontSize: 11, color: T.muted, lineHeight: 1.5, marginBottom: 12 }}>
+            Power users can connect their own Groq key for a dedicated connection.
+          </p>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <input
               value={keyInput}
               onChange={e => setKeyInput(e.target.value)}
-              placeholder="Paste your Groq API key..."
+              placeholder="Paste custom Groq API key..."
               type="password"
               style={{
                 flex: 1, padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`,
@@ -486,27 +518,24 @@ export default function AIChatbot() {
             }}>Connect</button>
           </div>
 
-          {connected && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.green, marginBottom: 12 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green }} /> Connected — AI is active
-            </div>
-          )}
-
-          {connected && (
+          {localStorage.getItem("secuvion_ai_key") && (
             <button onClick={() => {
               localStorage.removeItem("secuvion_ai_key");
-              setApiKey(""); setConnected(false); chatHistory = [];
+              const key = BUILT_IN_KEY;
+              setApiKey(key); if (key) { initAI(key); setConnected(true); } else setConnected(false);
+              chatHistory = [];
+              setMessages(p => [...p, { role: "bot", text: "Custom key removed. Using SECUVION's built-in AI.", time: new Date() }]);
               setView("chat");
             }} style={{
               padding: "8px 14px", borderRadius: 8, border: `1px solid rgba(239,68,68,0.3)`,
               background: "rgba(239,68,68,0.1)", color: T.red, fontSize: 12, cursor: "pointer",
-            }}>Disconnect API Key</button>
+            }}>Remove Custom Key</button>
           )}
 
           <div style={{ marginTop: 20, padding: 12, background: "rgba(20,227,197,0.06)", borderRadius: 8, border: `1px solid rgba(20,227,197,0.15)` }}>
-            <div style={{ fontSize: 11, color: T.cyan, fontWeight: 700 }}>Your data is safe</div>
+            <div style={{ fontSize: 11, color: T.cyan, fontWeight: 700 }}>Privacy & Security</div>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 4, lineHeight: 1.6 }}>
-              API key is stored locally on your device only. We never send it to our servers. All conversations are private and secure.
+              All conversations are private. Custom API keys are stored locally on your device only.
             </div>
           </div>
         </div>
@@ -591,7 +620,7 @@ export default function AIChatbot() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: T.muted }}>Free Tier</span>
-                <span style={{ fontSize: 11, color: T.muted, marginLeft: 8 }}>{isUserLoggedIn() ? "50" : "25"} credits/day</span>
+                <span style={{ fontSize: 11, color: T.muted, marginLeft: 8 }}>{isUserLoggedIn() ? (PLANS[getUserPlan()]?.credits === Infinity ? "Unlimited" : PLANS[getUserPlan()]?.credits) : "25"} credits{PLANS[getUserPlan()]?.daily ? "/day" : ""}</span>
               </div>
               <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}>{(creditData.plan === "free" || creditData.plan === "guest") ? "✓ Active" : ""}</span>
             </div>
@@ -682,7 +711,7 @@ export default function AIChatbot() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-              placeholder={connected ? "Ask me anything..." : "Set up free API key for AI responses..."}
+              placeholder="Ask me anything..."
               style={{
                 flex: 1, padding: "10px 14px", borderRadius: 10, border: `1px solid ${T.border}`,
                 background: "rgba(3,7,18,0.6)", color: T.white, fontSize: 13,

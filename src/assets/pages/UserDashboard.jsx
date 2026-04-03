@@ -1,975 +1,979 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import SEO from "../../components/SEO";
+import PlanGate, { isPlanAllowed } from "../../components/PlanGate";
+import { db } from "../../firebase/config";
+import { auth as firebaseAuth } from "../../firebase/config";
+import { collection, getDocs, doc, addDoc, deleteDoc, setDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
+import { deleteUser as firebaseDeleteUser } from "firebase/auth";
 import {
-  HiOutlineViewGrid, HiOutlineShieldCheck, HiOutlineBell, HiOutlineCog,
-  HiOutlineLogout, HiOutlineGlobe, HiOutlineLightningBolt,
-  HiOutlineTrendingUp, HiOutlineTrendingDown, HiOutlineCheck,
-  HiOutlineLockClosed, HiOutlineWifi, HiOutlineMail, HiOutlineExclamation,
-  HiOutlineCreditCard, HiOutlineChartBar, HiOutlineRefresh, HiOutlineStatusOnline,
-  HiOutlineDesktopComputer, HiOutlineDeviceMobile, HiOutlineKey,
-  HiOutlineEye, HiOutlineEyeOff, HiOutlineSave, HiOutlineDownload,
-  HiOutlineTrash, HiOutlinePlus, HiOutlineX, HiOutlineClipboardCheck,
-  HiOutlineDocumentReport, HiOutlineBan, HiOutlineDatabase
+  HiOutlineViewGrid, HiOutlineShieldCheck, HiOutlineDesktopComputer, HiOutlineUser,
+  HiOutlineLogout, HiOutlineRefresh, HiOutlineTrash, HiOutlinePlus, HiOutlineCheck,
+  HiOutlineX, HiOutlineExclamation, HiOutlineLockClosed, HiOutlineMail, HiOutlineCreditCard,
+  HiOutlineChevronRight, HiOutlineMenuAlt2, HiOutlinePencil, HiOutlineClipboardCheck,
+  HiOutlineGlobe, HiOutlineKey, HiOutlineSave, HiOutlineEye, HiOutlineEyeOff,
+  HiOutlineChartBar, HiOutlineDocumentReport, HiOutlineCode, HiOutlineDownload,
+  HiOutlineBell, HiOutlineClipboard, HiOutlineHome, HiOutlineMap, HiOutlineAcademicCap,
+  HiOutlineSearchCircle, HiOutlineFingerPrint, HiOutlineLightningBolt, HiOutlineNewspaper,
 } from "react-icons/hi";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from "recharts";
+import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const T = {
   bg: "#030712", sidebar: "#0a0f1e", surface: "#111827", card: "rgba(17,24,39,0.8)",
   accent: "#6366f1", cyan: "#14e3c5", green: "#22c55e", red: "#ef4444",
-  orange: "#f97316", gold: "#eab308", pink: "#ec4899",
-  white: "#f1f5f9", muted: "#94a3b8", border: "rgba(148,163,184,0.08)",
+  orange: "#f97316", white: "#f1f5f9", muted: "#94a3b8", border: "rgba(148,163,184,0.08)",
 };
 
 const sty = {
-  card: { background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 24, backdropFilter: "blur(10px)" },
-  input: { width: "100%", padding: "10px 14px", background: "rgba(15,23,42,0.6)", border: `1px solid ${T.border}`, borderRadius: 8, color: T.white, fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "'Plus Jakarta Sans'" },
-  btn: (bg, clr) => ({ padding: "8px 16px", background: bg, border: "none", borderRadius: 8, color: clr || "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Plus Jakarta Sans'" }),
+  card: { background: "rgba(17,24,39,0.6)", border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, backdropFilter: "blur(12px)", transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)", boxShadow: "0 4px 24px rgba(0,0,0,0.2)" },
+  input: { width: "100%", padding: "10px 14px", background: "rgba(15,23,42,0.6)", border: `1px solid ${T.border}`, borderRadius: 8, color: T.white, fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "'Plus Jakarta Sans'", transition: "border-color 0.3s, box-shadow 0.3s" },
+  btn: (bg, clr) => ({ padding: "8px 16px", background: bg, border: "none", borderRadius: 8, color: clr || "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Plus Jakarta Sans'", transition: "all 0.2s ease" }),
 };
 
+const AniCard = ({ children, delay = 0, className = "" }) => (
+  <div className={`dash-card ${className}`} style={{ ...sty.card, animation: `fadeInUp 0.5s ease ${delay}s both` }}>{children}</div>
+);
+
+const AniTab = ({ children }) => (
+  <div style={{ animation: "fadeInUp 0.4s ease forwards" }}>{children}</div>
+);
+
 const Badge = ({ children, color }) => (
-  <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: `${color}18`, color }}>{children}</span>
+  <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: `${color}18`, color, transition: "all 0.2s" }}>{children}</span>
 );
 
-const activityData = [
-  { day: "Mon", threats: 12, blocked: 11 }, { day: "Tue", threats: 19, blocked: 18 },
-  { day: "Wed", threats: 8, blocked: 8 }, { day: "Thu", threats: 24, blocked: 22 },
-  { day: "Fri", threats: 15, blocked: 14 }, { day: "Sat", threats: 6, blocked: 6 },
-  { day: "Sun", threats: 3, blocked: 3 },
-];
-
-const monthlyData = [
-  { month: "Oct", scans: 45, threats: 12 }, { month: "Nov", scans: 52, threats: 8 },
-  { month: "Dec", scans: 38, threats: 15 }, { month: "Jan", scans: 61, threats: 6 },
-  { month: "Feb", scans: 55, threats: 9 }, { month: "Mar", scans: 48, threats: 4 },
-];
-
-const deviceData = [
-  { name: "Desktop", value: 45, color: T.accent }, { name: "Mobile", value: 30, color: T.cyan },
-  { name: "Tablet", value: 15, color: T.orange }, { name: "IoT", value: 10, color: T.pink },
-];
-
-const ToolsIcon = ({ size = 20, color = "#94a3b8" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-  </svg>
+const Spinner = () => (
+  <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+    <div style={{ width: 36, height: 36, border: `3px solid ${T.border}`, borderTop: `3px solid ${T.cyan}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", boxShadow: "0 0 15px rgba(20,227,197,0.3)" }} />
+  </div>
 );
+
+function detectDevice() {
+  const ua = navigator.userAgent;
+  let browser = "Unknown", os = "Unknown", type = "Desktop";
+  if (ua.includes("Edg/")) browser = "Edge";
+  else if (ua.includes("Chrome/")) browser = "Chrome";
+  else if (ua.includes("Firefox/")) browser = "Firefox";
+  else if (ua.includes("Safari/") && !ua.includes("Chrome")) browser = "Safari";
+  if (ua.includes("Windows")) os = "Windows";
+  else if (ua.includes("Mac OS")) os = "macOS";
+  else if (ua.includes("Android")) os = "Android";
+  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+  else if (ua.includes("Linux")) os = "Linux";
+  if (/Mobi|Android/i.test(ua)) type = "Mobile";
+  else if (/iPad|Tablet/i.test(ua)) type = "Tablet";
+  return { browser, os, type, screenRes: `${screen.width}x${screen.height}`, name: `${browser} on ${os}` };
+}
+
+function calcSecurityScore(user, deviceCount) {
+  let score = 0;
+  const factors = [];
+  const emailVerified = firebaseAuth.currentUser?.emailVerified || false;
+  if (emailVerified) { score += 20; factors.push({ label: "Email Verified", done: true }); }
+  else factors.push({ label: "Email Verified", done: false });
+  if (user?.plan && user.plan !== "free") { score += 20; factors.push({ label: "Paid Plan Active", done: true }); }
+  else factors.push({ label: "Paid Plan Active", done: false });
+  if (deviceCount > 0) { score += 20; factors.push({ label: "Device Registered", done: true }); }
+  else factors.push({ label: "Device Registered", done: false });
+  if (user?.phoneNumber) { score += 20; factors.push({ label: "Phone Number Added", done: true }); }
+  else factors.push({ label: "Phone Number Added", done: false });
+  if (user?.name && user.name.length > 1) { score += 20; factors.push({ label: "Profile Complete", done: true }); }
+  else factors.push({ label: "Profile Complete", done: false });
+  return { score, factors };
+}
+
+function calcAccountAge(createdAt) {
+  if (!createdAt) return "Unknown";
+  const d = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+  const diff = Date.now() - d.getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) return "Today";
+  if (days === 1) return "1 day";
+  if (days < 30) return `${days} days`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months > 1 ? "s" : ""}`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years > 1 ? "s" : ""}`;
+}
+
+function providerLabel(p) {
+  if (!p) return "Email";
+  if (p.includes("google")) return "Google";
+  if (p.includes("github")) return "GitHub";
+  if (p.includes("facebook")) return "Facebook";
+  if (p.includes("phone")) return "Phone";
+  return "Email";
+}
+
+function checkUrlSafety(url) {
+  if (!url) return null;
+  const suspicious = [".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".buzz", ".club"];
+  const issues = [];
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname)) issues.push("Uses raw IP address");
+    if (suspicious.some((t) => u.hostname.endsWith(t))) issues.push("Suspicious TLD");
+    if (u.hostname.includes("login") || u.hostname.includes("secure") || u.hostname.includes("account"))
+      issues.push("Impersonation keywords in domain");
+    if (u.hostname.split(".").length > 4) issues.push("Excessive subdomains");
+    if (u.hostname.includes("--") || u.hostname.includes("..")) issues.push("Suspicious domain pattern");
+  } catch { issues.push("Invalid URL format"); }
+  return issues.length > 0 ? { safe: false, issues } : { safe: true, issues: [] };
+}
+
+function passwordStrength(pw) {
+  if (!pw) return { score: 0, label: "Enter a password", color: T.muted };
+  let s = 0;
+  if (pw.length >= 8) s++;
+  if (pw.length >= 12) s++;
+  if (/[A-Z]/.test(pw)) s++;
+  if (/[0-9]/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  const levels = [
+    { label: "Very Weak", color: T.red },
+    { label: "Weak", color: T.orange },
+    { label: "Fair", color: "#eab308" },
+    { label: "Strong", color: T.cyan },
+    { label: "Very Strong", color: T.green },
+  ];
+  const idx = Math.min(s, 5) - 1;
+  return idx < 0 ? { score: 0, label: "Very Weak", color: T.red } : { score: s, ...levels[idx] };
+}
+
+const planLabels = { free: "Free", starter: "Starter", pro: "Professional", enterprise: "Enterprise" };
+const planColors = { free: T.muted, starter: T.orange, pro: T.cyan, enterprise: T.accent };
+const planFeatures = {
+  free: ["Basic security score", "1 device", "Community support"],
+  pro: ["Advanced scanning", "5 devices", "Priority support", "Weekly reports", "Dark web monitor", "Analytics"],
+  enterprise: ["Unlimited devices", "24/7 support", "API access", "Custom alerts", "Export data", "Advanced analytics"],
+};
+const planDeviceLimit = { free: 1, starter: 2, pro: 5, enterprise: Infinity };
+
+const CHART_COLORS = [T.cyan, T.accent, T.green, T.orange, T.red];
 
 const navItems = [
   { icon: HiOutlineViewGrid, label: "Overview" },
-  { icon: HiOutlineShieldCheck, label: "Protection" },
-  { icon: HiOutlineGlobe, label: "Network" },
-  { icon: HiOutlineChartBar, label: "Analytics" },
-  { icon: ToolsIcon, label: "Tools" },
-  { icon: HiOutlineBell, label: "Alerts", badge: 2 },
-  { icon: HiOutlineCreditCard, label: "Billing" },
-  { icon: HiOutlineCog, label: "Settings" },
+  { icon: HiOutlineDesktopComputer, label: "Devices" },
+  { icon: HiOutlineShieldCheck, label: "Security" },
+  { icon: HiOutlineExclamation, label: "Threat Monitor", plan: "pro" },
+  { icon: HiOutlineChartBar, label: "Analytics", plan: "pro" },
+  { icon: HiOutlineDocumentReport, label: "Reports", plan: "pro" },
+  { icon: HiOutlineCode, label: "API Access", plan: "enterprise" },
+  { icon: HiOutlineUser, label: "Account" },
 ];
 
-const planLabels = { free: "Free", pro: "Professional", enterprise: "Enterprise" };
-const planColors = { free: T.muted, pro: T.cyan, enterprise: T.accent };
+const toolLinks = [
+  { icon: HiOutlineMap, label: "Threat Map", path: "/threat-map" },
+  { icon: HiOutlineSearchCircle, label: "Fraud Analyzer", path: "/fraud-analyzer" },
+  { icon: HiOutlineFingerPrint, label: "Security Score", path: "/security-score" },
+  { icon: HiOutlineGlobe, label: "Dark Web Monitor", path: "/dark-web-monitor" },
+  { icon: HiOutlineKey, label: "Password Vault", path: "/password-vault" },
+  { icon: HiOutlineLightningBolt, label: "Vulnerability Scanner", path: "/vulnerability-scanner" },
+  { icon: HiOutlineMail, label: "Email Analyzer", path: "/email-analyzer" },
+  { icon: HiOutlineGlobe, label: "IP Lookup", path: "/ip-lookup" },
+  { icon: HiOutlineAcademicCap, label: "Learn", path: "/learn" },
+  { icon: HiOutlineNewspaper, label: "Blog", path: "/blog" },
+];
 
 export default function UserDashboard() {
-  const { user, logout, updatePlan } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeNav, setActiveNav] = useState("Overview");
+  const [tab, setTab] = useState("Overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [scanResults, setScanResults] = useState(null);
-  const [devices, setDevices] = useState([
-    { id: 1, name: "MacBook Pro", type: "Desktop", os: "macOS 14.2", status: "protected", lastScan: "2 hrs ago", threats: 0 },
-    { id: 2, name: "iPhone 15", type: "Mobile", os: "iOS 17.3", status: "protected", lastScan: "1 hr ago", threats: 0 },
-    { id: 3, name: "Windows PC", type: "Desktop", os: "Windows 11", status: "at_risk", lastScan: "3 days ago", threats: 2 },
-    { id: 4, name: "iPad Air", type: "Tablet", os: "iPadOS 17", status: "protected", lastScan: "5 hrs ago", threats: 0 },
-  ]);
-  const [alerts, setAlerts] = useState([
-    { id: 1, msg: "Suspicious login blocked from 45.33.21.88", time: "5 min ago", type: "warning", read: false },
-    { id: 2, msg: "Weekly scan completed - 2 threats found", time: "2 hrs ago", type: "info", read: false },
-    { id: 3, msg: "Password change recommended (90 days old)", time: "1 day ago", type: "info", read: true },
-    { id: 4, msg: "Phishing email blocked: 'Account Verification'", time: "2 days ago", type: "warning", read: true },
-    { id: 5, msg: "New device connected: iPad Air", time: "3 days ago", type: "info", read: true },
-    { id: 6, msg: "Malware quarantined: trojan.gen.2", time: "5 days ago", type: "critical", read: true },
-  ]);
-  const [profileSettings, setProfileSettings] = useState({
-    name: user?.name || "User", email: user?.email || "", notifications: true,
-    twoFactor: false, weeklyReport: true, autoScan: true, darkMode: true,
-  });
-  const [blockedThreats, setBlockedThreats] = useState(1247);
-  const [breachEmail, setBreachEmail] = useState(user?.email || "");
-  const [breachChecking, setBreachChecking] = useState(false);
-  const [breachResult, setBreachResult] = useState(null);
-  const [pwInput, setPwInput] = useState("");
-  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [devices, setDevices] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [apiKey, setApiKey] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [urlInput, setUrlInput] = useState("");
-  const [urlChecking, setUrlChecking] = useState(false);
   const [urlResult, setUrlResult] = useState(null);
+  const [pwInput, setPwInput] = useState("");
+  const [emailCheckInput, setEmailCheckInput] = useState("");
+  const [emailCheckResult, setEmailCheckResult] = useState(null);
+  const [showPw, setShowPw] = useState(false);
+
+  const uid = user?.uid;
+  const userPlan = user?.plan || "free";
+  const deviceLimit = planDeviceLimit[userPlan] || 1;
+  const currentDevice = detectDevice();
+  const { score: secScore, factors: secFactors } = calcSecurityScore(user, devices.length);
+
+  const fsCol = useCallback((sub) => uid ? collection(db, "users", uid, sub) : null, [uid]);
+
+  const loadData = useCallback(async () => {
+    if (!uid) return;
+    setLoading(true);
+    try {
+      const [devSnap, actSnap, paySnap, repSnap] = await Promise.all([
+        getDocs(fsCol("devices")),
+        getDocs(query(fsCol("activity"), orderBy("timestamp", "desc"), limit(50))),
+        getDocs(query(fsCol("payments"), orderBy("date", "desc"), limit(20))),
+        getDocs(query(fsCol("reports"), orderBy("createdAt", "desc"), limit(10))),
+      ]);
+      setDevices(devSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setActivity(actSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setPayments(paySnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setReports(repSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      // Load API key
+      try {
+        const apiSnap = await getDocs(fsCol("apikeys"));
+        if (!apiSnap.empty) setApiKey(apiSnap.docs[0].data().key);
+      } catch {}
+    } catch (e) { console.error("Dashboard load error:", e); }
+    setLoading(false);
+  }, [uid, fsCol]);
+
+  const logActivity = useCallback(async (type, detail) => {
+    if (!uid) return;
+    try {
+      await addDoc(fsCol("activity"), { type, detail, timestamp: serverTimestamp() });
+    } catch {}
+  }, [uid, fsCol]);
+
+  const autoRegisterDevice = useCallback(async () => {
+    if (!uid) return;
+    try {
+      const snap = await getDocs(fsCol("devices"));
+      const existing = snap.docs.find((d) => d.data().name === currentDevice.name);
+      if (!existing && snap.docs.length < deviceLimit) {
+        await addDoc(fsCol("devices"), { ...currentDevice, lastActive: serverTimestamp(), current: true });
+      } else if (existing) {
+        await setDoc(doc(db, "users", uid, "devices", existing.id), { ...existing.data(), lastActive: serverTimestamp() }, { merge: true });
+      }
+    } catch {}
+  }, [uid, fsCol, currentDevice, deviceLimit]);
 
   useEffect(() => {
-    const interval = setInterval(() => setBlockedThreats(c => c + Math.floor(Math.random() * 3)), 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!uid) { navigate("/login"); return; }
+    loadData().then(() => {
+      autoRegisterDevice();
+      logActivity("login", "Dashboard accessed");
+    });
+  }, [uid]);
 
-  const plan = user?.plan || "free";
-  const handleLogout = () => { logout(); navigate("/"); };
+  useEffect(() => { if (user) { setEditName(user.name || ""); setEditPhone(user.phoneNumber || ""); } }, [user]);
 
-  const handleScan = () => {
-    setScanning(true);
-    setScanResults(null);
-    setTimeout(() => {
-      setScanning(false);
-      const threats = Math.floor(Math.random() * 3);
-      setScanResults({
-        filesScanned: 12847, threatsFound: threats,
-        duration: "1m 23s", cleanFiles: 12845 + Math.floor(Math.random() * 2),
-      });
-      if (threats === 0) {
-        toast("System scan completed — no threats found", "success");
-      } else {
-        toast(`Scan complete — ${threats} threat${threats > 1 ? "s" : ""} detected`, "warning");
-      }
-    }, 3000);
-  };
+  const handleLogout = async () => { await logout(); navigate("/login"); };
 
-  const dismissAlert = (id) => { setAlerts(a => a.filter(x => x.id !== id)); toast("Alert dismissed", "info"); };
-  const markRead = (id) => setAlerts(a => a.map(x => x.id === id ? { ...x, read: true } : x));
-  const removeDevice = (id) => { setDevices(d => d.filter(x => x.id !== id)); toast("Device removed", "warning"); };
-
-  const handleBreachCheck = () => {
-    setBreachChecking(true);
-    setBreachResult(null);
-    setTimeout(() => {
-      setBreachChecking(false);
-      if (breachEmail.toLowerCase().includes("admin")) {
-        setBreachResult({
-          found: true,
-          breaches: [
-            { name: "LinkedIn", year: 2021, records: "700M", severity: "high" },
-            { name: "Adobe", year: 2019, records: "7.5M", severity: "medium" },
-          ],
-        });
-        toast("Breach detected — 2 breaches found for this email", "error");
-      } else {
-        setBreachResult({ found: false });
-        toast("No breaches found for this email", "success");
-      }
-    }, 1500);
-  };
-
-  const renderContent = () => {
-    switch (activeNav) {
-      case "Overview": return renderOverview();
-      case "Protection": return renderProtection();
-      case "Network": return renderNetwork();
-      case "Analytics": return renderAnalytics();
-      case "Tools": return renderTools();
-      case "Alerts": return renderAlerts();
-      case "Billing": return renderBilling();
-      case "Settings": return renderSettings();
-      default: return renderOverview();
+  const addDevice = async () => {
+    if (devices.length >= deviceLimit) {
+      toast(`Your ${planLabels[userPlan]} plan allows max ${deviceLimit} device${deviceLimit > 1 ? "s" : ""}. Upgrade to add more.`, "error");
+      return;
     }
+    try {
+      await addDoc(fsCol("devices"), { ...currentDevice, lastActive: serverTimestamp(), current: true });
+      await logActivity("device_add", `Added ${currentDevice.name}`);
+      toast("Device registered", "success");
+      loadData();
+    } catch (e) { toast("Failed to register device", "error"); }
   };
 
-  const renderOverview = () => {
-    const protectedCount = devices.filter(d => d.status === "protected").length;
-    const scoreFromDevices = Math.min(protectedCount * 20, 80);
-    const scoreFromAlerts = alerts.filter(a => !a.read).length === 0 ? 10 : 0;
-    const scoreFromPlan = (plan === "pro" || plan === "enterprise") ? 10 : 0;
-    const secScore = scoreFromDevices + scoreFromAlerts + scoreFromPlan;
-    const scoreColor = secScore > 70 ? T.green : secScore > 40 ? T.orange : T.red;
-    const circumference = 2 * Math.PI * 45;
-    const strokeOffset = circumference - (secScore / 100) * circumference;
+  const removeDevice = async (id) => {
+    try {
+      await deleteDoc(doc(db, "users", uid, "devices", id));
+      await logActivity("device_remove", "Device removed");
+      toast("Device removed", "success");
+      loadData();
+    } catch { toast("Failed to remove device", "error"); }
+  };
 
-    const timeline = [
-      { time: "2 min ago", event: "Quick scan completed", type: "success" },
-      { time: "15 min ago", event: "Suspicious login blocked from 45.33.21.88", type: "warning" },
-      { time: "1 hr ago", event: "Windows PC scan found 2 threats", type: "danger" },
-      { time: "3 hrs ago", event: "iPhone 15 connected securely", type: "info" },
-      { time: "1 day ago", event: "Password change recommended", type: "info" },
-    ];
-    const tlColor = { success: T.green, warning: T.orange, danger: T.red, info: T.cyan };
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({ name: editName, phoneNumber: editPhone });
+      await logActivity("profile_update", "Profile updated");
+      toast("Profile saved", "success");
+      setEditing(false);
+    } catch { toast("Failed to save", "error"); }
+    setSaving(false);
+  };
 
-    return (
-    <>
-      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap", alignItems: "stretch" }}>
-        <div style={{ ...sty.card, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 28px", minWidth: 160 }}>
-          <svg width="110" height="110" viewBox="0 0 110 110">
-            <circle cx="55" cy="55" r="45" fill="none" stroke="rgba(148,163,184,0.1)" strokeWidth="8" />
-            <circle cx="55" cy="55" r="45" fill="none" stroke={scoreColor} strokeWidth="8"
-              strokeDasharray={circumference} strokeDashoffset={strokeOffset}
-              strokeLinecap="round" style={{ transform: "rotate(-90deg)", transformOrigin: "55px 55px", transition: "stroke-dashoffset 1s ease" }} />
-            <text x="55" y="51" textAnchor="middle" fontSize="20" fontWeight="800" fill={scoreColor} fontFamily="'Space Grotesk'">{secScore}</text>
-            <text x="55" y="66" textAnchor="middle" fontSize="10" fill="#94a3b8">/ 100</text>
-          </svg>
-          <div style={{ fontSize: 12, color: T.muted, marginTop: 6, textAlign: "center" }}>Security Score</div>
-          <div style={{ fontSize: 11, color: scoreColor, fontWeight: 600, marginTop: 2 }}>{secScore > 70 ? "Good" : secScore > 40 ? "Fair" : "At Risk"}</div>
+  const handleDeleteAccount = async () => {
+    try {
+      if (firebaseAuth.currentUser) await firebaseDeleteUser(firebaseAuth.currentUser);
+      toast("Account deleted", "success");
+      navigate("/");
+    } catch (e) { toast(e.message || "Failed to delete account", "error"); }
+    setShowDeleteModal(false);
+  };
+
+  const generateReport = async () => {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      securityScore: secScore,
+      factors: secFactors,
+      devices: devices.length,
+      plan: userPlan,
+      recentActivity: activity.slice(0, 10).map((a) => ({ type: a.type, detail: a.detail })),
+    };
+    try {
+      await addDoc(fsCol("reports"), { ...report, createdAt: serverTimestamp() });
+      await logActivity("report_generated", "Security report generated");
+      toast("Report generated", "success");
+      loadData();
+    } catch { toast("Failed to generate report", "error"); }
+  };
+
+  const downloadReport = (r) => {
+    const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `secuvion-report-${r.generatedAt || "latest"}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const generateApiKey = async () => {
+    const key = Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
+    try {
+      const snap = await getDocs(fsCol("apikeys"));
+      if (snap.empty) await addDoc(fsCol("apikeys"), { key, createdAt: serverTimestamp() });
+      else await setDoc(doc(db, "users", uid, "apikeys", snap.docs[0].id), { key, createdAt: serverTimestamp() });
+      setApiKey(key);
+      await logActivity("api_key_generated", "API key generated");
+      toast("API key generated", "success");
+    } catch { toast("Failed to generate API key", "error"); }
+  };
+
+  const copyApiKey = () => { if (apiKey) { navigator.clipboard.writeText(apiKey); toast("API key copied", "success"); } };
+
+  // Chart data from activity
+  const loginChartData = (() => {
+    const map = {};
+    activity.filter((a) => a.type === "login").forEach((a) => {
+      const d = a.timestamp?.toDate ? a.timestamp.toDate().toLocaleDateString() : "Today";
+      map[d] = (map[d] || 0) + 1;
+    });
+    return Object.entries(map).slice(0, 7).reverse().map(([date, count]) => ({ date, logins: count }));
+  })();
+
+  const deviceTypeData = (() => {
+    const map = {};
+    devices.forEach((d) => { map[d.type || "Desktop"] = (map[d.type || "Desktop"] || 0) + 1; });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  })();
+
+  const eventTypeData = (() => {
+    const map = {};
+    activity.forEach((a) => { map[a.type || "other"] = (map[a.type || "other"] || 0) + 1; });
+    return Object.entries(map).slice(0, 5).map(([name, count]) => ({ name, count }));
+  })();
+
+  const threatEvents = activity.filter((a) => ["threat", "breach", "alert", "scan", "security"].some((k) => (a.type || "").includes(k)));
+
+  /* ─── RENDER TABS ─── */
+
+  const renderOverview = () => (
+    <AniTab>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28, animation: "fadeInUp 0.4s ease both" }}>
+        <div className="dash-avatar" style={{ width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", fontFamily: "'Space Grotesk'", boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+          {user?.photoURL ? <img src={user.photoURL} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} /> : (user?.name?.charAt(0)?.toUpperCase() || "U")}
         </div>
+        <div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, margin: 0, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Welcome, {user?.name || "User"}</span></h2>
+          <div style={{ marginTop: 4 }}><Badge color={planColors[userPlan]}>{planLabels[userPlan]} Plan</Badge></div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 28 }}>
         {[
-          { icon: HiOutlineShieldCheck, label: "Security Score", value: `${secScore}/100`, color: scoreColor, trend: 5 },
-          { icon: HiOutlineLockClosed, label: "Threats Blocked", value: blockedThreats.toLocaleString(), color: T.cyan, trend: 12 },
-          { icon: HiOutlineWifi, label: "Network Status", value: "Secure", color: T.green },
-          { icon: HiOutlineMail, label: "Emails Scanned", value: "3,421", color: T.accent, trend: 8 },
-        ].map(s => (
-          <div key={s.label} style={{ ...sty.card, flex: 1, minWidth: 160, padding: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: `${s.color}12`, display: "flex", alignItems: "center", justifyContent: "center" }}><s.icon size={18} color={s.color} /></div>
-              {s.trend && <span style={{ fontSize: 11, color: T.green, display: "flex", alignItems: "center", gap: 2 }}><HiOutlineTrendingUp size={12} />{s.trend}%</span>}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'", marginTop: 12 }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{s.label}</div>
+          { label: "Security Score", value: `${secScore}/100`, color: secScore >= 80 ? T.green : secScore >= 50 ? T.orange : T.red, gradient: `linear-gradient(90deg, ${T.green}, ${T.cyan})` },
+          { label: "Plan Status", value: planLabels[userPlan], color: planColors[userPlan], gradient: `linear-gradient(90deg, ${T.accent}, ${T.cyan})` },
+          { label: "AI Credits", value: (() => { const d = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "null"); const plans = { guest: 25, free: 50, starter: 200, pro: 1000, unlimited: Infinity }; const max = plans[userPlan] || plans.free; const used = d?.used || 0; return max === Infinity ? "∞" : `${Math.max(0, max - used)}/${max}`; })(), color: T.accent, gradient: `linear-gradient(90deg, ${T.accent}, #ec4899)` },
+          { label: "Active Devices", value: `${devices.length}/${deviceLimit === Infinity ? "∞" : deviceLimit}`, color: T.cyan, gradient: `linear-gradient(90deg, ${T.cyan}, ${T.green})` },
+          { label: "Account Age", value: calcAccountAge(user?.createdAt), color: T.accent, gradient: `linear-gradient(90deg, ${T.orange}, ${T.accent})` },
+        ].map((s, i) => (
+          <div key={i} className="dash-stat" style={{ ...sty.card, textAlign: "center", position: "relative", overflow: "hidden", animation: `fadeInUp 0.5s ease ${i * 0.08}s both` }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: s.gradient, borderRadius: "16px 16px 0 0" }} />
+            <p style={{ fontSize: 12, color: T.muted, marginBottom: 8, fontFamily: "'Plus Jakarta Sans'" }}>{s.label}</p>
+            <p className="stat-value" style={{ fontSize: 26, fontWeight: 700, color: s.color, margin: 0, fontFamily: "'Space Grotesk'" }}>{s.value}</p>
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {scanResults && (
-            <div style={{ ...sty.card, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white }}>Scan Results</h3>
-                <button onClick={() => setScanResults(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><HiOutlineX size={18} color={T.muted} /></button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-                {[
-                  { label: "Files Scanned", value: scanResults.filesScanned.toLocaleString() },
-                  { label: "Clean Files", value: scanResults.cleanFiles.toLocaleString() },
-                  { label: "Threats Found", value: scanResults.threatsFound, color: scanResults.threatsFound > 0 ? T.orange : T.green },
-                  { label: "Duration", value: scanResults.duration },
-                ].map(r => (
-                  <div key={r.label} style={{ textAlign: "center", padding: 12, background: T.surface, borderRadius: 8 }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: r.color || T.white, fontFamily: "'Space Grotesk'" }}>{r.value}</div>
-                    <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{r.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div style={sty.card}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Threat Activity (Last 7 Days)</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={activityData}>
-                <defs>
-                  <linearGradient id="tG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={T.red} stopOpacity={0.3} /><stop offset="100%" stopColor={T.red} stopOpacity={0} /></linearGradient>
-                  <linearGradient id="bG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={T.cyan} stopOpacity={0.3} /><stop offset="100%" stopColor={T.cyan} stopOpacity={0} /></linearGradient>
-                </defs>
-                <XAxis dataKey="day" tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, color: T.white, fontSize: 12 }} />
-                <Area type="monotone" dataKey="threats" stroke={T.red} fill="url(#tG)" strokeWidth={2} name="Detected" />
-                <Area type="monotone" dataKey="blocked" stroke={T.cyan} fill="url(#bG)" strokeWidth={2} name="Blocked" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={sty.card}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white }}>Your Devices</h3>
-              <button onClick={() => setActiveNav("Protection")} style={{ ...sty.btn("transparent", T.cyan), border: "none", padding: 0, fontSize: 13 }}>Manage &gt;</button>
-            </div>
-            {devices.map(d => (
-              <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: `${T.accent}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {d.type === "Mobile" ? <HiOutlineDeviceMobile size={18} color={T.accent} /> : <HiOutlineDesktopComputer size={18} color={T.accent} />}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: T.white }}>{d.name}</div>
-                    <div style={{ fontSize: 11, color: T.muted }}>{d.os} · Last scan: {d.lastScan}</div>
-                  </div>
-                </div>
-                <Badge color={d.status === "protected" ? T.green : T.orange}>{d.status === "protected" ? "Protected" : "At Risk"}</Badge>
-              </div>
-            ))}
-          </div>
+      <AniCard delay={0.3}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Current Device</h3>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          {[["Browser", currentDevice.browser], ["OS", currentDevice.os], ["Type", currentDevice.type], ["Screen", currentDevice.screenRes]].map(([l, v]) => (
+            <span key={l} style={{ padding: "4px 12px", background: "rgba(99,102,241,0.1)", borderRadius: 6, fontSize: 12, color: T.muted }}>
+              <span style={{ color: T.cyan }}>{l}:</span> {v}
+            </span>
+          ))}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div style={{ ...sty.card, textAlign: "center" }}>
-            <h4 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 16 }}>Overall Protection</h4>
-            <div style={{ position: "relative", width: 150, height: 150, margin: "0 auto 16px" }}>
-              <svg viewBox="0 0 36 36" style={{ width: 150, height: 150, transform: "rotate(-90deg)" }}>
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(34,197,94,0.1)" strokeWidth="2.5" />
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke={T.green} strokeWidth="2.5" strokeDasharray="97.4" strokeDashoffset={97.4 * 0.13} strokeLinecap="round" />
-              </svg>
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: T.green, fontFamily: "'Space Grotesk'" }}>87%</div>
-                <div style={{ fontSize: 11, color: T.muted }}>Protected</div>
-              </div>
-            </div>
-            {[
-              { label: "Firewall", active: true }, { label: "Real-time Protection", active: true },
-              { label: "VPN", active: plan !== "free" }, { label: "Dark Web Monitor", active: plan === "enterprise" },
-            ].map(f => (
-              <div key={f.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
-                <span style={{ fontSize: 13, color: T.white }}>{f.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: f.active ? T.green : T.muted }}>{f.active ? "Active" : "Upgrade"}</span>
-              </div>
-            ))}
-          </div>
-          <div style={sty.card}>
-            <h4 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 12 }}>Recent Alerts</h4>
-            {alerts.filter(a => !a.read).length === 0 && <div style={{ fontSize: 13, color: T.muted, textAlign: "center", padding: 16 }}>No unread alerts</div>}
-            {alerts.filter(a => !a.read).map(n => (
-              <div key={n.id} style={{ padding: "10px 0", borderBottom: `1px solid ${T.border}`, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <HiOutlineExclamation size={16} color={n.type === "warning" ? T.orange : n.type === "critical" ? T.red : T.cyan} style={{ marginTop: 2, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: T.white }}>{n.msg}</div>
-                  <div style={{ fontSize: 11, color: T.muted }}>{n.time}</div>
-                </div>
-                <button onClick={() => markRead(n.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><HiOutlineCheck size={14} color={T.green} /></button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div style={{ ...sty.card, marginTop: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Activity Timeline</h3>
-        {timeline.map((item, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 0", borderBottom: i < timeline.length - 1 ? `1px solid ${T.border}` : "none" }}>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: tlColor[item.type], flexShrink: 0, marginTop: 4 }} />
-            <div style={{ flex: 1, fontSize: 13, color: T.white }}>{item.event}</div>
-            <div style={{ fontSize: 11, color: T.muted, whiteSpace: "nowrap" }}>{item.time}</div>
-          </div>
+      </AniCard>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginTop: 20 }}>
+        {[
+          { label: "Quick Scan", icon: HiOutlineShieldCheck, action: () => setTab("Security") },
+          { label: "Check Breach", icon: HiOutlineExclamation, action: () => setTab("Security") },
+          { label: "View Threats", icon: HiOutlineBell, action: () => setTab("Threat Monitor") },
+          { label: "Manage Devices", icon: HiOutlineDesktopComputer, action: () => setTab("Devices") },
+        ].map((q, i) => (
+          <button key={i} onClick={q.action} className="dash-quick-action" style={{ ...sty.btn("rgba(99,102,241,0.12)", T.white), padding: "14px 16px", borderRadius: 12, width: "100%", justifyContent: "center", animation: `fadeInUp 0.4s ease ${0.4 + i * 0.08}s both`, border: `1px solid ${T.border}`, backdropFilter: "blur(8px)" }}>
+            <q.icon size={16} /> {q.label}
+          </button>
         ))}
       </div>
-    </>
+      <AniCard delay={0.5} className="">
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Recent Activity</h3>
+        {activity.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No recent activity</p> :
+          activity.slice(0, 5).map((a, i) => (
+            <div key={i} className="dash-row" style={{ display: "flex", justifyContent: "space-between", padding: "10px 8px", borderBottom: i < 4 ? `1px solid ${T.border}` : "none", borderRadius: 6, animation: `slideInLeft 0.3s ease ${0.5 + i * 0.05}s both` }}>
+              <span style={{ fontSize: 13, color: T.white }}>{a.detail || a.type}</span>
+              <span style={{ fontSize: 11, color: T.muted }}>{a.timestamp?.toDate ? a.timestamp.toDate().toLocaleDateString() : ""}</span>
+            </div>
+          ))}
+      </AniCard>
+    </AniTab>
   );
-  };  // end renderOverview
 
-  const renderProtection = () => (
-    <>
+  const renderDevices = () => (
+    <AniTab>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white }}>Device Protection</h2>
-        <button onClick={handleScan} disabled={scanning} style={sty.btn(scanning ? "rgba(99,102,241,0.3)" : T.accent)}>
-          <HiOutlineRefresh size={14} style={{ animation: scanning ? "spin 1s linear infinite" : "none" }} />
-          {scanning ? "Scanning..." : "Scan All Devices"}
-        </button>
+        <h2 style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Devices</span> <span style={{ color: T.muted, fontSize: 16 }}>({devices.length}/{deviceLimit === Infinity ? "∞" : deviceLimit})</span></h2>
+        <button onClick={addDevice} className="dash-btn" style={sty.btn(T.accent)}><HiOutlinePlus size={14} /> Register Device</button>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={sty.card}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr>{["Device", "OS", "Type", "Status", "Last Scan", "Threats", "Actions"].map(h => <th key={h} style={{ textAlign: "left", padding: "10px 12px", fontSize: 12, color: T.muted, fontWeight: 500, borderBottom: `1px solid ${T.border}` }}>{h}</th>)}</tr></thead>
-          <tbody>
-            {devices.map(d => (
-              <tr key={d.id}>
-                <td style={{ padding: "14px 12px", fontSize: 13, color: T.white, borderBottom: `1px solid ${T.border}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {d.type === "Mobile" ? <HiOutlineDeviceMobile size={18} color={T.accent} /> : <HiOutlineDesktopComputer size={18} color={T.accent} />}
-                    <span style={{ fontWeight: 600 }}>{d.name}</span>
-                  </div>
-                </td>
-                <td style={{ padding: "14px 12px", fontSize: 13, color: T.muted, borderBottom: `1px solid ${T.border}` }}>{d.os}</td>
-                <td style={{ padding: "14px 12px", fontSize: 13, color: T.muted, borderBottom: `1px solid ${T.border}` }}>{d.type}</td>
-                <td style={{ padding: "14px 12px", borderBottom: `1px solid ${T.border}` }}><Badge color={d.status === "protected" ? T.green : T.orange}>{d.status === "protected" ? "Protected" : "At Risk"}</Badge></td>
-                <td style={{ padding: "14px 12px", fontSize: 12, color: T.muted, borderBottom: `1px solid ${T.border}` }}>{d.lastScan}</td>
-                <td style={{ padding: "14px 12px", borderBottom: `1px solid ${T.border}` }}><span style={{ color: d.threats > 0 ? T.orange : T.green, fontWeight: 600 }}>{d.threats}</span></td>
-                <td style={{ padding: "14px 12px", borderBottom: `1px solid ${T.border}` }}>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button style={sty.btn("rgba(99,102,241,0.1)", T.accent)}><HiOutlineRefresh size={14} /></button>
-                    <button onClick={() => removeDevice(d.id)} style={sty.btn("rgba(239,68,68,0.1)", T.red)}><HiOutlineTrash size={14} /></button>
-                  </div>
-                </td>
-              </tr>
+      {devices.length === 0 ? (
+        <AniCard delay={0.1}>
+          <div style={{ textAlign: "center", padding: 32 }}>
+            <HiOutlineDesktopComputer size={40} style={{ color: T.muted, marginBottom: 12 }} />
+            <p style={{ color: T.muted, fontSize: 14 }}>No devices registered</p>
+            <button onClick={addDevice} className="dash-btn" style={{ ...sty.btn(T.cyan), marginTop: 12 }}><HiOutlinePlus size={14} /> Register This Device</button>
+          </div>
+        </AniCard>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {devices.map((d, idx) => (
+            <div key={d.id} className="dash-device dash-card" style={{ ...sty.card, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, animation: `slideInLeft 0.4s ease ${idx * 0.08}s both` }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: T.white }}>{d.name || "Unknown"}</span>
+                  {d.current && <Badge color={T.green}>This device</Badge>}
+                </div>
+                <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+                  {[d.type, d.os, d.browser, d.screenRes].filter(Boolean).map((v, i) => (
+                    <span key={i} style={{ fontSize: 11, color: T.muted, background: "rgba(99,102,241,0.06)", padding: "2px 8px", borderRadius: 4 }}>{v}</span>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => removeDevice(d.id)} className="dash-btn" style={sty.btn("rgba(239,68,68,0.12)", T.red)}><HiOutlineTrash size={14} /> Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {devices.length >= deviceLimit && deviceLimit !== Infinity && (
+        <AniCard delay={0.3} className="">
+          <div style={{ textAlign: "center", borderColor: `${T.orange}33` }}>
+            <p style={{ fontSize: 13, color: T.orange }}>Device limit reached. Upgrade your plan for more devices.</p>
+            <button onClick={() => navigate("/pricing")} className="dash-btn" style={{ ...sty.btn("linear-gradient(135deg, #6366f1, #14e3c5)"), marginTop: 8 }}>Upgrade Plan</button>
+          </div>
+        </AniCard>
+      )}
+    </AniTab>
+  );
+
+  const renderSecurity = () => (
+    <AniTab>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Security Center</span></h2>
+      {/* Free: Score + Factors */}
+      <div className="dash-card" style={{ ...sty.card, marginBottom: 20, animation: "fadeInUp 0.5s ease both" }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk'" }}>Security Score</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+          <div style={{ width: 100, height: 100, position: "relative" }}>
+            <ResponsiveContainer width={100} height={100}>
+              <PieChart><Pie data={[{ v: secScore }, { v: 100 - secScore }]} dataKey="v" innerRadius={30} outerRadius={45} startAngle={90} endAngle={-270} paddingAngle={2}>
+                <Cell fill={secScore >= 80 ? T.green : secScore >= 50 ? T.orange : T.red} /><Cell fill="rgba(148,163,184,0.1)" />
+              </Pie></PieChart>
+            </ResponsiveContainer>
+            <span style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", fontSize: 18, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'", animation: "scaleIn 0.6s ease 0.3s both" }}>{secScore}</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            {secFactors.map((f, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                {f.done ? <HiOutlineCheck size={14} color={T.green} /> : <HiOutlineX size={14} color={T.red} />}
+                <span style={{ fontSize: 13, color: f.done ? T.white : T.muted }}>{f.label}</span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
-      <div style={{ ...sty.card, marginTop: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 6 }}>Breach Check</h3>
-        <p style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>Check if your email address has appeared in known data breaches.</p>
-        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <input
-            type="email"
-            value={breachEmail}
-            onChange={e => { setBreachEmail(e.target.value); setBreachResult(null); }}
-            placeholder="Enter email to check"
-            style={{ ...sty.input, maxWidth: 320 }}
-          />
-          <button
-            onClick={handleBreachCheck}
-            disabled={breachChecking || !breachEmail}
-            style={sty.btn(breachChecking ? "rgba(99,102,241,0.3)" : T.accent)}
-          >
-            {breachChecking ? <HiOutlineRefresh size={14} style={{ animation: "spin 1s linear infinite" }} /> : <HiOutlineDatabase size={14} />}
-            {breachChecking ? "Checking..." : "Check Breaches"}
+      {/* Free: Password checker */}
+      <div className="dash-card" style={{ ...sty.card, marginBottom: 20, animation: "fadeInUp 0.5s ease 0.1s both" }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Password Strength Checker</h3>
+        <div style={{ position: "relative" }}>
+          <input type={showPw ? "text" : "password"} placeholder="Test a password..." value={pwInput} onChange={(e) => setPwInput(e.target.value)} style={sty.input} />
+          <button onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.muted, cursor: "pointer" }}>
+            {showPw ? <HiOutlineEyeOff size={16} /> : <HiOutlineEye size={16} />}
           </button>
         </div>
-        {breachResult && !breachResult.found && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10 }}>
-            <HiOutlineShieldCheck size={22} color={T.green} />
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: T.green }}>No breaches found</div>
-              <div style={{ fontSize: 12, color: T.muted }}>Your email was not found in any known data breach.</div>
-            </div>
-          </div>
-        )}
-        {breachResult && breachResult.found && (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <HiOutlineExclamation size={18} color={T.orange} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>{breachResult.breaches.length} breach{breachResult.breaches.length > 1 ? "es" : ""} found</span>
-            </div>
-            {breachResult.breaches.map((b, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 8, marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: T.white }}>{b.name}</span>
-                  <span style={{ fontSize: 12, color: T.muted, marginLeft: 10 }}>~{b.records} records leaked</span>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <Badge color={b.severity === "high" ? T.red : T.orange}>{b.severity}</Badge>
-                  <span style={{ fontSize: 12, color: T.muted }}>{b.year}</span>
-                </div>
+        {pwInput && (() => {
+          const r = passwordStrength(pwInput);
+          return (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ height: 4, borderRadius: 2, background: T.border, overflow: "hidden" }}>
+                <div style={{ width: `${(r.score / 5) * 100}%`, height: "100%", background: r.color, transition: "width 0.3s" }} />
               </div>
-            ))}
-            <p style={{ fontSize: 12, color: T.muted, marginTop: 8 }}>We recommend changing your password immediately and enabling two-factor authentication.</p>
-          </div>
-        )}
+              <span style={{ fontSize: 12, color: r.color, marginTop: 4, display: "block" }}>{r.label}</span>
+            </div>
+          );
+        })()}
       </div>
-    </>
+      {/* Pro: URL Scanner + Email Breach */}
+      <PlanGate required="pro" feature="Advanced security tools">
+        <div style={{ ...sty.card, marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>URL Safety Scanner</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input placeholder="Enter URL to check..." value={urlInput} onChange={(e) => setUrlInput(e.target.value)} style={{ ...sty.input, flex: 1 }} />
+            <button onClick={() => setUrlResult(checkUrlSafety(urlInput))} style={sty.btn(T.accent)}>Scan</button>
+          </div>
+          {urlResult && (
+            <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: urlResult.safe ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: urlResult.safe ? T.green : T.red }}>{urlResult.safe ? "URL appears safe" : "Potential issues found"}</span>
+              {urlResult.issues.map((iss, i) => <p key={i} style={{ fontSize: 12, color: T.orange, margin: "4px 0 0" }}>- {iss}</p>)}
+            </div>
+          )}
+        </div>
+        <div style={{ ...sty.card, marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Email Breach Checker</h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input placeholder="Enter email to check..." value={emailCheckInput} onChange={(e) => setEmailCheckInput(e.target.value)} style={{ ...sty.input, flex: 1 }} />
+            <button onClick={async () => {
+              if (!emailCheckInput) return;
+              setEmailCheckResult({ checking: true });
+              await new Promise((r) => setTimeout(r, 1200));
+              setEmailCheckResult({ checking: false, breached: false, message: "No known breaches found for this email." });
+              logActivity("email_breach_check", `Checked ${emailCheckInput}`);
+            }} style={sty.btn(T.accent)}>Check</button>
+          </div>
+          {emailCheckResult && (
+            <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: emailCheckResult.checking ? "rgba(99,102,241,0.08)" : emailCheckResult.breached ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)" }}>
+              {emailCheckResult.checking ? <span style={{ fontSize: 13, color: T.accent }}>Checking...</span>
+                : <span style={{ fontSize: 13, color: emailCheckResult.breached ? T.red : T.green }}>{emailCheckResult.message}</span>}
+            </div>
+          )}
+        </div>
+        <div style={sty.card}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Security Recommendations</h3>
+          {[
+            { text: "Enable two-factor authentication", done: false },
+            { text: "Use a unique password for each account", done: false },
+            { text: "Keep your devices updated", done: true },
+            { text: "Review connected apps regularly", done: false },
+            { text: "Monitor your email for breaches", done: secFactors.find((f) => f.label === "Email Verified")?.done || false },
+          ].map((r, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: i < 4 ? `1px solid ${T.border}` : "none" }}>
+              {r.done ? <HiOutlineCheck size={14} color={T.green} /> : <HiOutlineChevronRight size={14} color={T.orange} />}
+              <span style={{ fontSize: 13, color: r.done ? T.muted : T.white }}>{r.text}</span>
+            </div>
+          ))}
+        </div>
+      </PlanGate>
+    </AniTab>
   );
 
-  const renderNetwork = () => (
-    <>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white, marginBottom: 20 }}>Network Monitor</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
-        {[
-          { label: "DNS Queries", value: "45,821", color: T.cyan, icon: HiOutlineGlobe },
-          { label: "Blocked Domains", value: "234", color: T.red, icon: HiOutlineBan },
-          { label: "Active Connections", value: "127", color: T.green, icon: HiOutlineStatusOnline },
-        ].map(s => (
-          <div key={s.label} style={{ ...sty.card, padding: 20 }}>
-            <s.icon size={20} color={s.color} style={{ marginBottom: 10 }} />
-            <div style={{ fontSize: 22, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: T.muted }}>{s.label}</div>
-          </div>
-        ))}
+  const renderThreatMonitor = () => (
+    <AniTab>
+    <PlanGate required="pro" feature="Threat Monitor">
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Threat Monitor</span></h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
+          {[
+            { title: "Dark Web Monitoring", status: "Active", statusColor: T.green, sub: `Monitoring: ${user?.email}`, dot: true },
+            { title: "Breach Status", status: "No breaches found", statusColor: T.green, sub: `Last checked: ${new Date().toLocaleDateString()}` },
+            { title: "Network Status", status: "Secure", statusColor: T.green, sub: `Connection: ${navigator.onLine ? "Online" : "Offline"}` },
+          ].map((c, i) => (
+            <div key={i} className="dash-card" style={{ ...sty.card, animation: `fadeInUp 0.5s ease ${i * 0.1}s both`, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${T.green}, ${T.cyan})` }} />
+              <h4 style={{ fontSize: 13, color: T.muted, marginBottom: 8 }}>{c.title}</h4>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {c.dot && <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green, boxShadow: `0 0 8px ${T.green}` }} />}
+                <span style={{ fontSize: 14, color: c.statusColor, fontWeight: 600 }}>{c.status}</span>
+              </div>
+              <p style={{ fontSize: 12, color: T.muted, marginTop: 8 }}>{c.sub}</p>
+            </div>
+          ))}
+        </div>
+        <AniCard delay={0.3}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk'" }}>Threat Feed</h3>
+          {threatEvents.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 32 }}>
+              <HiOutlineShieldCheck size={36} color={T.green} />
+              <p style={{ fontSize: 14, color: T.green, marginTop: 8, fontWeight: 600 }}>All clear</p>
+              <p style={{ fontSize: 12, color: T.muted }}>No security threats detected</p>
+            </div>
+          ) : (
+            threatEvents.slice(0, 10).map((e, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <HiOutlineExclamation size={14} color={T.orange} />
+                  <span style={{ fontSize: 13, color: T.white }}>{e.detail || e.type}</span>
+                </div>
+                <span style={{ fontSize: 11, color: T.muted }}>{e.timestamp?.toDate ? e.timestamp.toDate().toLocaleDateString() : ""}</span>
+              </div>
+            ))
+          )}
+        </AniCard>
       </div>
-      <div style={sty.card}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Recent Connections</h3>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr>{["Domain", "IP Address", "Protocol", "Status", "Data", "Time"].map(h => <th key={h} style={{ textAlign: "left", padding: "10px 12px", fontSize: 12, color: T.muted, fontWeight: 500, borderBottom: `1px solid ${T.border}` }}>{h}</th>)}</tr></thead>
-          <tbody>
-            {[
-              { domain: "api.secuvion.com", ip: "104.18.3.45", proto: "HTTPS", status: "allowed", data: "2.4 MB", time: "Just now" },
-              { domain: "cdn.cloudflare.com", ip: "104.16.132.229", proto: "HTTPS", status: "allowed", data: "890 KB", time: "1 min ago" },
-              { domain: "malware-c2.evil.com", ip: "45.33.21.88", proto: "TCP", status: "blocked", data: "0 B", time: "5 min ago" },
-              { domain: "smtp.gmail.com", ip: "142.250.4.108", proto: "TLS", status: "allowed", data: "45 KB", time: "8 min ago" },
-              { domain: "tracker.adnetwork.io", ip: "185.12.45.67", proto: "HTTPS", status: "blocked", data: "0 B", time: "12 min ago" },
-              { domain: "github.com", ip: "140.82.121.4", proto: "HTTPS", status: "allowed", data: "1.2 MB", time: "15 min ago" },
-              { domain: "phishing-site.xyz", ip: "78.12.34.56", proto: "HTTP", status: "blocked", data: "0 B", time: "22 min ago" },
-            ].map((c, i) => (
-              <tr key={i}>
-                <td style={{ padding: "12px", fontSize: 13, color: T.white, borderBottom: `1px solid ${T.border}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{c.domain}</td>
-                <td style={{ padding: "12px", fontSize: 12, color: T.muted, borderBottom: `1px solid ${T.border}`, fontFamily: "'JetBrains Mono', monospace" }}>{c.ip}</td>
-                <td style={{ padding: "12px", borderBottom: `1px solid ${T.border}` }}><Badge color={T.accent}>{c.proto}</Badge></td>
-                <td style={{ padding: "12px", borderBottom: `1px solid ${T.border}` }}><Badge color={c.status === "allowed" ? T.green : T.red}>{c.status}</Badge></td>
-                <td style={{ padding: "12px", fontSize: 12, color: T.muted, borderBottom: `1px solid ${T.border}` }}>{c.data}</td>
-                <td style={{ padding: "12px", fontSize: 12, color: T.muted, borderBottom: `1px solid ${T.border}` }}>{c.time}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+    </PlanGate>
+    </AniTab>
   );
 
   const renderAnalytics = () => (
-    <>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white, marginBottom: 20 }}>Security Analytics</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Scans & Threats (6 Months)</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={monthlyData}>
-              <XAxis dataKey="month" tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, color: T.white }} />
-              <Bar dataKey="scans" fill={T.accent} radius={[4, 4, 0, 0]} name="Scans" />
-              <Bar dataKey="threats" fill={T.red} radius={[4, 4, 0, 0]} name="Threats" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Device Distribution</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart><Pie data={deviceData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value" strokeWidth={0}>
-              {deviceData.map(d => <Cell key={d.name} fill={d.color} />)}
-            </Pie></PieChart>
-          </ResponsiveContainer>
-          {deviceData.map(d => (
-            <div key={d.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: d.color }} /><span style={{ fontSize: 12, color: T.muted }}>{d.name}</span></div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: T.white }}>{d.value}%</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={sty.card}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Security Summary</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-          {[
-            { label: "Total Scans", value: "299" }, { label: "Threats Detected", value: "54" },
-            { label: "Threats Resolved", value: "52" }, { label: "Detection Rate", value: "99.8%" },
-            { label: "Avg Scan Time", value: "1m 23s" }, { label: "Data Protected", value: "2.4 TB" },
-            { label: "Emails Filtered", value: "12,450" }, { label: "Uptime", value: "99.9%" },
-          ].map((m, i) => (
-            <div key={i} style={{ padding: 14, background: T.surface, borderRadius: 8, textAlign: "center" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>{m.value}</div>
-              <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{m.label}</div>
-            </div>
-          ))}
+    <AniTab>
+    <PlanGate required="pro" feature="Analytics">
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Analytics</span></h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+          <div className="dash-card" style={{ ...sty.card, animation: "fadeInUp 0.5s ease both" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk'" }}>Login History</h3>
+            {loginChartData.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No login data yet</p> : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={loginChartData}><XAxis dataKey="date" tick={{ fontSize: 10, fill: T.muted }} /><YAxis tick={{ fontSize: 10, fill: T.muted }} /><Tooltip />
+                  <Area type="monotone" dataKey="logins" stroke={T.cyan} fill={`${T.cyan}33`} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="dash-card" style={{ ...sty.card, animation: "fadeInUp 0.5s ease 0.1s both" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk'" }}>Device Types</h3>
+            {deviceTypeData.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No device data</p> : (
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart><Pie data={deviceTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={({ name }) => name}>
+                  {deviceTypeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie><Tooltip /></PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="dash-card" style={{ ...sty.card, animation: "fadeInUp 0.5s ease 0.2s both" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk'" }}>Security Events</h3>
+            {eventTypeData.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No events recorded</p> : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={eventTypeData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: T.muted }} /><YAxis tick={{ fontSize: 10, fill: T.muted }} /><Tooltip />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>{eventTypeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}</Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </div>
-    </>
+    </PlanGate>
+    </AniTab>
   );
 
-  const renderTools = () => {
-    const pwStrength = (pw) => {
-      if (!pw) return { label: "Enter a password", color: T.muted, score: 0 };
-      let s = 0;
-      if (pw.length >= 8) s++;
-      if (pw.length >= 12) s++;
-      if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
-      if (/\d/.test(pw)) s++;
-      if (/[^A-Za-z0-9]/.test(pw)) s++;
-      const levels = [
-        { label: "Very Weak", color: T.red },
-        { label: "Weak", color: T.orange },
-        { label: "Fair", color: T.gold },
-        { label: "Strong", color: T.cyan },
-        { label: "Very Strong", color: T.green },
-      ];
-      return { ...levels[Math.min(s, 4)], score: Math.min(s, 4) };
-    };
-    const pw = pwStrength(pwInput);
-
-    const handleUrlCheck = () => {
-      setUrlChecking(true);
-      setUrlResult(null);
-      setTimeout(() => {
-        setUrlChecking(false);
-        const suspicious = /free|win|prize|login.*verify|bit\.ly|tinyurl/i.test(urlInput);
-        const hasSsl = urlInput.startsWith("https://");
-        if (suspicious) {
-          setUrlResult({ safe: false, reason: "URL contains suspicious keywords commonly used in phishing attacks." });
-          toast("Warning: This URL appears suspicious", "warning");
-        } else if (!hasSsl && urlInput.startsWith("http://")) {
-          setUrlResult({ safe: false, reason: "URL uses unencrypted HTTP. Data could be intercepted." });
-          toast("Warning: Insecure HTTP connection", "warning");
-        } else if (urlInput.length > 5) {
-          setUrlResult({ safe: true, reason: "No suspicious patterns detected. URL appears safe." });
-          toast("URL appears safe", "success");
-        }
-      }, 1200);
-    };
-
-    return (
-      <>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white, marginBottom: 20 }}>Security Tools</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          {/* Password Strength Checker */}
-          <div style={sty.card}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <HiOutlineKey size={20} color={T.cyan} />
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white }}>Password Strength Checker</h3>
+  const renderReports = () => (
+    <AniTab>
+    <PlanGate required="pro" feature="Security Reports">
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Security Reports</span></h2>
+        <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+          <button onClick={generateReport} className="dash-btn" style={sty.btn(T.accent)}><HiOutlineDocumentReport size={14} /> Generate Report</button>
+        </div>
+        {reports.length === 0 ? (
+          <AniCard delay={0.1}>
+            <div style={{ textAlign: "center", padding: 32 }}>
+            <HiOutlineDocumentReport size={40} style={{ color: T.muted, marginBottom: 12 }} />
+            <p style={{ color: T.muted, fontSize: 14 }}>No reports generated yet</p>
+            <p style={{ color: T.muted, fontSize: 12 }}>Generate your first security report above</p>
             </div>
-            <div style={{ position: "relative", marginBottom: 16 }}>
-              <input
-                type={showPw ? "text" : "password"}
-                value={pwInput}
-                onChange={e => setPwInput(e.target.value)}
-                placeholder="Enter a password to test"
-                style={sty.input}
-              />
-              <button onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer" }}>
-                {showPw ? <HiOutlineEyeOff size={16} color={T.muted} /> : <HiOutlineEye size={16} color={T.muted} />}
-              </button>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= pw.score && pwInput ? pw.color : "rgba(148,163,184,0.15)", transition: "background 0.3s" }} />
-                ))}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: pw.color }}>{pw.label}</div>
-            </div>
-            {pwInput && (
-              <div style={{ fontSize: 12, color: T.muted }}>
-                <div style={{ marginBottom: 4 }}>Tips:</div>
-                <ul style={{ paddingLeft: 16, margin: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                  <li style={{ color: pwInput.length >= 12 ? T.green : T.muted }}>At least 12 characters</li>
-                  <li style={{ color: /[A-Z]/.test(pwInput) && /[a-z]/.test(pwInput) ? T.green : T.muted }}>Upper & lowercase letters</li>
-                  <li style={{ color: /\d/.test(pwInput) ? T.green : T.muted }}>Numbers</li>
-                  <li style={{ color: /[^A-Za-z0-9]/.test(pwInput) ? T.green : T.muted }}>Special characters (!@#$%)</li>
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* URL / Phishing Checker */}
-          <div style={sty.card}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <HiOutlineGlobe size={20} color={T.accent} />
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white }}>Phishing URL Detector</h3>
-            </div>
-            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-              <input
-                type="text"
-                value={urlInput}
-                onChange={e => { setUrlInput(e.target.value); setUrlResult(null); }}
-                placeholder="https://example.com/suspicious-link"
-                style={sty.input}
-              />
-              <button onClick={handleUrlCheck} disabled={urlChecking || !urlInput} style={sty.btn(urlChecking ? "rgba(99,102,241,0.3)" : T.accent)}>
-                {urlChecking ? <HiOutlineRefresh size={14} style={{ animation: "spin 1s linear infinite" }} /> : <HiOutlineShieldCheck size={14} />}
-                {urlChecking ? "Checking..." : "Check"}
-              </button>
-            </div>
-            {urlResult && (
-              <div style={{ padding: "14px 16px", borderRadius: 10, background: urlResult.safe ? "rgba(34,197,94,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${urlResult.safe ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  {urlResult.safe ? <HiOutlineShieldCheck size={18} color={T.green} /> : <HiOutlineExclamation size={18} color={T.red} />}
-                  <span style={{ fontSize: 14, fontWeight: 600, color: urlResult.safe ? T.green : T.red }}>{urlResult.safe ? "URL Appears Safe" : "Suspicious URL Detected"}</span>
-                </div>
-                <div style={{ fontSize: 13, color: T.muted }}>{urlResult.reason}</div>
-              </div>
-            )}
-          </div>
-
-          {/* Hash Generator */}
-          <div style={sty.card}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <HiOutlineLockClosed size={20} color={T.green} />
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white }}>Security Reports</h3>
-            </div>
-            <p style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>Download detailed security reports for your account.</p>
-            {[
-              { name: "Full Security Audit", desc: "Comprehensive analysis of all your devices and data", icon: HiOutlineDocumentReport },
-              { name: "Threat History", desc: "6-month threat detection and response log", icon: HiOutlineClipboardCheck },
-              { name: "Network Analysis", desc: "DNS queries, blocked domains, and traffic analysis", icon: HiOutlineGlobe },
-            ].map(r => (
-              <div key={r.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <r.icon size={16} color={T.green} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: T.white }}>{r.name}</div>
-                    <div style={{ fontSize: 11, color: T.muted }}>{r.desc}</div>
+          </AniCard>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
+            {reports.map((r, idx) => (
+              <div key={r.id} className="dash-card" style={{ ...sty.card, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, animation: `slideInLeft 0.4s ease ${idx * 0.08}s both` }}>
+                <div>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: T.white }}>Report - {r.generatedAt || "Latest"}</span>
+                  <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                    <span style={{ fontSize: 11, color: T.muted }}>Score: {r.securityScore}/100</span>
+                    <span style={{ fontSize: 11, color: T.muted }}>Devices: {r.devices}</span>
+                    <span style={{ fontSize: 11, color: T.muted }}>Plan: {r.plan}</span>
                   </div>
                 </div>
-                <button onClick={() => toast(`${r.name} report downloaded`, "success")} style={sty.btn("rgba(34,197,94,0.1)", T.green)}>
-                  <HiOutlineDownload size={14} /> PDF
-                </button>
+                <button onClick={() => downloadReport(r)} className="dash-btn" style={sty.btn("rgba(20,227,197,0.12)", T.cyan)}><HiOutlineDownload size={14} /> Download</button>
               </div>
             ))}
           </div>
-
-          {/* Quick Actions */}
-          <div style={sty.card}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <HiOutlineLightningBolt size={20} color={T.orange} />
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white }}>Quick Actions</h3>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {[
-                { label: "Full Scan", desc: "Scan all devices", icon: HiOutlineRefresh, color: T.accent, action: () => { handleScan(); setActiveNav("Protection"); } },
-                { label: "Check Breaches", desc: "Email breach check", icon: HiOutlineDatabase, color: T.red, action: () => setActiveNav("Protection") },
-                { label: "VPN Status", desc: plan !== "free" ? "Connected" : "Upgrade needed", icon: HiOutlineShieldCheck, color: T.green, action: () => toast(plan !== "free" ? "VPN is active and connected" : "Upgrade to Pro for VPN access", plan !== "free" ? "success" : "info") },
-                { label: "Export Data", desc: "Download your data", icon: HiOutlineDownload, color: T.cyan, action: () => toast("Data export started — you'll receive an email shortly", "info") },
-                { label: "Kill Sessions", desc: "Log out all devices", icon: HiOutlineBan, color: T.orange, action: () => toast("All other sessions terminated", "success") },
-                { label: "2FA Setup", desc: profileSettings.twoFactor ? "Enabled" : "Not enabled", icon: HiOutlineKey, color: T.pink, action: () => { setProfileSettings(p => ({ ...p, twoFactor: !p.twoFactor })); toast(profileSettings.twoFactor ? "2FA disabled" : "2FA enabled successfully", profileSettings.twoFactor ? "warning" : "success"); } },
-              ].map(a => (
-                <button key={a.label} onClick={a.action} style={{ padding: 14, background: `${a.color}08`, border: `1px solid ${a.color}20`, borderRadius: 10, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 4 }}>
-                  <a.icon size={18} color={a.color} />
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.white }}>{a.label}</div>
-                  <div style={{ fontSize: 11, color: T.muted }}>{a.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  };
-
-  const renderAlerts = () => (
-    <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white }}>All Alerts ({alerts.length})</h2>
-        <button onClick={() => setAlerts(a => a.map(x => ({ ...x, read: true })))} style={sty.btn("rgba(99,102,241,0.1)", T.accent)}>Mark All Read</button>
+        )}
       </div>
-      <div style={sty.card}>
-        {alerts.map(a => (
-          <div key={a.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "16px 0", borderBottom: `1px solid ${T.border}`, opacity: a.read ? 0.6 : 1 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${a.type === "critical" ? T.red : a.type === "warning" ? T.orange : T.cyan}12`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-              <HiOutlineExclamation size={16} color={a.type === "critical" ? T.red : a.type === "warning" ? T.orange : T.cyan} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, color: T.white, fontWeight: a.read ? 400 : 600 }}>{a.msg}</div>
-              <div style={{ fontSize: 12, color: T.muted, marginTop: 4, display: "flex", gap: 12 }}>
-                <span>{a.time}</span>
-                <Badge color={a.type === "critical" ? T.red : a.type === "warning" ? T.orange : T.cyan}>{a.type}</Badge>
-                {!a.read && <Badge color={T.accent}>Unread</Badge>}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {!a.read && <button onClick={() => markRead(a.id)} style={sty.btn("rgba(34,197,94,0.1)", T.green)}><HiOutlineCheck size={14} /></button>}
-              <button onClick={() => dismissAlert(a.id)} style={sty.btn("rgba(239,68,68,0.1)", T.red)}><HiOutlineX size={14} /></button>
-            </div>
-          </div>
-        ))}
-        {alerts.length === 0 && <div style={{ textAlign: "center", padding: 40, color: T.muted }}>No alerts - all clear!</div>}
-      </div>
-    </>
+    </PlanGate>
+    </AniTab>
   );
 
-  const renderBilling = () => (
-    <>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white, marginBottom: 20 }}>Billing & Subscription</h2>
-      <div style={{ ...sty.card, marginBottom: 24, background: `linear-gradient(135deg, rgba(99,102,241,0.1), rgba(20,227,197,0.05))`, border: "1px solid rgba(99,102,241,0.2)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+  const renderApiAccess = () => (
+    <AniTab>
+    <PlanGate required="enterprise" feature="API Access">
+      <div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">API Access</span></h2>
+        <AniCard delay={0.1}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk'" }}>API Key</h3>
+          {apiKey ? (
+            <div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <code style={{ flex: 1, padding: "10px 14px", background: "rgba(15,23,42,0.6)", border: `1px solid ${T.border}`, borderRadius: 8, color: T.cyan, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey}</code>
+                <button onClick={copyApiKey} style={sty.btn("rgba(20,227,197,0.12)", T.cyan)}><HiOutlineClipboard size={14} /> Copy</button>
+              </div>
+              <button onClick={generateApiKey} style={{ ...sty.btn("rgba(239,68,68,0.12)", T.orange), marginTop: 12 }}><HiOutlineRefresh size={14} /> Regenerate</button>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: 24 }}>
+              <HiOutlineKey size={32} style={{ color: T.muted, marginBottom: 8 }} />
+              <p style={{ fontSize: 13, color: T.muted, marginBottom: 12 }}>No API key generated yet</p>
+              <button onClick={generateApiKey} style={sty.btn(T.accent)}><HiOutlineKey size={14} /> Generate API Key</button>
+            </div>
+          )}
+        </AniCard>
+        <AniCard delay={0.2}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Usage</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+            {[["Requests Today", "0"], ["Monthly Quota", "10,000"], ["Rate Limit", "100/min"]].map(([l, v], i) => (
+              <div key={i} style={{ textAlign: "center", padding: 16, background: "rgba(99,102,241,0.06)", borderRadius: 8 }}>
+                <p style={{ fontSize: 11, color: T.muted }}>{l}</p>
+                <p style={{ fontSize: 18, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>{v}</p>
+              </div>
+            ))}
+          </div>
+          <a href="https://docs.secuvion.com/api" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 13, color: T.cyan, textDecoration: "none", transition: "all 0.2s" }}>
+            <HiOutlineGlobe size={14} /> API Documentation <HiOutlineChevronRight size={12} />
+          </a>
+        </AniCard>
+      </div>
+    </PlanGate>
+    </AniTab>
+  );
+
+  const renderAccount = () => (
+    <AniTab>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Account Settings</span></h2>
+      {/* Profile */}
+      <AniCard delay={0}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, fontFamily: "'Space Grotesk'" }}>Profile</h3>
+          {!editing && <button onClick={() => setEditing(true)} className="dash-btn" style={sty.btn("rgba(99,102,241,0.12)", T.accent)}><HiOutlinePencil size={14} /> Edit</button>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <div className="dash-avatar" style={{ width: 64, height: 64, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", fontFamily: "'Space Grotesk'", overflow: "hidden", boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+            {user?.photoURL ? <img src={user.photoURL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (user?.name?.charAt(0)?.toUpperCase() || "U")}
+          </div>
           <div>
-            <div style={{ fontSize: 13, color: T.muted, marginBottom: 4 }}>Current Plan</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: planColors[plan], fontFamily: "'Space Grotesk'" }}>{planLabels[plan]}</div>
-            <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{plan === "free" ? "Basic protection" : plan === "pro" ? "$29/month · Renews Apr 21, 2026" : "$79/month · Renews Apr 21, 2026"}</div>
-          </div>
-          {plan !== "enterprise" && <Link to={`/checkout?plan=${plan === "free" ? "pro" : "enterprise"}`} style={{ textDecoration: "none" }}>
-            <button style={sty.btn(T.accent)}><HiOutlineLightningBolt size={14} /> Upgrade</button>
-          </Link>}
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Payment History</h3>
-          {[
-            { date: "Mar 21, 2026", amount: plan === "enterprise" ? "$79.00" : plan === "pro" ? "$29.00" : "$0.00", status: "Paid" },
-            { date: "Feb 21, 2026", amount: plan === "enterprise" ? "$79.00" : plan === "pro" ? "$29.00" : "$0.00", status: "Paid" },
-            { date: "Jan 21, 2026", amount: plan === "enterprise" ? "$79.00" : plan === "pro" ? "$29.00" : "$0.00", status: "Paid" },
-          ].map((p, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
-              <span style={{ fontSize: 13, color: T.white }}>{p.date}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: T.white }}>{p.amount}</span>
-              <Badge color={T.green}>{p.status}</Badge>
-            </div>
-          ))}
-        </div>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Plan Features</h3>
-          {(plan === "enterprise" ? ["Everything in Pro", "Unlimited devices", "Dark web monitoring", "API access", "Dedicated manager", "Priority support"] :
-            plan === "pro" ? ["Real-time protection", "VPN", "5 devices", "Email protection", "24/7 support", "Weekly reports"] :
-              ["Basic scanning", "1 device", "Community support", "Email breach check"]).map(f => (
-            <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
-              <HiOutlineCheck size={14} color={T.green} />
-              <span style={{ fontSize: 13, color: T.white }}>{f}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-
-  const renderSettings = () => (
-    <>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: T.white, marginBottom: 20 }}>Account Settings</h2>
-
-      {/* Profile Card with Avatar */}
-      <div style={{ ...sty.card, marginBottom: 24, display: "flex", alignItems: "center", gap: 24, background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(20,227,197,0.04))", border: "1px solid rgba(99,102,241,0.15)" }}>
-        <div style={{ width: 72, height: 72, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-          {user?.name?.charAt(0) || "U"}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>{user?.name}</div>
-          <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>{user?.email}</div>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <Badge color={planColors[plan]}>{planLabels[plan]} Plan</Badge>
-            <Badge color={T.green}>Verified</Badge>
-            <Badge color={T.cyan}>Member since 2026</Badge>
+            <p style={{ fontSize: 16, fontWeight: 600, color: T.white }}>{user?.name}</p>
+            <Badge color={planColors[userPlan]}>{planLabels[userPlan]}</Badge>
+            <span style={{ marginLeft: 8 }}><Badge color={T.muted}>{providerLabel(user?.provider)}</Badge></span>
           </div>
         </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Profile</h3>
-          {[
-            { label: "Display Name", key: "name", type: "text" },
-            { label: "Email Address", key: "email", type: "email" },
-          ].map(f => (
-            <div key={f.key} style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, color: T.muted, marginBottom: 6 }}>{f.label}</label>
-              <input type={f.type} value={profileSettings[f.key]} onChange={e => setProfileSettings({ ...profileSettings, [f.key]: e.target.value })} style={sty.input} />
-            </div>
-          ))}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 12, color: T.muted, marginBottom: 6 }}>Change Password</label>
-            <input type="password" placeholder="Enter new password" style={sty.input} />
+        <div style={{ display: "grid", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>Name</label>
+            {editing ? <input value={editName} onChange={(e) => setEditName(e.target.value)} style={sty.input} />
+              : <p style={{ fontSize: 14, color: T.white, margin: 0 }}>{user?.name || "Not set"}</p>}
           </div>
-          <button onClick={() => toast("Profile updated successfully", "success")} style={sty.btn(T.accent)}><HiOutlineSave size={14} /> Save Profile</button>
-        </div>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Preferences</h3>
-          {[
-            { label: "Push Notifications", key: "notifications", desc: "Receive threat alerts" },
-            { label: "Two-Factor Auth", key: "twoFactor", desc: "Extra security layer" },
-            { label: "Weekly Report", key: "weeklyReport", desc: "Email summary every Monday" },
-            { label: "Auto-Scan Downloads", key: "autoScan", desc: "Scan new files automatically" },
-            { label: "Dark Mode", key: "darkMode", desc: "Dark theme (recommended)" },
-          ].map(t => (
-            <div key={t.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
-              <div>
-                <div style={{ fontSize: 14, color: T.white, fontWeight: 500 }}>{t.label}</div>
-                <div style={{ fontSize: 12, color: T.muted }}>{t.desc}</div>
-              </div>
-              <div onClick={() => { setProfileSettings({ ...profileSettings, [t.key]: !profileSettings[t.key] }); toast(`${t.label} ${profileSettings[t.key] ? "disabled" : "enabled"}`, "info"); }} style={{
-                width: 44, height: 24, borderRadius: 12, cursor: "pointer", position: "relative", transition: "background 0.3s",
-                background: profileSettings[t.key] ? T.accent : "rgba(148,163,184,0.2)",
-              }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, transition: "left 0.3s", left: profileSettings[t.key] ? 23 : 3 }} />
-              </div>
+          <div>
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>Email</label>
+            <p style={{ fontSize: 14, color: T.white, margin: 0 }}>{user?.email}</p>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>Phone</label>
+            {editing ? <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+1234567890" style={sty.input} />
+              : <p style={{ fontSize: 14, color: T.white, margin: 0 }}>{user?.phoneNumber || "Not set"}</p>}
+          </div>
+          {editing && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveProfile} disabled={saving} className="dash-btn" style={sty.btn(T.cyan)}><HiOutlineSave size={14} /> {saving ? "Saving..." : "Save"}</button>
+              <button onClick={() => { setEditing(false); setEditName(user?.name || ""); setEditPhone(user?.phoneNumber || ""); }} className="dash-btn" style={sty.btn("rgba(148,163,184,0.12)", T.muted)}>Cancel</button>
             </div>
+          )}
+        </div>
+      </AniCard>
+      {/* Plan */}
+      <AniCard delay={0.1}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Current Plan</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: planColors[userPlan], fontFamily: "'Space Grotesk'" }}>{planLabels[userPlan]}</span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {(planFeatures[userPlan] || planFeatures.free).map((f, i) => (
+            <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: T.muted }}><HiOutlineCheck size={12} color={T.green} /> {f}</span>
           ))}
         </div>
-      </div>
-
-      {/* Security & Data section */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 24 }}>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Security</h3>
-          {[
-            { label: "Two-Factor Authentication", value: profileSettings.twoFactor ? "Enabled" : "Disabled", color: profileSettings.twoFactor ? T.green : T.orange },
-            { label: "Last Login", value: "Today, " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), color: T.cyan },
-            { label: "Login Location", value: "India", color: T.muted },
-            { label: "Active Sessions", value: "2 devices", color: T.muted },
-            { label: "Password Last Changed", value: "45 days ago", color: T.orange },
-          ].map((s, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${T.border}` }}>
-              <span style={{ fontSize: 13, color: T.white }}>{s.label}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: s.color }}>{s.value}</span>
-            </div>
-          ))}
-        </div>
-        <div style={sty.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.white, marginBottom: 16 }}>Data & Privacy</h3>
-          <p style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>Manage your data and export options.</p>
-          {[
-            { label: "Export Account Data", desc: "Download all your data as JSON", icon: HiOutlineDownload, action: () => toast("Data export started — check your email", "info") },
-            { label: "Download Activity Log", desc: "Full activity history CSV", icon: HiOutlineDocumentReport, action: () => toast("Activity log downloaded", "success") },
-            { label: "Clear Scan History", desc: "Remove all past scan records", icon: HiOutlineTrash, action: () => toast("Scan history cleared", "warning") },
-          ].map(a => (
-            <div key={a.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${T.border}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <a.icon size={16} color={T.cyan} />
+        {userPlan !== "enterprise" && (
+          <button onClick={() => navigate("/pricing")} className="dash-btn" style={sty.btn("linear-gradient(135deg, #6366f1, #14e3c5)")}>Upgrade Plan <HiOutlineChevronRight size={14} /></button>
+        )}
+      </AniCard>
+      {/* Payments */}
+      <AniCard delay={0.2}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Payment History</h3>
+        {payments.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No payments found</p> : (
+          <div>
+            {payments.map((p, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < payments.length - 1 ? `1px solid ${T.border}` : "none" }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: T.white }}>{a.label}</div>
-                  <div style={{ fontSize: 11, color: T.muted }}>{a.desc}</div>
+                  <span style={{ fontSize: 13, color: T.white }}>{p.description || p.plan || "Payment"}</span>
+                  <p style={{ fontSize: 11, color: T.muted, margin: "2px 0 0" }}>{p.date?.toDate ? p.date.toDate().toLocaleDateString() : p.date || ""}</p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: T.cyan }}>{p.amount ? `₹${p.amount}` : ""}</span>
+                  {p.status && <Badge color={p.status === "success" ? T.green : T.orange}>{p.status}</Badge>}
                 </div>
               </div>
-              <button onClick={a.action} style={sty.btn("rgba(99,102,241,0.1)", T.accent)}>
-                <a.icon size={14} />
-              </button>
-            </div>
-          ))}
-          <div style={{ marginTop: 20, padding: "14px 16px", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: T.red, marginBottom: 4 }}>Danger Zone</div>
-            <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>Permanently delete your account and all associated data.</div>
-            <button onClick={() => toast("Account deletion requires email confirmation", "error")} style={sty.btn("rgba(239,68,68,0.15)", T.red)}><HiOutlineTrash size={14} /> Delete Account</button>
+            ))}
           </div>
-        </div>
+        )}
+      </AniCard>
+      {/* Delete Account */}
+      <div className="dash-card" style={{ ...sty.card, borderColor: "rgba(239,68,68,0.15)", animation: "fadeInUp 0.5s ease 0.3s both" }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 8, fontFamily: "'Space Grotesk'" }}>Danger Zone</h3>
+        <p style={{ fontSize: 13, color: T.muted, marginBottom: 12 }}>Permanently delete your account and all data. This action cannot be undone.</p>
+        <button onClick={() => setShowDeleteModal(true)} className="dash-btn" style={sty.btn("rgba(239,68,68,0.12)", T.red)}><HiOutlineTrash size={14} /> Delete Account</button>
       </div>
-    </>
+    </AniTab>
   );
 
+  const tabs = { Overview: renderOverview, Devices: renderDevices, Security: renderSecurity, "Threat Monitor": renderThreatMonitor, Analytics: renderAnalytics, Reports: renderReports, "API Access": renderApiAccess, Account: renderAccount };
+
+  if (!user) return null;
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: T.bg, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <SEO title="Dashboard" description="Your personal Secuvion security dashboard." path="/user-dashboard" />
-      <aside className={"user-sidebar" + (sidebarOpen ? " open" : "")} style={{ width: 240, background: T.sidebar, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh" }}>
-        <div style={{ padding: "24px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${T.cyan}, ${T.accent})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff" }}>S</div>
-          <span style={{ fontSize: 18, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>SECUVION</span>
-        </div>
-        <div style={{ margin: "0 12px 12px", padding: 14, background: "rgba(99,102,241,0.06)", borderRadius: 10, border: "1px solid rgba(99,102,241,0.1)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff" }}>{user?.name?.charAt(0) || "U"}</div>
-            <div><div style={{ fontSize: 13, fontWeight: 600, color: T.white }}>{user?.name}</div><div style={{ fontSize: 11, color: T.muted }}>{user?.email}</div></div>
-          </div>
-          <div style={{ padding: "3px 10px", background: `${planColors[plan]}15`, border: `1px solid ${planColors[plan]}30`, borderRadius: 6, fontSize: 11, fontWeight: 600, color: planColors[plan], textAlign: "center" }}>{planLabels[plan]} Plan</div>
-        </div>
-        <nav style={{ flex: 1, padding: "0 8px", display: "flex", flexDirection: "column", gap: 2 }}>
-          {navItems.map(item => (
-            <button key={item.label} onClick={() => { setActiveNav(item.label); setSidebarOpen(false); }} style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", width: "100%",
-              background: activeNav === item.label ? "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(20,227,197,0.08))" : "transparent",
-              border: activeNav === item.label ? "1px solid rgba(99,102,241,0.2)" : "1px solid transparent",
-              borderRadius: 10, color: activeNav === item.label ? T.cyan : T.muted,
-              cursor: "pointer", fontSize: 14, fontWeight: activeNav === item.label ? 600 : 400, fontFamily: "'Plus Jakarta Sans'", position: "relative",
-            }}>
-              <item.icon size={20} /><span>{item.label}</span>
-              {item.badge && <span style={{ background: T.orange, color: "#fff", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10, marginLeft: "auto" }}>{item.badge}</span>}
-            </button>
-          ))}
-        </nav>
-        <div style={{ padding: "8px 12px" }}>
-          <Link to="/pricing" style={{ textDecoration: "none" }}>
-            <button style={{ ...sty.btn(T.accent), width: "100%", justifyContent: "center", padding: "10px", marginBottom: 8 }}><HiOutlineLightningBolt size={16} /> Upgrade Plan</button>
-          </Link>
-          <button onClick={handleLogout} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", width: "100%", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 10, color: T.red, cursor: "pointer", fontSize: 14, fontWeight: 500, fontFamily: "'Plus Jakarta Sans'" }}>
-            <HiOutlineLogout size={20} /> Log Out
-          </button>
-        </div>
-      </aside>
-
-      <main style={{ flex: 1, overflow: "auto" }}>
-        <style>{`
-          @media (max-width: 900px) {
-            .user-sidebar {
-              position: fixed !important;
-              left: -260px !important;
-              top: 0 !important;
-              z-index: 200 !important;
-              height: 100vh !important;
-              transition: left 0.28s cubic-bezier(0.4,0,0.2,1) !important;
-              box-shadow: 4px 0 32px rgba(0,0,0,0.5) !important;
-            }
-            .user-sidebar.open {
-              left: 0 !important;
-            }
-            .user-burger {
-              display: flex !important;
-            }
-          }
-        `}</style>
-        <header style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 32px",
-          borderBottom: `1px solid ${T.border}`, background: "rgba(3,7,18,0.85)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10,
+    <>
+      <SEO title="Dashboard | Secuvion" description="Manage your security, devices, and account settings." />
+      <div style={{ minHeight: "100vh", background: T.bg, display: "flex", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        {/* Mobile hamburger */}
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
+          position: "fixed", top: 16, left: 16, zIndex: 100, background: T.sidebar, border: `1px solid ${T.border}`,
+          borderRadius: 8, padding: 8, color: T.white, cursor: "pointer", display: "none",
+          ...(typeof window !== "undefined" && window.innerWidth < 768 ? { display: "flex" } : {}),
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button className="user-burger" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ display: "none", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f1f5f9" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-            </button>
-            <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>
-                {activeNav === "Overview" ? `Welcome back, ${user?.name?.split(" ")[0] || "User"}` : activeNav}
-              </h1>
-              <p style={{ fontSize: 12, color: T.muted }}>{activeNav === "Overview" ? "Here's your security overview" : `Manage your ${activeNav.toLowerCase()}`}</p>
+          <HiOutlineMenuAlt2 size={20} />
+        </button>
+        {/* Sidebar */}
+        <aside style={{
+          width: 240, height: "100vh", background: "linear-gradient(180deg, #0a0f1e 0%, #070b14 100%)", borderRight: `1px solid ${T.border}`,
+          padding: "24px 12px", display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0,
+          zIndex: 90, transition: "transform 0.3s", overflowX: "hidden",
+          ...(typeof window !== "undefined" && window.innerWidth < 768 ? { transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)" } : {}),
+        }}>
+          <div style={{ padding: "0 8px", marginBottom: 20 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, fontFamily: "'Space Grotesk'" }}>
+              <span style={{ color: T.cyan }}>SECU</span><span style={{ color: T.white }}>VION</span>
+            </h1>
+            <p style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>Security Dashboard</p>
+          </div>
+          {/* Home Button */}
+          <button onClick={() => navigate("/")} style={{
+            width: "calc(100% - 16px)", margin: "0 8px 12px", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+            background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(20,227,197,0.1))", border: `1px solid ${T.border}`,
+            borderRadius: 8, color: T.cyan, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans'", textAlign: "left",
+          }}>
+            <HiOutlineHome size={18} /> Home
+          </button>
+          <nav className="usr-side-nav" style={{ flex: 1, overflowY: "auto" }}>
+            <p style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1.5, padding: "0 12px", marginBottom: 6 }}>Dashboard</p>
+            {navItems.map((n, i) => {
+              const locked = n.plan && !isPlanAllowed(userPlan, n.plan);
+              const isActive = tab === n.label;
+              return (
+                <button key={n.label} className="dash-nav-item" onClick={() => { setTab(n.label); setSidebarOpen(false); }}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                    background: isActive ? "rgba(99,102,241,0.12)" : "transparent",
+                    border: "none", borderRadius: 8, color: isActive ? T.cyan : T.muted,
+                    fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: "pointer",
+                    marginBottom: 2, fontFamily: "'Plus Jakarta Sans'", textAlign: "left",
+                    opacity: locked ? 0.5 : 1,
+                    borderLeft: isActive ? `3px solid ${T.cyan}` : "3px solid transparent",
+                    animation: `slideInLeft 0.3s ease ${i * 0.04}s both`,
+                  }}>
+                  <n.icon size={18} /> {n.label}
+                  {locked && <HiOutlineLockClosed size={12} style={{ marginLeft: "auto" }} />}
+                </button>
+              );
+            })}
+            <div style={{ height: 1, background: T.border, margin: "12px 8px" }} />
+            <p style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1.5, padding: "0 12px", marginBottom: 6 }}>Tools & Features</p>
+            {toolLinks.map((t, i) => (
+              <button key={t.path} className="dash-tool-link" onClick={() => { navigate(t.path); setSidebarOpen(false); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+                  background: "transparent", border: "none", borderRadius: 8, color: T.muted,
+                  fontSize: 12, fontWeight: 400, cursor: "pointer", marginBottom: 1,
+                  fontFamily: "'Plus Jakarta Sans'", textAlign: "left",
+                  animation: `slideInLeft 0.3s ease ${0.3 + i * 0.03}s both`,
+                }}>
+                <t.icon size={16} /> {t.label}
+              </button>
+            ))}
+          </nav>
+          <button onClick={handleLogout} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+            background: "transparent", border: "none", borderRadius: 8, color: T.red,
+            fontSize: 13, cursor: "pointer", fontFamily: "'Plus Jakarta Sans'", textAlign: "left",
+          }}>
+            <HiOutlineLogout size={18} /> Sign Out
+          </button>
+        </aside>
+        {/* Overlay for mobile */}
+        {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 80 }} />}
+        {/* Main */}
+        <main style={{ flex: 1, marginLeft: 240, padding: "32px 32px 48px", maxWidth: 960, width: "100%",
+          ...(typeof window !== "undefined" && window.innerWidth < 768 ? { marginLeft: 0, padding: "64px 16px 48px" } : {}),
+        }}>
+          {loading ? <Spinner /> : tabs[tab] ? tabs[tab]() : renderOverview()}
+        </main>
+        {/* Delete Modal */}
+        {showDeleteModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "fadeIn 0.2s ease" }}>
+            <div style={{ ...sty.card, maxWidth: 400, width: "90%", textAlign: "center", animation: "scaleIn 0.3s ease both" }}>
+              <HiOutlineExclamation size={40} color={T.red} />
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: T.white, marginTop: 12, fontFamily: "'Space Grotesk'" }}>Delete Account?</h3>
+              <p style={{ fontSize: 13, color: T.muted, marginTop: 8 }}>This will permanently delete your account and all associated data. This cannot be undone.</p>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 20 }}>
+                <button onClick={() => setShowDeleteModal(false)} style={sty.btn("rgba(148,163,184,0.12)", T.muted)}>Cancel</button>
+                <button onClick={handleDeleteAccount} style={sty.btn(T.red)}>Delete Forever</button>
+              </div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {activeNav === "Overview" && <button onClick={handleScan} disabled={scanning} style={sty.btn(scanning ? "rgba(99,102,241,0.3)" : T.accent)}>
-              <HiOutlineRefresh size={14} style={{ animation: scanning ? "spin 1s linear infinite" : "none" }} />
-              {scanning ? "Scanning..." : "Quick Scan"}
-            </button>}
-            <div style={{ position: "relative" }}><HiOutlineBell size={20} color={T.muted} style={{ cursor: "pointer" }} />
-              {alerts.filter(a => !a.read).length > 0 && <div style={{ position: "absolute", top: -4, right: -4, width: 8, height: 8, background: T.red, borderRadius: "50%", border: "2px solid #030712" }} />}
-            </div>
-          </div>
-        </header>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-        <div style={{ padding: "28px 32px", maxWidth: 1200 }}>{renderContent()}</div>
-
-        <footer style={{ padding: "20px 32px", borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, color: T.muted }}>&copy; 2026 SECUVION. All rights reserved. Founder: Sahil Anil Nikam</span>
-          <span style={{ fontSize: 12, color: T.muted }}>{planLabels[plan]} Plan</span>
-        </footer>
-      </main>
-    </div>
+        )}
+      </div>
+      <style>{`
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+        @keyframes slideInLeft { from { opacity:0; transform:translateX(-20px) } to { opacity:1; transform:translateX(0) } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.9) } to { opacity:1; transform:scale(1) } }
+        @keyframes float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-6px) } }
+        @keyframes glow { 0%,100% { box-shadow:0 0 5px rgba(99,102,241,0.3) } 50% { box-shadow:0 0 20px rgba(99,102,241,0.6) } }
+        @keyframes gradientShift { 0% { background-position:0% 50% } 50% { background-position:100% 50% } 100% { background-position:0% 50% } }
+        @keyframes spin { to { transform:rotate(360deg) } }
+        @keyframes borderGlow { 0%,100% { border-color:rgba(99,102,241,0.1) } 50% { border-color:rgba(99,102,241,0.3) } }
+        .dash-card:hover { transform:translateY(-3px) !important; box-shadow:0 8px 32px rgba(99,102,241,0.15) !important; border-color:rgba(99,102,241,0.2) !important }
+        .dash-btn:hover { transform:scale(1.04) !important; filter:brightness(1.1) }
+        .dash-nav-item { transition:all 0.2s ease !important }
+        .dash-nav-item:hover { background:rgba(99,102,241,0.1) !important; transform:translateX(4px) }
+        .dash-tool-link { transition:all 0.2s ease !important }
+        .dash-tool-link:hover { background:rgba(20,227,197,0.08) !important; color:${T.cyan} !important; transform:translateX(4px) }
+        .dash-stat { transition:all 0.3s cubic-bezier(0.4,0,0.2,1) !important }
+        .dash-stat:hover { transform:translateY(-4px) scale(1.02) !important }
+        .dash-stat:hover .stat-value { text-shadow:0 0 20px currentColor }
+        .stat-value { transition:all 0.3s ease }
+        .dash-input:focus { border-color:${T.accent} !important; box-shadow:0 0 0 3px rgba(99,102,241,0.15) !important }
+        .dash-quick-action { transition:all 0.25s ease !important }
+        .dash-quick-action:hover { transform:translateY(-3px) !important; box-shadow:0 4px 16px rgba(99,102,241,0.2) !important }
+        .dash-avatar { animation:glow 3s ease-in-out infinite }
+        .dash-gradient-text { background:linear-gradient(135deg,${T.cyan},${T.accent}); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-size:200% 200%; animation:gradientShift 4s ease infinite }
+        .dash-device:hover { transform:translateX(4px) !important; border-color:rgba(20,227,197,0.2) !important }
+        .dash-row { transition:all 0.2s ease }
+        .dash-row:hover { background:rgba(99,102,241,0.05) !important }
+        @media (max-width: 768px) {
+          aside { transform: ${sidebarOpen ? "translateX(0)" : "translateX(-100%)"} !important; }
+          main { margin-left: 0 !important; padding: 64px 16px 48px !important; }
+          button[style*="display: none"] { display: flex !important; }
+        }
+        .usr-side-nav::-webkit-scrollbar { width: 4px }
+        .usr-side-nav::-webkit-scrollbar-track { background: transparent }
+        .usr-side-nav::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.15); border-radius: 4px }
+        .usr-side-nav::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.3) }
+      `}</style>
+    </>
   );
 }

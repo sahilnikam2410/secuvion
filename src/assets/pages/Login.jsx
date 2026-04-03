@@ -273,6 +273,7 @@ function injectKeyframes() {
 export default function Login() {
   const navigate = useNavigate();
   const {
+    user,
     login,
     loginWithGoogle,
     loginWithGithub,
@@ -280,6 +281,11 @@ export default function Login() {
     loginWithPhone,
     verifyPhoneCode,
   } = useAuth();
+
+  // Redirect if already logged in (handles social login race condition)
+  useEffect(() => {
+    if (user) navigate("/home", { replace: true });
+  }, [user, navigate]);
 
   /* ── State ── */
   const [activeTab, setActiveTab] = useState("email");
@@ -340,7 +346,7 @@ export default function Login() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        navigate("/learn");
+        navigate("/home", { replace: true });
       } else {
         setError(result.error || "Invalid email or password.");
         setLoading(false);
@@ -359,9 +365,8 @@ export default function Login() {
       const result = await fn();
       if (result && result.success === false) {
         setError(result.error || "Authentication failed.");
-      } else {
-        navigate("/learn");
       }
+      // Navigation handled by useEffect watching user state
     } catch (err) {
       const msg =
         err.code === "auth/popup-closed-by-user"
@@ -433,7 +438,7 @@ export default function Login() {
         setError(result.error || "Verification failed.");
         setLoading(false);
       } else {
-        navigate("/learn");
+        navigate("/home", { replace: true });
       }
     } catch (err) {
       const msg =
@@ -519,26 +524,8 @@ export default function Login() {
         {error && <div style={S.error}><ErrorIcon />{error}</div>}
         {successMsg && <div style={S.success}><SuccessIcon />{successMsg}</div>}
 
-        {/* ── Tab Bar ── */}
-        <div style={S.tabBar}>
-          <button
-            type="button"
-            style={activeTab === "email" ? S.tabActive : S.tabInactive}
-            onClick={() => { setActiveTab("email"); clearMessages(); }}
-          >
-            <MailIcon /> Email
-          </button>
-          <button
-            type="button"
-            style={activeTab === "phone" ? S.tabActive : S.tabInactive}
-            onClick={() => { setActiveTab("phone"); clearMessages(); }}
-          >
-            <PhoneTabIcon /> Phone
-          </button>
-        </div>
-
-        {/* ═══════ EMAIL TAB ═══════ */}
-        {activeTab === "email" && (
+        {/* ═══════ EMAIL FORM ═══════ */}
+        {(
           <form onSubmit={handleEmailLogin} autoComplete="on">
             <label style={S.label}>Email Address</label>
             <input
@@ -587,107 +574,6 @@ export default function Login() {
               {loading ? <><SpinnerIcon /> Signing in...</> : "Sign In"}
             </button>
           </form>
-        )}
-
-        {/* ═══════ PHONE TAB ═══════ */}
-        {activeTab === "phone" && (
-          <div>
-            {!otpSent ? (
-              <>
-                <label style={S.label}>Phone Number</label>
-                <div style={S.phoneRow}>
-                  <select
-                    style={S.countrySelect}
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    onFocus={onFocus}
-                    onBlur={onBlur}
-                  >
-                    {COUNTRY_CODES.map((c) => (
-                      <option key={c.code} value={c.code} style={{ background: "#0f172a", color: "#f1f5f9" }}>
-                        {c.country} {c.code}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    style={{ ...S.input, marginBottom: 0, flex: 1 }}
-                    type="tel"
-                    placeholder="Phone number"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/[^\d\s-]/g, ""))}
-                    onFocus={onFocus}
-                    onBlur={onBlur}
-                    autoComplete="tel"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  style={{ ...S.btnGreen, marginTop: 4, ...disabledStyle }}
-                  disabled={loading}
-                  onClick={handleSendOTP}
-                  onMouseEnter={!loading ? hoverIn : undefined}
-                  onMouseLeave={!loading ? hoverOut : undefined}
-                >
-                  {loading ? <><SpinnerIcon /> Sending OTP...</> : "Send OTP"}
-                </button>
-              </>
-            ) : (
-              <>
-                <p style={{ fontSize: 14, color: "#94a3b8", textAlign: "center", marginBottom: 16 }}>
-                  Enter the 6-digit code sent to{" "}
-                  <span style={{ color: "#14e3c5", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
-                    {countryCode} {phoneNumber}
-                  </span>
-                </p>
-
-                <div style={S.otpContainer}>
-                  {otpValues.map((val, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { otpRefs.current[i] = el; }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={val}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      onFocus={onFocus}
-                      onBlur={onBlur}
-                      style={S.otpInput}
-                      autoComplete="one-time-code"
-                    />
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  style={{ ...S.btnGreen, ...disabledStyle }}
-                  disabled={loading}
-                  onClick={handleVerifyOTP}
-                  onMouseEnter={!loading ? hoverIn : undefined}
-                  onMouseLeave={!loading ? hoverOut : undefined}
-                >
-                  {loading ? <><SpinnerIcon /> Verifying...</> : "Verify OTP"}
-                </button>
-
-                <button
-                  type="button"
-                  style={S.changePhoneBtn}
-                  onClick={() => {
-                    setOtpSent(false);
-                    setConfirmationResult(null);
-                    setOtpValues(["", "", "", "", "", ""]);
-                    clearMessages();
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#14e3c5"; e.currentTarget.style.color = "#e2e8f0"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(148,163,184,0.2)"; e.currentTarget.style.color = "#94a3b8"; }}
-                >
-                  Change phone number
-                </button>
-              </>
-            )}
-          </div>
         )}
 
         {/* ═══════ SOCIAL DIVIDER ═══════ */}
