@@ -363,8 +363,28 @@ const HeroCounter = ({ end, label, color, suffix = "" }) => {
   );
 };
 
+/* ── PARALLAX HOOK ── */
+const useParallax = (speed = 0.3) => {
+  const ref = useRef(null);
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    const h = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const center = rect.top + rect.height / 2;
+      const viewCenter = window.innerHeight / 2;
+      setOffset((center - viewCenter) * speed);
+    };
+    window.addEventListener("scroll", h, { passive: true });
+    h();
+    return () => window.removeEventListener("scroll", h);
+  }, [speed]);
+  return [ref, offset];
+};
+
 const Hero = () => {
   const [threats, setThreats] = useState(2841029);
+  const [parallaxRef, parallaxOffset] = useParallax(0.15);
   const typed = useTypewriter([
     "Fraud Detection",
     "Phishing Protection",
@@ -379,12 +399,12 @@ const Hero = () => {
   }, []);
 
   return (
-    <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", padding: "120px clamp(24px, 5vw, 80px) 80px" }}>
-      {/* Background glow */}
-      <div style={{ position: "absolute", top: "10%", left: "5%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.07), transparent 65%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "5%", right: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(20,227,197,0.04), transparent 65%)", pointerEvents: "none" }} />
-      {/* Animated mesh gradient */}
-      <div style={{ position: "absolute", top: "30%", left: "50%", width: 900, height: 900, transform: "translate(-50%, -50%)", borderRadius: "50%", background: "conic-gradient(from 0deg, rgba(99,102,241,0.04), rgba(20,227,197,0.03), rgba(139,92,246,0.04), rgba(99,102,241,0.04))", animation: "spin 30s linear infinite", pointerEvents: "none", filter: "blur(80px)" }} />
+    <section ref={parallaxRef} style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", padding: "120px clamp(24px, 5vw, 80px) 80px" }}>
+      {/* Parallax background glows */}
+      <div style={{ position: "absolute", top: "10%", left: "5%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.07), transparent 65%)", pointerEvents: "none", transform: `translateY(${parallaxOffset * 0.5}px)`, transition: "transform 0.1s linear" }} />
+      <div style={{ position: "absolute", bottom: "5%", right: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(20,227,197,0.04), transparent 65%)", pointerEvents: "none", transform: `translateY(${parallaxOffset * -0.3}px)`, transition: "transform 0.1s linear" }} />
+      {/* Animated mesh gradient with parallax */}
+      <div style={{ position: "absolute", top: "30%", left: "50%", width: 900, height: 900, transform: `translate(-50%, calc(-50% + ${parallaxOffset * 0.2}px))`, borderRadius: "50%", background: "conic-gradient(from 0deg, rgba(99,102,241,0.04), rgba(20,227,197,0.03), rgba(139,92,246,0.04), rgba(99,102,241,0.04))", animation: "spin 30s linear infinite", pointerEvents: "none", filter: "blur(80px)" }} />
 
       <div style={{ maxWidth: 1280, margin: "0 auto", width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", position: "relative", zIndex: 2 }} className="hero-grid">
         {/* Left — Content */}
@@ -532,8 +552,9 @@ const ScrollProgress = () => {
   );
 };
 
-/* ── LIVE THREAT TICKER ── */
+/* ── LIVE THREAT TICKER (pause on hover) ── */
 const ThreatTicker = () => {
+  const [paused, setPaused] = useState(false);
   const threats = [
     { type: "BLOCKED", msg: "SQL Injection from 185.x.x.x", loc: "Frankfurt, DE", color: "#22c55e" },
     { type: "DETECTED", msg: "Phishing campaign targeting .edu domains", loc: "Global", color: T.gold },
@@ -546,21 +567,25 @@ const ThreatTicker = () => {
   ];
 
   return (
-    <div style={{
-      overflow: "hidden", padding: "10px 0",
-      background: "rgba(3,7,18,0.6)", borderBottom: `1px solid ${T.border}`,
-      position: "relative",
-    }}>
-      {/* Fade edges */}
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      style={{
+        overflow: "hidden", padding: "10px 0",
+        background: "rgba(3,7,18,0.6)", borderBottom: `1px solid ${T.border}`,
+        position: "relative",
+      }}
+    >
       <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 80, background: "linear-gradient(90deg, rgba(3,7,18,1), transparent)", zIndex: 2, pointerEvents: "none" }} />
       <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 80, background: "linear-gradient(90deg, transparent, rgba(3,7,18,1))", zIndex: 2, pointerEvents: "none" }} />
       <div className="threat-ticker-track" style={{
         display: "flex", gap: 48, whiteSpace: "nowrap",
         animation: "ticker-scroll 40s linear infinite",
+        animationPlayState: paused ? "paused" : "running",
       }}>
         {[...threats, ...threats].map((t, i) => (
           <div key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: t.color, flexShrink: 0, boxShadow: `0 0 6px ${t.color}60` }} />
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 1 }}>{t.type}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: T.muted }}>{t.msg}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.mutedDark }}>{t.loc}</span>
@@ -603,6 +628,411 @@ const TrustBadges = () => (
     </Reveal>
   </div>
 );
+
+/* ── SOCIAL PROOF TOASTS ── */
+const SocialProofToasts = () => {
+  const [toast, setToast] = useState(null);
+  const [visible, setVisible] = useState(false);
+  const names = [
+    { name: "Rahul S.", city: "Mumbai" }, { name: "Emily K.", city: "London" },
+    { name: "Yuki T.", city: "Tokyo" }, { name: "Carlos R.", city: "São Paulo" },
+    { name: "Priya M.", city: "Delhi" }, { name: "James W.", city: "New York" },
+    { name: "Aisha B.", city: "Dubai" }, { name: "Kim J.", city: "Seoul" },
+    { name: "Marco V.", city: "Milan" }, { name: "Fatima Z.", city: "Riyadh" },
+    { name: "Alex P.", city: "Berlin" }, { name: "Nina L.", city: "Paris" },
+  ];
+  const actions = ["just signed up", "upgraded to Sentinel", "ran a threat scan", "activated Dark Web Watch", "upgraded to Fortress"];
+
+  useEffect(() => {
+    const show = () => {
+      const n = names[Math.floor(Math.random() * names.length)];
+      const a = actions[Math.floor(Math.random() * actions.length)];
+      setToast({ ...n, action: a });
+      setVisible(true);
+      setTimeout(() => setVisible(false), 4000);
+    };
+    const t1 = setTimeout(show, 5000);
+    const interval = setInterval(show, 12000);
+    return () => { clearTimeout(t1); clearInterval(interval); };
+  }, []);
+
+  if (!toast) return null;
+  return (
+    <div style={{
+      position: "fixed", bottom: 28, left: 28, zIndex: 150,
+      background: "rgba(17,24,39,0.92)", backdropFilter: "blur(16px)",
+      border: `1px solid ${T.border}`, borderRadius: 14,
+      padding: "14px 20px", display: "flex", alignItems: "center", gap: 12,
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0) scale(1)" : "translateY(20px) scale(0.95)",
+      transition: "all 0.5s cubic-bezier(0.22, 1, 0.36, 1)",
+      pointerEvents: visible ? "auto" : "none",
+      boxShadow: "0 16px 48px rgba(0,0,0,0.4), 0 0 20px rgba(99,102,241,0.06)",
+      maxWidth: 340,
+    }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(20,227,197,0.1))",
+        border: `1px solid rgba(99,102,241,0.15)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 14, flexShrink: 0,
+      }}>&#9889;</div>
+      <div>
+        <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: T.white, fontWeight: 600 }}>
+          {toast.name} <span style={{ color: T.muted, fontWeight: 400 }}>{toast.action}</span>
+        </div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: T.mutedDark, marginTop: 2 }}>
+          {toast.city} &bull; just now
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── PRODUCT DEMO / VIDEO SECTION ── */
+const ProductDemo = () => {
+  const [activeTab, setActiveTab] = useState(0);
+  const tabs = [
+    { label: "Threat Scanner", icon: "&#9632;", desc: "AI-powered real-time threat analysis", screens: [
+      { label: "Paste URL", color: T.cyan }, { label: "AI Analysis", color: T.accent }, { label: "Risk Score", color: "#22c55e" }
+    ]},
+    { label: "Dashboard", icon: "&#9670;", desc: "Complete security overview at a glance", screens: [
+      { label: "Overview", color: T.accent }, { label: "Threats", color: T.red }, { label: "Devices", color: T.cyan }
+    ]},
+    { label: "Dark Web", icon: "&#9679;", desc: "Monitor leaked credentials 24/7", screens: [
+      { label: "Scan", color: T.purple }, { label: "Alerts", color: T.red }, { label: "Report", color: "#22c55e" }
+    ]},
+  ];
+
+  return (
+    <Section id="demo">
+      <Reveal><SectionHeader badge="See It in Action" title={<>Platform <GradientText>Demo</GradientText></>} subtitle="Watch how Secuvion protects you in real-time across every threat vector." /></Reveal>
+      <Reveal delay={0.1}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          {/* Tab bar */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 32, justifyContent: "center", flexWrap: "wrap" }}>
+            {tabs.map((t, i) => (
+              <button key={i} onClick={() => setActiveTab(i)} style={{
+                padding: "12px 24px", borderRadius: 12, cursor: "pointer",
+                background: activeTab === i ? "rgba(99,102,241,0.1)" : "rgba(148,163,184,0.04)",
+                border: `1px solid ${activeTab === i ? "rgba(99,102,241,0.25)" : T.border}`,
+                color: activeTab === i ? T.white : T.muted,
+                fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 600,
+                transition: "all 0.3s ease", display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <span dangerouslySetInnerHTML={{ __html: t.icon }} style={{ fontSize: 12, color: activeTab === i ? T.cyan : T.mutedDark }} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Demo window */}
+          <div style={{
+            background: "rgba(17,24,39,0.6)", border: `1px solid ${T.border}`,
+            borderRadius: 20, overflow: "hidden", backdropFilter: "blur(8px)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.4), 0 0 40px rgba(99,102,241,0.04)",
+          }}>
+            {/* Window chrome */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px", borderBottom: `1px solid ${T.border}`, background: "rgba(3,7,18,0.5)" }}>
+              <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
+              <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#eab308" }} />
+              <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
+              <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 12, color: T.mutedDark }}>
+                secuvion.com / {tabs[activeTab].label.toLowerCase().replace(" ", "-")}
+              </div>
+            </div>
+
+            {/* Content area */}
+            <div style={{ padding: "48px 40px", minHeight: 340, position: "relative" }}>
+              <div style={{ textAlign: "center", marginBottom: 36 }}>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: T.white, margin: "0 0 8px" }}>
+                  {tabs[activeTab].label}
+                </h3>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: T.muted }}>{tabs[activeTab].desc}</p>
+              </div>
+
+              {/* Animated flow steps */}
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                {tabs[activeTab].screens.map((s, i) => (
+                  <div key={`${activeTab}-${i}`} style={{
+                    display: "flex", alignItems: "center", gap: 20,
+                    opacity: 0, animation: `card-enter 0.5s ease forwards ${i * 0.2}s`,
+                  }}>
+                    <div style={{
+                      width: 180, padding: "28px 20px", borderRadius: 16, textAlign: "center",
+                      background: `${s.color}08`, border: `1px solid ${s.color}20`,
+                      position: "relative", overflow: "hidden",
+                    }}>
+                      {/* Animated pulse */}
+                      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 50%, ${s.color}10, transparent 70%)`, animation: "splash-pulse 3s ease infinite" }} />
+                      <div style={{ width: 48, height: 48, borderRadius: 14, background: `${s.color}15`, margin: "0 auto 12px", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${s.color}25` }}>
+                        <span style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: s.color }}>{i + 1}</span>
+                      </div>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: 14, fontWeight: 600, color: T.white, position: "relative" }}>{s.label}</div>
+                    </div>
+                    {i < tabs[activeTab].screens.length - 1 && (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.mutedDark} strokeWidth="1.5" className="demo-arrow">
+                        <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Simulated scan bar */}
+              <div style={{ maxWidth: 400, margin: "36px auto 0" }}>
+                <div style={{ height: 4, borderRadius: 4, background: "rgba(148,163,184,0.06)", overflow: "hidden" }}>
+                  <div className="demo-scan-bar" style={{ height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${T.accent}, ${T.cyan})`, width: "0%", animation: "demo-scan 2.5s ease-in-out infinite" }} />
+                </div>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: T.mutedDark, textAlign: "center", marginTop: 8 }}>Analyzing threat vectors...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+    </Section>
+  );
+};
+
+/* ── BEFORE vs AFTER ── */
+const BeforeAfter = () => (
+  <Section>
+    <Reveal><SectionHeader badge="The Difference" title={<>Life Without vs With <GradientText>Secuvion</GradientText></>} subtitle="See why 1.2M+ users made the switch to proactive security." /></Reveal>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 1fr", gap: 0, maxWidth: 960, margin: "0 auto", alignItems: "stretch" }} className="ba-grid">
+      {/* BEFORE */}
+      <Reveal>
+        <div style={{
+          background: "linear-gradient(135deg, rgba(239,68,68,0.04) 0%, rgba(17,24,39,0.6) 100%)",
+          border: `1px solid rgba(239,68,68,0.12)`, borderRadius: 20, padding: "40px 32px",
+          position: "relative", overflow: "hidden", height: "100%",
+        }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #ef4444, transparent)" }} />
+          <Badge color={T.red}>WITHOUT SECUVION</Badge>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: T.red, margin: "20px 0 28px", letterSpacing: "-0.02em" }}>Exposed & Reactive</h3>
+          {[
+            { icon: "&#10007;", text: "Clicking phishing links unknowingly" },
+            { icon: "&#10007;", text: "Passwords leaked on dark web" },
+            { icon: "&#10007;", text: "Days to detect a breach" },
+            { icon: "&#10007;", text: "No identity monitoring" },
+            { icon: "&#10007;", text: "Manual security updates" },
+            { icon: "&#10007;", text: "Reacting after damage is done" },
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: i < 5 ? `1px solid rgba(239,68,68,0.06)` : "none" }}>
+              <span style={{ color: T.red, fontSize: 14, flexShrink: 0, opacity: 0.8 }} dangerouslySetInnerHTML={{ __html: item.icon }} />
+              <span style={{ fontFamily: "var(--font-body)", fontSize: 14, color: T.muted }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </Reveal>
+
+      {/* VS divider */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: 1, background: `linear-gradient(180deg, transparent, ${T.border}, transparent)`, transform: "translateX(-50%)" }} />
+        <div style={{
+          width: 48, height: 48, borderRadius: "50%", zIndex: 2,
+          background: "linear-gradient(135deg, #6366f1, #14e3c5)", boxShadow: "0 8px 32px rgba(99,102,241,0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 800, color: "#fff",
+        }}>VS</div>
+      </div>
+
+      {/* AFTER */}
+      <Reveal delay={0.15}>
+        <div style={{
+          background: "linear-gradient(135deg, rgba(34,197,94,0.04) 0%, rgba(17,24,39,0.6) 100%)",
+          border: `1px solid rgba(34,197,94,0.12)`, borderRadius: 20, padding: "40px 32px",
+          position: "relative", overflow: "hidden", height: "100%",
+        }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #22c55e, transparent)" }} />
+          <Badge color="#22c55e">WITH SECUVION</Badge>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "#22c55e", margin: "20px 0 28px", letterSpacing: "-0.02em" }}>Protected & Proactive</h3>
+          {[
+            { icon: "&#10003;", text: "AI blocks threats before you click" },
+            { icon: "&#10003;", text: "Dark web alerts within minutes" },
+            { icon: "&#10003;", text: "Real-time <50ms threat response" },
+            { icon: "&#10003;", text: "Continuous identity monitoring" },
+            { icon: "&#10003;", text: "Automatic security hardening" },
+            { icon: "&#10003;", text: "Prevention-first architecture" },
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: i < 5 ? `1px solid rgba(34,197,94,0.06)` : "none" }}>
+              <span style={{ color: "#22c55e", fontSize: 14, flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: item.icon }} />
+              <span style={{ fontFamily: "var(--font-body)", fontSize: 14, color: T.muted }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </Reveal>
+    </div>
+  </Section>
+);
+
+/* ── DEVICE MOCKUP / APP PREVIEW ── */
+const DeviceMockup = () => (
+  <Section>
+    <Reveal><SectionHeader badge="Multi-Platform" title={<>Protection on <GradientText>Every Device</GradientText></>} subtitle="Desktop, mobile, tablet — Secuvion works seamlessly across all your devices." /></Reveal>
+    <Reveal delay={0.1}>
+      <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 32, position: "relative" }} className="device-mockup-wrapper">
+        {/* Background glow */}
+        <div style={{ position: "absolute", top: "30%", left: "50%", transform: "translate(-50%, -50%)", width: 600, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.06), transparent 70%)", pointerEvents: "none" }} />
+
+        {/* Laptop */}
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div style={{
+            width: "clamp(500px, 50vw, 640px)", background: "rgba(17,24,39,0.8)",
+            border: `1px solid ${T.border}`, borderRadius: "16px 16px 0 0",
+            overflow: "hidden", backdropFilter: "blur(8px)",
+          }}>
+            {/* Screen chrome */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderBottom: `1px solid ${T.border}`, background: "rgba(3,7,18,0.6)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#eab308" }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
+              <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10, color: T.mutedDark }}>app.secuvion.com</div>
+            </div>
+            {/* Dashboard mockup */}
+            <div style={{ padding: 20, minHeight: 280 }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                {[
+                  { label: "Threats Blocked", val: "2,841", color: T.cyan },
+                  { label: "Risk Score", val: "12/100", color: "#22c55e" },
+                  { label: "Active Shields", val: "6/6", color: T.accent },
+                ].map((s, i) => (
+                  <div key={i} style={{ flex: 1, padding: "14px 12px", borderRadius: 10, background: `${s.color}06`, border: `1px solid ${s.color}12` }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: T.mutedDark, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: s.color }}>{s.val}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Chart bars */}
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80, padding: "0 8px" }}>
+                {[65, 40, 80, 55, 90, 70, 45, 85, 60, 75, 50, 95].map((h, i) => (
+                  <div key={i} style={{
+                    flex: 1, height: `${h}%`, borderRadius: "4px 4px 0 0",
+                    background: `linear-gradient(180deg, ${i === 11 ? T.cyan : T.accent}40, ${i === 11 ? T.cyan : T.accent}15)`,
+                    border: `1px solid ${i === 11 ? T.cyan : T.accent}20`,
+                    animation: `bar-grow 0.8s ease forwards ${i * 0.05}s`,
+                  }} />
+                ))}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, padding: "0 8px" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: T.mutedDark }}>Jan</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: T.mutedDark }}>Dec</span>
+              </div>
+            </div>
+          </div>
+          {/* Laptop base */}
+          <div style={{ width: "110%", height: 16, background: "linear-gradient(180deg, rgba(30,40,60,0.8), rgba(17,24,39,0.6))", borderRadius: "0 0 12px 12px", margin: "0 -5%", borderTop: `1px solid rgba(148,163,184,0.1)` }} />
+        </div>
+
+        {/* Phone */}
+        <div style={{ position: "relative", zIndex: 3, marginLeft: -60, marginBottom: 20 }} className="phone-mockup">
+          <div style={{
+            width: 160, background: "rgba(17,24,39,0.9)", border: `1px solid ${T.border}`,
+            borderRadius: 24, overflow: "hidden", backdropFilter: "blur(8px)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+          }}>
+            {/* Phone notch */}
+            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 4px" }}>
+              <div style={{ width: 50, height: 4, borderRadius: 4, background: "rgba(148,163,184,0.1)" }} />
+            </div>
+            {/* Phone content */}
+            <div style={{ padding: "8px 12px 16px" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 8, color: T.mutedDark, marginBottom: 8 }}>SECUVION MOBILE</div>
+              <div style={{ padding: "10px 8px", borderRadius: 8, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.1)", marginBottom: 8 }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: "#22c55e", fontWeight: 600 }}>ALL CLEAR</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "#22c55e", marginTop: 2 }}>Safe</div>
+              </div>
+              {[
+                { label: "Phishing", status: "Blocked", color: "#22c55e" },
+                { label: "Network", status: "Secure", color: T.cyan },
+                { label: "Identity", status: "Protected", color: T.accent },
+              ].map((r, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? `1px solid ${T.border}` : "none" }}>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 8, color: T.muted }}>{r.label}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 7, color: r.color, fontWeight: 600 }}>{r.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  </Section>
+);
+
+/* ── PRICING COMPARISON TABLE ── */
+const PricingComparison = () => {
+  const features = [
+    { name: "AI Fraud Detection", free: true, sentinel: true, fortress: true, citadel: true },
+    { name: "Email Breach Scan", free: true, sentinel: true, fortress: true, citadel: true },
+    { name: "Security Advisories", free: true, sentinel: true, fortress: true, citadel: true },
+    { name: "Real-time Monitoring", free: false, sentinel: true, fortress: true, citadel: true },
+    { name: "Device Protection", free: "1", sentinel: "5", fortress: "Unlimited", citadel: "Unlimited" },
+    { name: "Phishing Alerts", free: false, sentinel: true, fortress: true, citadel: true },
+    { name: "Priority Response", free: false, sentinel: true, fortress: true, citadel: true },
+    { name: "Identity Monitoring", free: false, sentinel: false, fortress: true, citadel: true },
+    { name: "Dark Web Surveillance", free: false, sentinel: false, fortress: true, citadel: true },
+    { name: "Family/Team Protection", free: false, sentinel: false, fortress: true, citadel: true },
+    { name: "Dedicated Analyst", free: false, sentinel: false, fortress: true, citadel: true },
+    { name: "Custom API Integrations", free: false, sentinel: false, fortress: false, citadel: true },
+    { name: "24/7 SOC Team", free: false, sentinel: false, fortress: false, citadel: true },
+    { name: "Compliance Reporting", free: false, sentinel: false, fortress: false, citadel: true },
+    { name: "White-label Options", free: false, sentinel: false, fortress: false, citadel: true },
+  ];
+
+  const renderCell = (val) => {
+    if (val === true) return <span style={{ color: "#22c55e", fontSize: 16 }}>&#10003;</span>;
+    if (val === false) return <span style={{ color: T.mutedDark, fontSize: 14 }}>—</span>;
+    return <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: T.cyan, fontWeight: 600 }}>{val}</span>;
+  };
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 clamp(24px, 5vw, 80px) 80px" }}>
+      <Reveal>
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`, borderRadius: 20,
+          overflow: "hidden", backdropFilter: "blur(8px)",
+        }}>
+          <div style={{ padding: "24px 32px", borderBottom: `1px solid ${T.border}` }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: T.white, margin: 0 }}>
+              Feature Comparison
+            </h3>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                  <th style={{ padding: "16px 24px", textAlign: "left", fontFamily: "var(--font-body)", fontSize: 13, color: T.mutedDark, fontWeight: 600 }}>Feature</th>
+                  {[
+                    { name: "RECON", price: "Free", color: T.mutedDark },
+                    { name: "SENTINEL", price: "₹49", color: T.cyan },
+                    { name: "FORTRESS", price: "₹99", color: T.ember },
+                    { name: "CITADEL", price: "₹199", color: T.purple },
+                  ].map((p, i) => (
+                    <th key={i} style={{ padding: "16px 20px", textAlign: "center" }}>
+                      <div style={{ fontFamily: "var(--font-display)", fontSize: 12, fontWeight: 700, color: p.color, letterSpacing: 1 }}>{p.name}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: T.mutedDark, marginTop: 2 }}>{p.price}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {features.map((f, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}`, background: i % 2 === 0 ? "transparent" : "rgba(148,163,184,0.02)" }}>
+                    <td style={{ padding: "14px 24px", fontFamily: "var(--font-body)", fontSize: 14, color: T.muted }}>{f.name}</td>
+                    <td style={{ padding: "14px 20px", textAlign: "center" }}>{renderCell(f.free)}</td>
+                    <td style={{ padding: "14px 20px", textAlign: "center" }}>{renderCell(f.sentinel)}</td>
+                    <td style={{ padding: "14px 20px", textAlign: "center" }}>{renderCell(f.fortress)}</td>
+                    <td style={{ padding: "14px 20px", textAlign: "center" }}>{renderCell(f.citadel)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Reveal>
+    </div>
+  );
+};
 
 /* ── BLOG PREVIEW ── */
 const BlogPreview = () => {
@@ -969,21 +1399,41 @@ const ThreatMapSection = () => {
 };
 
 /* ── BIG NUMBERS SECTION ── */
+/* ── ANIMATED PROGRESS RING ── */
+const ProgressRing = ({ percent, color, size = 80, stroke = 4 }) => {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const [ref, vis] = useReveal(0.3);
+  return (
+    <svg ref={ref} width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(148,163,184,0.06)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={vis ? circ * (1 - percent / 100) : circ}
+        strokeLinecap="round" style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1)" }} />
+    </svg>
+  );
+};
+
 const BigNumbers = () => {
   const stats = [
-    { value: "99.7%", label: "Detection Accuracy", desc: "AI-powered threat identification" },
-    { value: "<50ms", label: "Response Time", desc: "Real-time threat neutralization" },
-    { value: "12B+", label: "Threat Signatures", desc: "Continuously updated database" },
-    { value: "24/7", label: "Active Monitoring", desc: "Never-sleeping defense system" },
+    { value: "99.7%", label: "Detection Accuracy", desc: "AI-powered threat identification", icon: "&#9632;", color: T.cyan, percent: 99.7 },
+    { value: "<50ms", label: "Response Time", desc: "Real-time threat neutralization", icon: "&#9889;", color: T.accent, percent: 95 },
+    { value: "12B+", label: "Threat Signatures", desc: "Continuously updated database", icon: "&#9670;", color: T.purple, percent: 88 },
+    { value: "24/7", label: "Active Monitoring", desc: "Never-sleeping defense system", icon: "&#9679;", color: "#22c55e", percent: 100 },
   ];
   return (
     <div style={{ background: "linear-gradient(180deg, rgba(99,102,241,0.03) 0%, transparent 100%)", borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: "80px clamp(24px, 5vw, 80px)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 48 }} className="stats-grid">
         {stats.map((s, i) => (
           <Reveal key={i} delay={i * 0.1}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 4vw, 52px)", fontWeight: 800, color: T.white, letterSpacing: "-0.03em", marginBottom: 8 }}>{s.value}</div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 15, color: T.cyan, fontWeight: 600, marginBottom: 6 }}>{s.label}</div>
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {/* Progress ring with icon */}
+              <div style={{ position: "relative", width: 80, height: 80, marginBottom: 16 }}>
+                <ProgressRing percent={s.percent} color={s.color} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: s.color }} dangerouslySetInnerHTML={{ __html: s.icon }} />
+              </div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 800, color: T.white, letterSpacing: "-0.03em", marginBottom: 8 }}>{s.value}</div>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 15, color: s.color, fontWeight: 600, marginBottom: 6 }}>{s.label}</div>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: T.mutedDark }}>{s.desc}</div>
             </div>
           </Reveal>
@@ -1760,6 +2210,9 @@ html { scroll-behavior: smooth; }
 .cta-glow-border { background: conic-gradient(from var(--cta-angle, 0deg), #6366f1, #14e3c5, #8b5cf6, #22c55e, #6366f1) !important; }
 @keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 @keyframes splash-pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes demo-scan { 0% { width: 0%; } 50% { width: 100%; } 100% { width: 0%; } }
+@keyframes bar-grow { from { transform: scaleY(0); transform-origin: bottom; } to { transform: scaleY(1); transform-origin: bottom; } }
+@keyframes parallax-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
 
 .nav-link-animated { position: relative; }
 .nav-link-animated::after {
@@ -1782,6 +2235,9 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   height: 1px; width: 50%; margin: 0 auto;
   background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.08) 20%, rgba(148,163,184,0.08) 50%, rgba(99,102,241,0.08) 80%, transparent 100%);
 }
+.wave-divider { width: 100%; overflow: hidden; line-height: 0; position: relative; z-index: 1; }
+.wave-divider svg { display: block; width: 100%; height: auto; }
+.wave-divider.flip { transform: rotate(180deg); }
 
 @media (max-width: 860px) {
   .threat-map-grid { grid-template-columns: 1fr !important; }
@@ -1806,6 +2262,10 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
   .education-grid { grid-template-columns: 1fr 1fr !important; }
   .blog-grid { grid-template-columns: 1fr !important; }
+  .ba-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+  .ba-grid > div:nth-child(2) { display: none !important; }
+  .device-mockup-wrapper { flex-direction: column !important; align-items: center !important; }
+  .device-mockup-wrapper .phone-mockup { margin-left: 0 !important; margin-bottom: 0 !important; }
   .footer-grid { grid-template-columns: 1fr 1fr !important; }
   .testimonials-grid { grid-template-columns: 1fr !important; }
   .testimonial-arrow { left: -10px !important; right: -10px !important; }
@@ -1817,6 +2277,8 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .hero-stats { flex-direction: column !important; gap: 16px !important; }
   .hero-buttons { flex-direction: column !important; align-items: stretch !important; }
   .hero-buttons button { width: 100% !important; justify-content: center !important; }
+  .ba-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .demo-arrow { display: none !important; }
   .newsletter-form { flex-direction: column !important; }
   .newsletter-form button { width: 100% !important; justify-content: center !important; }
   .analyzer-grid { gap: 32px !important; }
@@ -1911,24 +2373,63 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
         </div>
       )}
 
+      {/* SOCIAL PROOF TOASTS */}
+      <SocialProofToasts />
+
       {/* PAGE CONTENT */}
       <div style={{ position: "relative", zIndex: 2, opacity: pageReady ? 1 : 0, transform: pageReady ? "translateY(0)" : "translateY(30px)", transition: "opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.2s cubic-bezier(0.16, 1, 0.3, 1)" }}>
         <Hero />
         <ThreatTicker />
         <TrustedBy />
+
+        {/* Wave transition into features */}
+        <div className="wave-divider">
+          <svg viewBox="0 0 1440 80" preserveAspectRatio="none">
+            <path d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80Z" fill="rgba(99,102,241,0.03)" />
+          </svg>
+        </div>
+
         <Features />
         <div className="section-divider" />
         <HowItWorks />
+
+        {/* Wave transition */}
+        <div className="wave-divider">
+          <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
+            <path d="M0,30 C480,60 960,0 1440,30 L1440,60 L0,60Z" fill="rgba(20,227,197,0.025)" />
+          </svg>
+        </div>
+
+        <ProductDemo />
         <div className="section-divider" />
         <Analyzer />
         <div className="section-divider" />
         <ThreatMapSection />
         <BigNumbers />
         <TrustBadges />
+
+        {/* Wave transition */}
+        <div className="wave-divider">
+          <svg viewBox="0 0 1440 80" preserveAspectRatio="none">
+            <path d="M0,60 C240,20 480,70 720,40 C960,10 1200,60 1440,40 L1440,80 L0,80Z" fill="rgba(139,92,246,0.025)" />
+          </svg>
+        </div>
+
+        <BeforeAfter />
+        <div className="section-divider" />
         <SecurityTools />
         <div className="section-divider" />
         <Emergency />
         <div className="section-divider" />
+        <DeviceMockup />
+
+        {/* Wave transition */}
+        <div className="wave-divider">
+          <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
+            <path d="M0,20 C360,60 720,0 1080,40 C1260,55 1380,30 1440,20 L1440,60 L0,60Z" fill="rgba(99,102,241,0.03)" />
+          </svg>
+        </div>
+
         <Audience />
         <div className="section-divider" />
         <AssistantSection />
@@ -1938,8 +2439,16 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
         <BlogPreview />
         <div className="section-divider" />
         <FAQ />
-        <div className="section-divider" />
+
+        {/* Wave transition into pricing */}
+        <div className="wave-divider">
+          <svg viewBox="0 0 1440 80" preserveAspectRatio="none">
+            <path d="M0,50 C360,10 720,70 1080,30 C1260,15 1380,40 1440,50 L1440,80 L0,80Z" fill="rgba(20,227,197,0.02)" />
+          </svg>
+        </div>
+
         <PricingSection />
+        <PricingComparison />
         <div className="section-divider" />
         <FounderSection />
         <div className="section-divider" />
