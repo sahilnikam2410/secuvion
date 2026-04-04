@@ -58,17 +58,6 @@ function App() {
           {/* Public */}
           <Route path="/" element={<Secuvion />} />
           <Route path="/home" element={<Home />} />
-          <Route path="/threat-map" element={<ThreatMap />} />
-          <Route path="/fraud-analyzer" element={<FraudAnalyzer />} />
-          <Route path="/security-score" element={<SecurityScore />} />
-          <Route path="/protection" element={<Protection />} />
-          <Route path="/scam-database" element={<ScamDatabase />} />
-          <Route path="/emergency-help" element={<EmergencyHelp />} />
-          <Route path="/learn" element={
-            <ProtectedRoute>
-              <Learn />
-            </ProtectedRoute>
-          } />
           <Route path="/founder" element={<Founder />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<Login />} />
@@ -79,15 +68,26 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/about" element={<About />} />
           <Route path="/features" element={<FeaturesPage />} />
-          <Route path="/dark-web-monitor" element={<DarkWebMonitor />} />
-          <Route path="/password-vault" element={<PasswordVault />} />
-          <Route path="/vulnerability-scanner" element={<VulnerabilityScanner />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/ip-lookup" element={<IPLookup />} />
-          <Route path="/security-checklist" element={<SecurityChecklist />} />
-          <Route path="/email-analyzer" element={<EmailAnalyzer />} />
-          <Route path="/cyber-news" element={<CyberNews />} />
-          <Route path="/qr-scanner" element={<QRScanner />} />
+          <Route path="/emergency-help" element={<EmergencyHelp />} />
+
+          {/* Protected — Tools (login required) */}
+          <Route path="/threat-map" element={<ProtectedRoute><ThreatMap /></ProtectedRoute>} />
+          <Route path="/fraud-analyzer" element={<ProtectedRoute><FraudAnalyzer /></ProtectedRoute>} />
+          <Route path="/security-score" element={<ProtectedRoute><SecurityScore /></ProtectedRoute>} />
+          <Route path="/protection" element={<ProtectedRoute><Protection /></ProtectedRoute>} />
+          <Route path="/scam-database" element={<ProtectedRoute><ScamDatabase /></ProtectedRoute>} />
+          <Route path="/dark-web-monitor" element={<ProtectedRoute><DarkWebMonitor /></ProtectedRoute>} />
+          <Route path="/password-vault" element={<ProtectedRoute><PasswordVault /></ProtectedRoute>} />
+          <Route path="/vulnerability-scanner" element={<ProtectedRoute><VulnerabilityScanner /></ProtectedRoute>} />
+          <Route path="/ip-lookup" element={<ProtectedRoute><IPLookup /></ProtectedRoute>} />
+          <Route path="/security-checklist" element={<ProtectedRoute><SecurityChecklist /></ProtectedRoute>} />
+          <Route path="/email-analyzer" element={<ProtectedRoute><EmailAnalyzer /></ProtectedRoute>} />
+          <Route path="/qr-scanner" element={<ProtectedRoute><QRScanner /></ProtectedRoute>} />
+
+          {/* Protected — Learn, Blog, News (login required) */}
+          <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
+          <Route path="/blog" element={<ProtectedRoute><Blog /></ProtectedRoute>} />
+          <Route path="/cyber-news" element={<ProtectedRoute><CyberNews /></ProtectedRoute>} />
 
           {/* Welcome page after signup/login */}
           <Route path="/welcome" element={
