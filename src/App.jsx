@@ -3,6 +3,7 @@ import { useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { ProtectedRoute, DashboardRedirect } from "./components/ProtectedRoute";
 import AIChatbot from "./components/AIChatbot.jsx";
 
@@ -160,6 +161,7 @@ function AppRoutes() {
 function App() {
   return (
     <HelmetProvider>
+    <ThemeProvider>
     <ToastProvider>
     <AuthProvider>
       <Router>
@@ -167,6 +169,7 @@ function App() {
       </Router>
     </AuthProvider>
     </ToastProvider>
+    </ThemeProvider>
     </HelmetProvider>
   );
 }

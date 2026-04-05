@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
-const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", accent: "#6366f1", cyan: "#14e3c5", border: "rgba(148,163,184,0.08)" };
+const TD = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", accent: "#6366f1", cyan: "#14e3c5", border: "rgba(148,163,184,0.08)" };
+const TL = { bg: "#f8fafc", white: "#0f172a", muted: "#475569", accent: "#6366f1", cyan: "#0d9488", border: "rgba(15,23,42,0.08)" };
 
 const toolsMenu = [
   { label: "Security Tools", items: [
@@ -30,6 +32,8 @@ const mainLinks = [
 
 const Navbar = () => {
   const { user } = useAuth();
+  const { mode, toggleTheme } = useTheme();
+  const T = mode === "dark" ? TD : TL;
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -66,7 +70,7 @@ const Navbar = () => {
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
         padding: scrolled ? "10px 40px" : "14px 40px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: scrolled ? "rgba(3,7,18,0.95)" : "rgba(3,7,18,0.7)",
+        background: scrolled ? (mode === "dark" ? "rgba(3,7,18,0.95)" : "rgba(248,250,252,0.95)") : (mode === "dark" ? "rgba(3,7,18,0.7)" : "rgba(248,250,252,0.7)"),
         backdropFilter: "blur(16px)",
         borderBottom: "1px solid rgba(148,163,184,0.06)",
         transition: "all 0.3s ease",
@@ -110,7 +114,7 @@ const Navbar = () => {
                 {toolsOpen && (
                   <div style={{
                     position: "absolute", top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
-                    background: "rgba(10,15,30,0.98)", backdropFilter: "blur(20px)",
+                    background: mode === "dark" ? "rgba(10,15,30,0.98)" : "rgba(241,245,249,0.98)", backdropFilter: "blur(20px)",
                     border: `1px solid rgba(99,102,241,0.15)`, borderRadius: 14,
                     padding: 16, minWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
                     display: "flex", gap: 20, animation: "dropIn 0.2s ease",
@@ -171,6 +175,26 @@ const Navbar = () => {
 
         {/* Desktop auth buttons */}
         <div className="nav-desktop-auth" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Theme toggle */}
+          <button onClick={toggleTheme} title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"} style={{
+            background: "rgba(148,163,184,0.06)", border: `1px solid ${T.border}`, borderRadius: 8,
+            width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", transition: "all 0.3s", color: T.muted, padding: 0,
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent + "40"; e.currentTarget.style.color = T.white; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.muted; }}
+          >
+            {mode === "dark" ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
+          </button>
+
           {user ? (
             <>
               {/* Notification bell */}
@@ -181,13 +205,13 @@ const Navbar = () => {
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
-                <span style={{ position: "absolute", top: 4, right: 4, width: 7, height: 7, borderRadius: "50%", background: "#ef4444", border: "2px solid #030712" }} />
+                <span style={{ position: "absolute", top: 4, right: 4, width: 7, height: 7, borderRadius: "50%", background: "#ef4444", border: `2px solid ${T.bg}` }} />
 
                 {/* Notification dropdown */}
                 {notifOpen && (
                   <div style={{
                     position: "absolute", top: "calc(100% + 12px)", right: -40,
-                    width: 300, background: "rgba(10,15,30,0.98)", backdropFilter: "blur(20px)",
+                    width: 300, background: mode === "dark" ? "rgba(10,15,30,0.98)" : "rgba(241,245,249,0.98)", backdropFilter: "blur(20px)",
                     border: `1px solid rgba(99,102,241,0.15)`, borderRadius: 14,
                     boxShadow: "0 20px 60px rgba(0,0,0,0.5)", overflow: "hidden",
                     animation: "dropIn 0.2s ease",
@@ -266,7 +290,7 @@ const Navbar = () => {
       {open && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 999,
-          background: "rgba(3,7,18,0.98)", backdropFilter: "blur(20px)",
+          background: mode === "dark" ? "rgba(3,7,18,0.98)" : "rgba(248,250,252,0.98)", backdropFilter: "blur(20px)",
           display: "flex", flexDirection: "column", alignItems: "center",
           paddingTop: 80, overflowY: "auto",
           animation: "navFadeIn 0.25s ease",
@@ -346,7 +370,7 @@ const Navbar = () => {
       {user && (
         <div className="mobile-bottom-nav" style={{
           position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 998,
-          background: "rgba(3,7,18,0.95)", backdropFilter: "blur(20px)",
+          background: mode === "dark" ? "rgba(3,7,18,0.95)" : "rgba(248,250,252,0.95)", backdropFilter: "blur(20px)",
           borderTop: `1px solid ${T.border}`,
           display: "none", justifyContent: "space-around", alignItems: "center",
           padding: "6px 0 env(safe-area-inset-bottom, 6px)", height: 60,
