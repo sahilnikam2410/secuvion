@@ -162,7 +162,7 @@ export default function Checkout() {
   const [cryptoTxHash, setCryptoTxHash] = useState("");
   // Admin config state
   const [adminConfig, setAdminConfig] = useState({
-    razorpayKey: localStorage.getItem("secuvion_razorpay_key") || "",
+    razorpayKey: localStorage.getItem("secuvion_razorpay_key") || "rzp_test_SZnW53UUonge8j",
     upiId: localStorage.getItem("secuvion_upi_id") || "secuvion@ptyes",
     btcAddress: localStorage.getItem("secuvion_btc_address") || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     ethAddress: localStorage.getItem("secuvion_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
@@ -219,7 +219,7 @@ export default function Checkout() {
       return;
     }
     const options = {
-      key: localStorage.getItem("secuvion_razorpay_key") || "rzp_test_placeholder",
+      key: localStorage.getItem("secuvion_razorpay_key") || "rzp_test_SZnW53UUonge8j",
       amount: price * 100,
       currency: "INR",
       name: "SECUVION",
