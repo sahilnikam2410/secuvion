@@ -336,7 +336,7 @@ const Card = ({ children, style: s = {}, hover = true }) => {
 
 /* ── SECTION WRAPPER ── */
 const Section = ({ children, id, style = {} }) => (
-  <section id={id} style={{ padding: "120px clamp(16px, 5vw, 80px)", maxWidth: 1280, margin: "0 auto", position: "relative", boxSizing: "border-box", ...style }}>
+  <section id={id} style={{ padding: "120px clamp(16px, 5vw, 80px)", maxWidth: 1280, width: "100%", margin: "0 auto", position: "relative", boxSizing: "border-box", overflow: "hidden", ...style }}>
     {children}
   </section>
 );
@@ -1965,7 +1965,7 @@ const Testimonials = () => {
       onClick={onClick}
       aria-label={direction === "left" ? "Previous testimonials" : "Next testimonials"}
       style={{
-        position: "absolute", top: "50%", [direction === "left" ? "left" : "right"]: -20,
+        position: "absolute", top: "50%", [direction === "left" ? "left" : "right"]: 4,
         transform: "translateY(-50%)", zIndex: 2,
         width: 40, height: 40, borderRadius: "50%",
         background: "rgba(17,24,39,0.8)", border: `1px solid ${T.border}`,
@@ -2255,8 +2255,8 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .hero-globe > div[style*="absolute"] { display: none !important; }
   .hero-stats { justify-content: center !important; gap: 28px !important; }
   .hero-buttons { justify-content: center !important; }
-  .analyzer-grid { grid-template-columns: 1fr !important; }
-  .assistant-grid { grid-template-columns: 1fr !important; }
+  .analyzer-grid { grid-template-columns: 1fr !important; overflow: hidden !important; }
+  .assistant-grid { grid-template-columns: 1fr !important; overflow: hidden !important; }
   .tools-grid { grid-template-columns: 1fr !important; }
   .features-grid { grid-template-columns: 1fr 1fr !important; }
   .audience-grid { grid-template-columns: 1fr 1fr !important; }
@@ -2291,7 +2291,12 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .analyzer-grid { gap: 24px !important; }
   .analyzer-grid p { word-wrap: break-word !important; overflow-wrap: break-word !important; }
   .analyzer-grid input { min-width: 0 !important; font-size: 13px !important; }
-  .assistant-grid { gap: 32px !important; }
+  .assistant-grid { gap: 24px !important; overflow: hidden !important; }
+  .assistant-grid h2 { font-size: clamp(24px, 7vw, 44px) !important; }
+  .assistant-grid p { font-size: 14px !important; }
+  .testimonials-carousel { padding: 0 4px !important; }
+  .testimonial-card { padding: 20px 16px !important; }
+  .testimonial-card p { font-size: 13px !important; }
   .features-grid { grid-template-columns: 1fr !important; }
   .steps-grid { grid-template-columns: 1fr !important; }
   .audience-grid { grid-template-columns: 1fr !important; }
