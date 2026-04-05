@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
+import { saveToolResult } from "../../services/toolHistoryService";
 
 const T = { bg: "#030712", dark: "#0a0f1e", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", green: "#22c55e", red: "#ef4444", gold: "#eab308", blue: "#38bdf8", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)", surface: "#111827" };
 
@@ -255,6 +256,12 @@ export default function IPLookup() {
       const threat = assessThreat(data);
       const resultData = { ...data, threat };
       setResult(resultData);
+      saveToolResult(
+        "IP Lookup",
+        trimmed || data.query,
+        `${data.query} - ${data.city || "Unknown"}, ${data.country || "Unknown"} | ISP: ${data.isp || "Unknown"} | Risk: ${threat.level} (${threat.score}/100)`,
+        threat.score >= 70 ? "error" : threat.score >= 40 ? "warning" : "success"
+      );
 
       saveHistory({
         query: trimmed || data.query,

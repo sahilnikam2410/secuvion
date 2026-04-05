@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
+import { saveToolResult } from "../../services/toolHistoryService";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", red: "#ef4444", gold: "#eab308", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)" };
 
@@ -27,6 +28,12 @@ export default function FraudAnalyzer() {
       const res = { level, ...data[level], input: input, mode, time: new Date().toLocaleTimeString() };
       setResult(res);
       setHistory(prev => [res, ...prev.slice(0, 9)]);
+      saveToolResult(
+        "Fraud Analyzer",
+        `${mode.toUpperCase()}: ${input}`,
+        `${level} (Score: ${res.score}/100) - ${res.msg}`,
+        level === "CLEAR" ? "success" : level === "WARNING" ? "warning" : "error"
+      );
       setLoading(false);
     }, 2500);
   };

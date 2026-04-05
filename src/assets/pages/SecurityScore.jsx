@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
+import { saveToolResult } from "../../services/toolHistoryService";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", red: "#ef4444", gold: "#eab308", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)" };
 
@@ -23,7 +24,18 @@ export default function SecurityScore() {
   const [answers, setAnswers] = useState({});
   const [score, setScore] = useState(null);
 
-  const calcScore = () => { let t = 0; questions.forEach(q => { if (answers[q.id]) t += q.w; }); setScore(t); };
+  const calcScore = () => {
+    let t = 0;
+    questions.forEach(q => { if (answers[q.id]) t += q.w; });
+    setScore(t);
+    const label = t >= 75 ? "Excellent" : t >= 50 ? "Moderate" : "At Risk";
+    saveToolResult(
+      "Security Score",
+      `${Object.values(answers).filter(Boolean).length}/${questions.length} yes answers`,
+      `Score: ${t}/100 (${label})`,
+      t >= 75 ? "success" : t >= 50 ? "warning" : "error"
+    );
+  };
   const scoreColor = score === null ? T.cyan : score >= 75 ? "#22c55e" : score >= 50 ? T.gold : T.red;
   const scoreLabel = score >= 75 ? "Excellent" : score >= 50 ? "Moderate" : "At Risk";
   const answered = Object.keys(answers).length;

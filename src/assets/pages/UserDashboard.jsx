@@ -7,7 +7,7 @@ import PlanGate, { isPlanAllowed } from "../../components/PlanGate";
 import { db } from "../../firebase/config";
 import { auth as firebaseAuth } from "../../firebase/config";
 import { collection, getDocs, doc, addDoc, deleteDoc, setDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
-import { deleteUser as firebaseDeleteUser } from "firebase/auth";
+import { deleteUser as firebaseDeleteUser, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import {
   HiOutlineViewGrid, HiOutlineShieldCheck, HiOutlineDesktopComputer, HiOutlineUser,
   HiOutlineLogout, HiOutlineRefresh, HiOutlineTrash, HiOutlinePlus, HiOutlineCheck,
@@ -17,7 +17,9 @@ import {
   HiOutlineChartBar, HiOutlineDocumentReport, HiOutlineCode, HiOutlineDownload,
   HiOutlineBell, HiOutlineClipboard, HiOutlineHome, HiOutlineMap, HiOutlineAcademicCap,
   HiOutlineSearchCircle, HiOutlineFingerPrint, HiOutlineLightningBolt, HiOutlineNewspaper,
+  HiOutlineClock, HiOutlinePhotograph, HiOutlineCog, HiOutlineMoon, HiOutlineSun,
 } from "react-icons/hi";
+import { useTheme } from "../../context/ThemeContext";
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const T = {
@@ -157,6 +159,7 @@ const navItems = [
   { icon: HiOutlineViewGrid, label: "Overview" },
   { icon: HiOutlineDesktopComputer, label: "Devices" },
   { icon: HiOutlineShieldCheck, label: "Security" },
+  { icon: HiOutlineClock, label: "Tool History" },
   { icon: HiOutlineExclamation, label: "Threat Monitor", plan: "pro" },
   { icon: HiOutlineChartBar, label: "Analytics", plan: "pro" },
   { icon: HiOutlineDocumentReport, label: "Reports", plan: "pro" },
@@ -200,6 +203,26 @@ export default function UserDashboard() {
   const [emailCheckInput, setEmailCheckInput] = useState("");
   const [emailCheckResult, setEmailCheckResult] = useState(null);
   const [showPw, setShowPw] = useState(false);
+  /* Password change */
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [changingPw, setChangingPw] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  /* Avatar */
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [editingAvatar, setEditingAvatar] = useState(false);
+  /* Notification prefs */
+  const [notifPrefs, setNotifPrefs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("secuvion_notif_prefs") || "null") || { security: true, updates: true, marketing: false, weekly: true }; }
+    catch { return { security: true, updates: true, marketing: false, weekly: true }; }
+  });
+  /* Tool history */
+  const [toolHistory, setToolHistory] = useState([]);
+  const [toolHistoryLoading, setToolHistoryLoading] = useState(false);
+  /* Theme */
+  const { mode: themeMode, toggleTheme } = useTheme();
 
   const uid = user?.uid;
   const userPlan = user?.plan || "free";
@@ -344,6 +367,70 @@ export default function UserDashboard() {
   };
 
   const copyApiKey = () => { if (apiKey) { navigator.clipboard.writeText(apiKey); toast("API key copied", "success"); } };
+
+  /* ─── Password Change ─── */
+  const handlePasswordChange = async () => {
+    if (!newPw || !confirmPw) { toast("Please fill all fields", "error"); return; }
+    if (newPw !== confirmPw) { toast("Passwords don't match", "error"); return; }
+    if (newPw.length < 8) { toast("Password must be at least 8 characters", "error"); return; }
+    setChangingPw(true);
+    try {
+      const fbUser = firebaseAuth.currentUser;
+      if (currentPw && fbUser?.email) {
+        const cred = EmailAuthProvider.credential(fbUser.email, currentPw);
+        await reauthenticateWithCredential(fbUser, cred);
+      }
+      await updatePassword(firebaseAuth.currentUser, newPw);
+      await logActivity("password_changed", "Password updated");
+      toast("Password updated successfully", "success");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    } catch (e) {
+      toast(e.code === "auth/wrong-password" ? "Current password is incorrect" : e.message || "Failed to change password", "error");
+    }
+    setChangingPw(false);
+  };
+
+  /* ─── Avatar Save ─── */
+  const saveAvatar = async () => {
+    if (!avatarUrl.trim()) { toast("Enter an avatar URL", "error"); return; }
+    try {
+      await updateProfile({ avatar: avatarUrl.trim() });
+      await logActivity("avatar_changed", "Profile avatar updated");
+      toast("Avatar updated", "success");
+      setEditingAvatar(false);
+    } catch { toast("Failed to update avatar", "error"); }
+  };
+
+  /* ─── Notification Prefs ─── */
+  const saveNotifPrefs = (key) => {
+    const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(updated);
+    localStorage.setItem("secuvion_notif_prefs", JSON.stringify(updated));
+    toast("Notification preference updated", "success");
+  };
+
+  /* ─── Tool History ─── */
+  const loadToolHistory = useCallback(async () => {
+    if (!uid) return;
+    setToolHistoryLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, "users", uid, "toolHistory"), orderBy("timestamp", "desc"), limit(50)));
+      setToolHistory(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch { /* collection may not exist yet */ }
+    setToolHistoryLoading(false);
+  }, [uid]);
+
+  useEffect(() => { if (uid && tab === "Tool History") loadToolHistory(); }, [uid, tab, loadToolHistory]);
+
+  const clearToolHistory = async () => {
+    if (!uid) return;
+    try {
+      const snap = await getDocs(collection(db, "users", uid, "toolHistory"));
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, "users", uid, "toolHistory", d.id))));
+      setToolHistory([]);
+      toast("Tool history cleared", "success");
+    } catch { toast("Failed to clear history", "error"); }
+  };
 
   // Chart data from activity
   const loginChartData = (() => {
@@ -832,25 +919,126 @@ export default function UserDashboard() {
     </AniTab>
   );
 
-  const renderAccount = () => (
+  /* ─── Tool History Tab ─── */
+  const toolIcons = { "Threat Map": HiOutlineMap, "Fraud Analyzer": HiOutlineSearchCircle, "Security Score": HiOutlineFingerPrint, "Dark Web Monitor": HiOutlineGlobe, "Password Vault": HiOutlineKey, "Vulnerability Scanner": HiOutlineLightningBolt, "Email Analyzer": HiOutlineMail, "IP Lookup": HiOutlineGlobe, "QR Scanner": HiOutlineCode, "Security Checklist": HiOutlineClipboardCheck };
+  const renderToolHistory = () => (
+    <AniTab>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Tool History</span></h2>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={loadToolHistory} className="dash-btn" style={sty.btn("rgba(99,102,241,0.12)", T.cyan)}><HiOutlineRefresh size={14} /> Refresh</button>
+          {toolHistory.length > 0 && <button onClick={clearToolHistory} className="dash-btn" style={sty.btn("rgba(239,68,68,0.12)", T.red)}><HiOutlineTrash size={14} /> Clear</button>}
+        </div>
+      </div>
+      {/* Stats summary */}
+      {toolHistory.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
+          {(() => {
+            const toolCounts = {};
+            toolHistory.forEach((h) => { toolCounts[h.tool] = (toolCounts[h.tool] || 0) + 1; });
+            return Object.entries(toolCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([tool, count], i) => {
+              const Icon = toolIcons[tool] || HiOutlineCode;
+              return (
+                <div key={tool} className="dash-stat" style={{ ...sty.card, textAlign: "center", animation: `fadeInUp 0.4s ease ${i * 0.06}s both` }}>
+                  <Icon size={20} style={{ color: T.cyan, marginBottom: 6 }} />
+                  <p style={{ fontSize: 20, fontWeight: 700, color: T.white, margin: "4px 0", fontFamily: "'Space Grotesk'" }}>{count}</p>
+                  <p style={{ fontSize: 11, color: T.muted, margin: 0 }}>{tool}</p>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      )}
+      {toolHistoryLoading ? <Spinner /> : toolHistory.length === 0 ? (
+        <AniCard>
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <HiOutlineClock size={48} style={{ color: T.muted, marginBottom: 12 }} />
+            <p style={{ fontSize: 16, fontWeight: 600, color: T.white, margin: "0 0 8px" }}>No tool history yet</p>
+            <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>Your security tool results will appear here as you use them.</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 20 }}>
+              {toolLinks.slice(0, 4).map((t) => (
+                <button key={t.path} onClick={() => navigate(t.path)} className="dash-btn" style={{ ...sty.btn("rgba(99,102,241,0.12)", T.cyan), padding: "8px 14px" }}>
+                  <t.icon size={14} /> {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </AniCard>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {toolHistory.map((h, i) => {
+            const Icon = toolIcons[h.tool] || HiOutlineCode;
+            const statusColor = h.status === "success" ? T.green : h.status === "warning" ? T.orange : h.status === "error" ? T.red : T.cyan;
+            return (
+              <div key={h.id} className="dash-card" style={{ ...sty.card, padding: 16, animation: `fadeInUp 0.3s ease ${i * 0.04}s both` }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon size={20} style={{ color: statusColor }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: T.white }}>{h.tool}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Badge color={statusColor}>{h.status || "completed"}</Badge>
+                        <span style={{ fontSize: 11, color: T.muted }}>{h.timestamp?.toDate ? h.timestamp.toDate().toLocaleString() : ""}</span>
+                      </div>
+                    </div>
+                    {h.query && <p style={{ fontSize: 12, color: T.muted, margin: "6px 0 0", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.query}</p>}
+                    {h.result && <p style={{ fontSize: 12, color: T.muted, margin: "4px 0 0", lineHeight: 1.5 }}>{typeof h.result === "string" ? h.result.slice(0, 150) : JSON.stringify(h.result).slice(0, 150)}{((h.result?.length || JSON.stringify(h.result).length) > 150) ? "..." : ""}</p>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </AniTab>
+  );
+
+  const renderAccount = () => {
+    const isEmailProvider = user?.provider === "password" || user?.provider === "email" || !user?.provider;
+    return (
     <AniTab>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Account Settings</span></h2>
-      {/* Profile */}
+      {/* Profile + Avatar */}
       <AniCard delay={0}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, fontFamily: "'Space Grotesk'" }}>Profile</h3>
           {!editing && <button onClick={() => setEditing(true)} className="dash-btn" style={sty.btn("rgba(99,102,241,0.12)", T.accent)}><HiOutlinePencil size={14} /> Edit</button>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <div className="dash-avatar" style={{ width: 64, height: 64, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", fontFamily: "'Space Grotesk'", overflow: "hidden", boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
-            {user?.photoURL ? <img src={user.photoURL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (user?.name?.charAt(0)?.toUpperCase() || "U")}
+          <div style={{ position: "relative" }}>
+            <div className="dash-avatar" style={{ width: 72, height: 72, borderRadius: "50%", background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Grotesk'", overflow: "hidden", boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+              {(user?.photoURL || user?.avatar) ? <img src={user.photoURL || user.avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" /> : (user?.name?.charAt(0)?.toUpperCase() || "U")}
+            </div>
+            <button onClick={() => setEditingAvatar(!editingAvatar)} title="Change avatar" style={{ position: "absolute", bottom: -2, right: -2, width: 26, height: 26, borderRadius: "50%", background: T.accent, border: `2px solid ${T.bg}`, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+              <HiOutlinePhotograph size={12} />
+            </button>
           </div>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 600, color: T.white }}>{user?.name}</p>
+            <p style={{ fontSize: 16, fontWeight: 600, color: T.white }}>{user?.name || "User"}</p>
             <Badge color={planColors[userPlan]}>{planLabels[userPlan]}</Badge>
             <span style={{ marginLeft: 8 }}><Badge color={T.muted}>{providerLabel(user?.provider)}</Badge></span>
           </div>
         </div>
+        {editingAvatar && (
+          <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, background: "rgba(99,102,241,0.06)", border: `1px solid rgba(99,102,241,0.15)` }}>
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 6 }}>Avatar URL</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://example.com/avatar.jpg" style={{ ...sty.input, flex: 1 }} />
+              <button onClick={saveAvatar} className="dash-btn" style={sty.btn(T.cyan)}><HiOutlineSave size={14} /> Save</button>
+              <button onClick={() => setEditingAvatar(false)} className="dash-btn" style={sty.btn("rgba(148,163,184,0.12)", T.muted)}>Cancel</button>
+            </div>
+            {avatarUrl && (
+              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12, color: T.muted }}>Preview:</span>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", border: `2px solid ${T.border}` }}>
+                  <img src={avatarUrl} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.target.style.display = "none"; }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ display: "grid", gap: 14 }}>
           <div>
             <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>Name</label>
@@ -874,8 +1062,91 @@ export default function UserDashboard() {
           )}
         </div>
       </AniCard>
+      {/* Password Change (email/password users only) */}
+      {isEmailProvider && (
+        <AniCard delay={0.1}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 14, fontFamily: "'Space Grotesk'" }}>Change Password</h3>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>Current Password</label>
+              <div style={{ position: "relative" }}>
+                <input type={showCurrentPw ? "text" : "password"} value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Enter current password" style={sty.input} />
+                <button onClick={() => setShowCurrentPw(!showCurrentPw)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.muted, cursor: "pointer", padding: 0 }}>
+                  {showCurrentPw ? <HiOutlineEyeOff size={16} /> : <HiOutlineEye size={16} />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>New Password</label>
+              <div style={{ position: "relative" }}>
+                <input type={showNewPw ? "text" : "password"} value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Enter new password" style={sty.input} />
+                <button onClick={() => setShowNewPw(!showNewPw)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.muted, cursor: "pointer", padding: 0 }}>
+                  {showNewPw ? <HiOutlineEyeOff size={16} /> : <HiOutlineEye size={16} />}
+                </button>
+              </div>
+              {newPw && (() => { const r = passwordStrength(newPw); return (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ height: 3, borderRadius: 2, background: T.border, overflow: "hidden" }}>
+                    <div style={{ width: `${(r.score / 5) * 100}%`, height: "100%", background: r.color, transition: "width 0.3s" }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: r.color, marginTop: 2, display: "block" }}>{r.label}</span>
+                </div>
+              ); })()}
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 4 }}>Confirm New Password</label>
+              <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm new password" style={sty.input} />
+              {confirmPw && newPw !== confirmPw && <span style={{ fontSize: 11, color: T.red, marginTop: 2, display: "block" }}>Passwords don't match</span>}
+            </div>
+            <button onClick={handlePasswordChange} disabled={changingPw || !newPw || newPw !== confirmPw} className="dash-btn" style={{ ...sty.btn(T.accent), opacity: (!newPw || newPw !== confirmPw) ? 0.5 : 1, alignSelf: "flex-start" }}>
+              <HiOutlineLockClosed size={14} /> {changingPw ? "Updating..." : "Update Password"}
+            </button>
+          </div>
+        </AniCard>
+      )}
+      {/* Appearance */}
+      <AniCard delay={isEmailProvider ? 0.2 : 0.1}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 14, fontFamily: "'Space Grotesk'" }}>Appearance</h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 10, background: "rgba(148,163,184,0.04)", border: `1px solid ${T.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {themeMode === "dark" ? <HiOutlineMoon size={20} style={{ color: T.accent }} /> : <HiOutlineSun size={20} style={{ color: "#f59e0b" }} />}
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: T.white, margin: 0 }}>{themeMode === "dark" ? "Dark Mode" : "Light Mode"}</p>
+              <p style={{ fontSize: 12, color: T.muted, margin: "2px 0 0" }}>Switch between dark and light themes</p>
+            </div>
+          </div>
+          <button onClick={toggleTheme} style={{ width: 48, height: 26, borderRadius: 13, background: themeMode === "dark" ? T.accent : "rgba(148,163,184,0.3)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+            <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: themeMode === "dark" ? 25 : 3, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+          </button>
+        </div>
+      </AniCard>
+      {/* Notification Preferences */}
+      <AniCard delay={isEmailProvider ? 0.3 : 0.2}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 14, fontFamily: "'Space Grotesk'" }}>Notification Preferences</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { key: "security", label: "Security Alerts", desc: "Get notified about threats and breaches", icon: HiOutlineShieldCheck },
+            { key: "updates", label: "Product Updates", desc: "New features and improvements", icon: HiOutlineBell },
+            { key: "weekly", label: "Weekly Report", desc: "Receive weekly security summary", icon: HiOutlineDocumentReport },
+            { key: "marketing", label: "Marketing", desc: "Tips, offers, and promotions", icon: HiOutlineMail },
+          ].map((n) => (
+            <div key={n.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, background: "rgba(148,163,184,0.04)", border: `1px solid ${T.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <n.icon size={18} style={{ color: notifPrefs[n.key] ? T.cyan : T.muted }} />
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: T.white, margin: 0 }}>{n.label}</p>
+                  <p style={{ fontSize: 11, color: T.muted, margin: "1px 0 0" }}>{n.desc}</p>
+                </div>
+              </div>
+              <button onClick={() => saveNotifPrefs(n.key)} style={{ width: 44, height: 24, borderRadius: 12, background: notifPrefs[n.key] ? T.cyan : "rgba(148,163,184,0.2)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notifPrefs[n.key] ? 23 : 3, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </AniCard>
       {/* Plan */}
-      <AniCard delay={0.1}>
+      <AniCard delay={isEmailProvider ? 0.4 : 0.3}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Current Plan</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <span style={{ fontSize: 22, fontWeight: 700, color: planColors[userPlan], fontFamily: "'Space Grotesk'" }}>{planLabels[userPlan]}</span>
@@ -890,7 +1161,7 @@ export default function UserDashboard() {
         )}
       </AniCard>
       {/* Payments */}
-      <AniCard delay={0.2}>
+      <AniCard delay={isEmailProvider ? 0.5 : 0.4}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Payment History</h3>
         {payments.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No payments found</p> : (
           <div>
@@ -909,16 +1180,37 @@ export default function UserDashboard() {
           </div>
         )}
       </AniCard>
+      {/* Session Info */}
+      <AniCard delay={isEmailProvider ? 0.6 : 0.5}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 14, fontFamily: "'Space Grotesk'" }}>Active Session</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+          {[
+            { label: "Browser", value: currentDevice.browser, icon: HiOutlineGlobe },
+            { label: "OS", value: currentDevice.os, icon: HiOutlineDesktopComputer },
+            { label: "Device Type", value: currentDevice.type, icon: HiOutlineFingerPrint },
+            { label: "Screen", value: currentDevice.screenRes, icon: HiOutlineDesktopComputer },
+          ].map((s) => (
+            <div key={s.label} style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(148,163,184,0.04)", border: `1px solid ${T.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <s.icon size={14} style={{ color: T.cyan }} />
+                <span style={{ fontSize: 11, color: T.muted }}>{s.label}</span>
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: T.white, margin: 0 }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      </AniCard>
       {/* Delete Account */}
-      <div className="dash-card" style={{ ...sty.card, borderColor: "rgba(239,68,68,0.15)", animation: "fadeInUp 0.5s ease 0.3s both" }}>
+      <div className="dash-card" style={{ ...sty.card, borderColor: "rgba(239,68,68,0.15)", animation: `fadeInUp 0.5s ease ${isEmailProvider ? 0.7 : 0.6}s both` }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 8, fontFamily: "'Space Grotesk'" }}>Danger Zone</h3>
         <p style={{ fontSize: 13, color: T.muted, marginBottom: 12 }}>Permanently delete your account and all data. This action cannot be undone.</p>
         <button onClick={() => setShowDeleteModal(true)} className="dash-btn" style={sty.btn("rgba(239,68,68,0.12)", T.red)}><HiOutlineTrash size={14} /> Delete Account</button>
       </div>
     </AniTab>
-  );
+    );
+  };
 
-  const tabs = { Overview: renderOverview, Devices: renderDevices, Security: renderSecurity, "Threat Monitor": renderThreatMonitor, Analytics: renderAnalytics, Reports: renderReports, "API Access": renderApiAccess, Account: renderAccount };
+  const tabs = { Overview: renderOverview, Devices: renderDevices, Security: renderSecurity, "Tool History": renderToolHistory, "Threat Monitor": renderThreatMonitor, Analytics: renderAnalytics, Reports: renderReports, "API Access": renderApiAccess, Account: renderAccount };
 
   if (!user) return null;
 
