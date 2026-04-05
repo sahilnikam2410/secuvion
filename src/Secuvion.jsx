@@ -457,7 +457,9 @@ const Hero = () => {
         <Reveal delay={0.3} direction="right">
           <div style={{ position: "relative", width: "100%", aspectRatio: "1", maxWidth: 560, margin: "0 auto" }} className="hero-globe">
             <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle at 40% 40%, rgba(99,102,241,0.08), transparent 60%)" }} />
-            <CyberGlobe size={560} />
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+              <CyberGlobe size={typeof window !== "undefined" && window.innerWidth < 600 ? 280 : 560} />
+            </div>
             {/* Floating stat cards */}
             <div style={{ position: "absolute", top: "8%", right: "-5%", padding: "12px 18px", background: "rgba(17,24,39,0.85)", backdropFilter: "blur(12px)", border: `1px solid ${T.border}`, borderRadius: 12, animation: "float 4s ease-in-out infinite" }}>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: T.red, fontWeight: 600, marginBottom: 4 }}>THREAT DETECTED</div>
