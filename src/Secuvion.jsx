@@ -326,7 +326,7 @@ const Card = ({ children, style: s = {}, hover = true }) => {
         transition: "all 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
         transform: h && hover ? "translateY(-4px)" : "translateY(0)",
         boxShadow: h && hover ? "0 20px 50px rgba(0,0,0,0.3), 0 0 30px rgba(99,102,241,0.06)" : "0 2px 12px rgba(0,0,0,0.1)",
-        position: "relative", overflow: "hidden", ...s,
+        position: "relative", overflow: "hidden", maxWidth: "100%", boxSizing: "border-box", ...s,
       }}>
       {hover && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: h ? 2 : 0, background: "linear-gradient(90deg, transparent, #6366f1, #8b5cf6, transparent)", transition: "height 0.4s ease" }} />}
       {children}
@@ -1213,7 +1213,7 @@ const Analyzer = () => {
         {/* Right - Analyzer tool */}
         <Reveal delay={0.2} direction="right">
           <Card style={{ padding: 0, overflow: "hidden" }} hover={false}>
-            <div style={{ padding: "24px 28px 0" }}>
+            <div style={{ padding: "24px clamp(14px, 4vw, 28px) 0" }}>
               <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "rgba(0,0,0,0.3)", borderRadius: 10, padding: 4 }}>
                 {modes.map(m => (
                   <button key={m.id} onClick={() => { setMode(m.id); setResult(null); }}
@@ -1226,10 +1226,10 @@ const Analyzer = () => {
                     }}>{m.label}</button>
                 ))}
               </div>
-              <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+              <div className="analyzer-input-row" style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
                 <input value={input} onChange={e => setInput(e.target.value)} placeholder={modes.find(m => m.id === mode).ph}
                   onKeyDown={e => e.key === "Enter" && scan()}
-                  style={{ flex: 1, padding: "14px 18px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(148,163,184,0.1)", borderRadius: 10, color: T.white, fontFamily: "var(--font-body)", fontSize: 14, outline: "none", transition: "border-color 0.3s" }}
+                  style={{ flex: 1, minWidth: 0, padding: "14px 18px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(148,163,184,0.1)", borderRadius: 10, color: T.white, fontFamily: "var(--font-body)", fontSize: 14, outline: "none", transition: "border-color 0.3s", boxSizing: "border-box" }}
                   onFocus={e => e.target.style.borderColor = "rgba(99,102,241,0.3)"}
                   onBlur={e => e.target.style.borderColor = "rgba(148,163,184,0.1)"}
                 />
@@ -2274,10 +2274,10 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
 }
 
 @media (max-width: 600px) {
-  section { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; overflow: hidden !important; }
+  section { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 12px !important; padding-right: 12px !important; overflow: hidden !important; max-width: 100vw !important; box-sizing: border-box !important; }
   .hero-grid { padding: 0 4px !important; }
   .hero-grid h1 { font-size: 28px !important; }
-  .hero-grid p { max-width: 100% !important; font-size: 15px !important; }
+  .hero-grid p { max-width: 100% !important; font-size: 15px !important; word-wrap: break-word !important; }
   .hero-stats { flex-direction: column !important; gap: 16px !important; align-items: center !important; }
   .hero-buttons { flex-direction: column !important; align-items: stretch !important; }
   .hero-buttons button { width: 100% !important; justify-content: center !important; }
@@ -2287,7 +2287,9 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .demo-arrow { display: none !important; }
   .newsletter-form { flex-direction: column !important; }
   .newsletter-form button { width: 100% !important; justify-content: center !important; }
-  .analyzer-grid { gap: 32px !important; }
+  .analyzer-grid { gap: 24px !important; }
+  .analyzer-grid p { word-wrap: break-word !important; overflow-wrap: break-word !important; }
+  .analyzer-grid input { min-width: 0 !important; font-size: 13px !important; }
   .assistant-grid { gap: 32px !important; }
   .features-grid { grid-template-columns: 1fr !important; }
   .steps-grid { grid-template-columns: 1fr !important; }
@@ -2299,6 +2301,7 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .pricing-grid { max-width: 100% !important; grid-template-columns: 1fr !important; }
   .footer-grid { grid-template-columns: 1fr !important; }
   .tools-grid { grid-template-columns: 1fr !important; }
+  div[class*="card"], div[style*="padding: 24px 28px"], div[style*="padding: 28px"] { padding-left: 14px !important; padding-right: 14px !important; }
 }
 
 @media (max-width: 768px) {
