@@ -336,7 +336,7 @@ const Card = ({ children, style: s = {}, hover = true }) => {
 
 /* ── SECTION WRAPPER ── */
 const Section = ({ children, id, style = {} }) => (
-  <section id={id} style={{ padding: "120px clamp(24px, 5vw, 80px)", maxWidth: 1280, margin: "0 auto", position: "relative", ...style }}>
+  <section id={id} style={{ padding: "120px clamp(16px, 5vw, 80px)", maxWidth: 1280, margin: "0 auto", position: "relative", boxSizing: "border-box", ...style }}>
     {children}
   </section>
 );
@@ -399,7 +399,7 @@ const Hero = () => {
   }, []);
 
   return (
-    <section ref={parallaxRef} style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", padding: "120px clamp(24px, 5vw, 80px) 80px" }}>
+    <section ref={parallaxRef} style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", padding: "120px clamp(16px, 5vw, 80px) 80px", maxWidth: "100vw", boxSizing: "border-box" }}>
       {/* Parallax background glows */}
       <div style={{ position: "absolute", top: "10%", left: "5%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.07), transparent 65%)", pointerEvents: "none", transform: `translateY(${parallaxOffset * 0.5}px)`, transition: "transform 0.1s linear" }} />
       <div style={{ position: "absolute", bottom: "5%", right: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(20,227,197,0.04), transparent 65%)", pointerEvents: "none", transform: `translateY(${parallaxOffset * -0.3}px)`, transition: "transform 0.1s linear" }} />
@@ -2272,11 +2272,15 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
 }
 
 @media (max-width: 600px) {
-  section { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; }
+  section { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; overflow: hidden !important; }
+  .hero-grid { padding: 0 4px !important; }
   .hero-grid h1 { font-size: 28px !important; }
-  .hero-stats { flex-direction: column !important; gap: 16px !important; }
+  .hero-grid p { max-width: 100% !important; font-size: 15px !important; }
+  .hero-stats { flex-direction: column !important; gap: 16px !important; align-items: center !important; }
   .hero-buttons { flex-direction: column !important; align-items: stretch !important; }
   .hero-buttons button { width: 100% !important; justify-content: center !important; }
+  .hero-buttons a { width: 100% !important; text-align: center !important; justify-content: center !important; }
+  .hero-globe { max-width: 280px !important; }
   .ba-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
   .demo-arrow { display: none !important; }
   .newsletter-form { flex-direction: column !important; }
