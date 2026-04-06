@@ -86,17 +86,21 @@ html {
 html, body {
   width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   line-height: 1.6;
 }
 
+html {
+  overflow-x: hidden !important;
+}
+
 #root {
   width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
 }
 
 /* ── SELECTION ── */
