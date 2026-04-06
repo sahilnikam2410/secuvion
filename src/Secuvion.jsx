@@ -988,18 +988,18 @@ const PricingComparison = () => {
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 clamp(24px, 5vw, 80px) 80px" }}>
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 clamp(12px, 5vw, 80px) 80px" }}>
       <Reveal>
-        <div style={{
+        <div className="comparison-card" style={{
           background: T.card, border: `1px solid ${T.border}`, borderRadius: 20,
-          overflow: "hidden", backdropFilter: "blur(8px)",
+          overflow: "hidden", backdropFilter: "blur(8px)", maxWidth: "100%", boxSizing: "border-box",
         }}>
-          <div style={{ padding: "24px 32px", borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ padding: "24px clamp(16px, 4vw, 32px)", borderBottom: `1px solid ${T.border}` }}>
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: T.white, margin: 0 }}>
               Feature Comparison
             </h3>
           </div>
-          <div style={{ overflowX: "auto" }}>
+          <div className="comparison-scroll" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${T.border}` }}>
@@ -1993,13 +1993,14 @@ const Testimonials = () => {
           {arrowBtn("left", prev)}
           {arrowBtn("right", next)}
 
-          <div style={{ overflow: "hidden", borderRadius: 16 }}>
+          <div style={{ overflow: "hidden", borderRadius: 16, width: "100%" }}>
             <div
               className="testimonials-track"
               style={{
                 display: "flex",
+                width: `${totalSets * 100}%`,
                 transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-                transform: `translateX(-${active * 100}%)`,
+                transform: `translateX(-${active * (100 / totalSets)}%)`,
               }}
             >
               {Array.from({ length: totalSets }).map((_, setIdx) => (
@@ -2010,17 +2011,18 @@ const Testimonials = () => {
                     display: "grid",
                     gridTemplateColumns: `repeat(${perPage}, 1fr)`,
                     gap: 20,
-                    minWidth: "100%",
+                    width: `${100 / totalSets}%`,
                     flexShrink: 0,
+                    boxSizing: "border-box",
                   }}
                 >
                   {testimonials.slice(setIdx * perPage, setIdx * perPage + perPage).map((t, i) => {
                     const globalIdx = setIdx * perPage + i;
                     return (
-                      <div key={globalIdx} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "28px 24px", position: "relative", transition: "all 0.3s" }} className="testimonial-card">
+                      <div key={globalIdx} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "28px 24px", position: "relative", transition: "all 0.3s", overflow: "hidden", boxSizing: "border-box" }} className="testimonial-card">
                         <div style={{ position: "absolute", top: 0, left: 24, right: 24, height: 1, background: `linear-gradient(90deg, transparent, ${globalIdx % 2 === 0 ? T.accentMed : T.cyanMed}, transparent)` }} />
                         <div style={{ fontSize: 28, color: T.accent, opacity: 0.15, fontFamily: "Georgia, serif", lineHeight: 1, marginBottom: 8 }}>"</div>
-                        <p style={{ fontFamily: "var(--font-body)", color: T.muted, fontSize: 14, lineHeight: 1.75, margin: "0 0 20px" }}>{t.text}</p>
+                        <p style={{ fontFamily: "var(--font-body)", color: T.muted, fontSize: 14, lineHeight: 1.75, margin: "0 0 20px", wordWrap: "break-word", overflowWrap: "break-word" }}>{t.text}</p>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
                           <div>
                             <div style={{ fontFamily: "var(--font-display)", fontSize: 14, fontWeight: 600, color: T.white }}>{t.name}</div>
@@ -2307,6 +2309,11 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .pricing-grid { max-width: 100% !important; grid-template-columns: 1fr !important; }
   .footer-grid { grid-template-columns: 1fr !important; }
   .tools-grid { grid-template-columns: 1fr !important; }
+  .comparison-card { border-radius: 12px !important; }
+  .comparison-scroll table { min-width: 480px !important; font-size: 12px !important; }
+  .comparison-scroll th { padding: 12px 8px !important; }
+  .comparison-scroll td { padding: 10px 8px !important; }
+  .comparison-scroll td:first-child { font-size: 12px !important; padding-left: 12px !important; }
   div[class*="card"], div[style*="padding: 24px 28px"], div[style*="padding: 28px"] { padding-left: 14px !important; padding-right: 14px !important; }
 }
 
