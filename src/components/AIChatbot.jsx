@@ -107,7 +107,10 @@ About SECUVION:
 - AI-powered cyber defense platform
 - Features: Threat Map, Fraud Analyzer, Security Score, Dark Web Monitor, Password Vault, Vulnerability Scanner, Learn Academy, Blog
 - Founded by Sahil Anil Nikam
-- Website: secuvion.com
+- Website: secuvion.vercel.app
+- Email: secuvion@gmail.com
+- Phone: +91 8329935878
+- Location: Nashik, Maharashtra, India
 
 You are powered by SECUVION AI. Be the most helpful assistant possible.`;
 
