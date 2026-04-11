@@ -71,8 +71,9 @@ export default function Contact() {
     if (serviceId && publicKey) {
       try {
         const { default: emailjs } = await import("@emailjs/browser");
-        await emailjs.send(serviceId, "template_contact", {
+        await emailjs.send(serviceId, "template_i4z3gra", {
           name: form.name,
+          from_name: form.name,
           email: form.email,
           subject: form.subject,
           message: form.message,
