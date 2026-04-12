@@ -230,7 +230,7 @@ export default function Checkout() {
         throw new Error("Failed to load Cashfree SDK. Please check your internet connection.");
       }
 
-      const cashfree = CashfreeSDK({ mode: import.meta.env.PROD ? "production" : "sandbox" });
+      const cashfree = CashfreeSDK({ mode: data.mode || "sandbox" });
       cashfree.checkout({
         paymentSessionId: data.paymentSessionId,
         redirectTarget: "_self",

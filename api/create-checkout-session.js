@@ -85,6 +85,7 @@ export default async function handler(req, res) {
       orderId: data.order_id,
       paymentSessionId: data.payment_session_id,
       orderStatus: data.order_status,
+      mode: process.env.CASHFREE_ENV === "production" ? "production" : "sandbox",
     });
   } catch (err) {
     console.error("Cashfree session error:", err.message);
