@@ -4,6 +4,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
 import { saveToolResult } from "../../services/toolHistoryService";
+import { exportReport } from "../../utils/exportPDF";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", red: "#ef4444", gold: "#eab308", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)" };
 
@@ -142,6 +143,30 @@ export default function FraudAnalyzer() {
 
           {result && (
             <div style={{ padding: 24, background: `${result.color}06`, border: `1px solid ${result.color}15`, borderRadius: 14 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                <button
+                  onClick={() => exportReport({
+                    title: "Fraud Analyzer Report",
+                    subtitle: `${result.mode.toUpperCase()}: ${result.input}`,
+                    sections: [
+                      { heading: "Threat Summary", items: [
+                        { label: "Threat Score", value: `${result.score} / 100`, color: result.color },
+                        { label: "Threat Level", value: result.level, color: result.color },
+                        { label: "Verdict", value: result.msg },
+                        { label: "Scan Type", value: result.mode.toUpperCase() },
+                        { label: "Scanned At", value: result.time },
+                      ]},
+                      { heading: "Findings", items: result.details.map((d, i) => ({
+                        label: `Finding #${i + 1}`,
+                        value: d,
+                      }))},
+                    ],
+                  })}
+                  style={{ padding: "8px 16px", background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#818cf8", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Plus Jakarta Sans'" }}
+                >
+                  📄 Export Report
+                </button>
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
                 <div style={{ width: 60, height: 60, borderRadius: 14, border: `1.5px solid ${result.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: result.color, flexShrink: 0, background: `${result.color}08` }}>{result.icon}</div>
                 <div style={{ flex: 1 }}>

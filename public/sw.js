@@ -1,6 +1,6 @@
-const CACHE_NAME = "secuvion-v2";
-const STATIC_CACHE = "secuvion-static-v2";
-const PRECACHE_URLS = ["/", "/index.html", "/favicon.svg", "/manifest.json"];
+const CACHE_NAME = "secuvion-v3";
+const STATIC_CACHE = "secuvion-static-v3";
+const PRECACHE_URLS = ["/", "/index.html", "/favicon.svg", "/manifest.json", "/offline.html"];
 
 // Install: precache essential files
 self.addEventListener("install", (event) => {
@@ -69,6 +69,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match("/offline.html")))
   );
 });

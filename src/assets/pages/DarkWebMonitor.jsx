@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
+import { exportReport } from "../../utils/exportPDF";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", red: "#ef4444", orange: "#f97316", green: "#22c55e", yellow: "#eab308", purple: "#a78bfa", blue: "#38bdf8", pink: "#ec4899", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)", surface: "#111827" };
 
@@ -263,6 +264,33 @@ export default function DarkWebMonitor() {
           {/* Summary */}
           <section style={{ padding: "0 20px 50px" }}>
             <div style={wrap}>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                <button
+                  onClick={() => exportReport({
+                    title: "Dark Web Monitor Report",
+                    subtitle: `Email: ${results.email}`,
+                    sections: [
+                      { heading: "Summary", items: [
+                        { label: "Breaches Found", value: String(results.breaches.length), color: results.breaches.length > 4 ? "#ef4444" : results.breaches.length > 2 ? "#f97316" : "#eab308" },
+                        { label: "Safety Score", value: `${results.score} / 100`, color: results.score < 40 ? "#ef4444" : results.score < 70 ? "#f97316" : "#22c55e" },
+                        { label: "Data Source", value: results.source || "N/A" },
+                      ]},
+                      { heading: "Breach Details", items: results.breaches.map((b) => ({
+                        label: `${b.name} (${b.year})`,
+                        value: `${b.records} records \u2014 ${b.severity} \u2014 ${b.types.join(", ")}`,
+                        color: SEV_COLORS[b.severity],
+                      }))},
+                      { heading: "Data Types Exposed", items: [...new Set(results.breaches.flatMap((b) => b.types))].map((t) => ({
+                        label: t,
+                        value: `Found in ${results.breaches.filter((b) => b.types.includes(t)).length} breach(es)`,
+                      }))},
+                    ],
+                  })}
+                  style={{ padding: "8px 16px", background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#818cf8", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Plus Jakarta Sans'" }}
+                >
+                  📄 Export Report
+                </button>
+              </div>
               <div style={{ ...sty.card, textAlign: "center", padding: "40px 24px", borderColor: results.breaches.length > 4 ? `${T.red}30` : results.breaches.length > 2 ? `${T.orange}30` : `${T.yellow}30` }}>
                 <div style={{ fontSize: 56, fontWeight: 800, fontFamily: "'Space Grotesk'", color: results.breaches.length > 4 ? T.red : results.breaches.length > 2 ? T.orange : T.yellow }}>
                   {results.breaches.length}

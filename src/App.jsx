@@ -8,6 +8,7 @@ import { ProtectedRoute, DashboardRedirect } from "./components/ProtectedRoute";
 import AIChatbot from "./components/AIChatbot.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import CookieConsent from "./components/CookieConsent.jsx";
+import PWAInstallPrompt from "./components/PWAInstallPrompt.jsx";
 
 /* ── Skeleton Loader ── */
 const T = { bg: "#030712", card: "rgba(17,24,39,0.6)", border: "rgba(148,163,184,0.08)", accent: "#6366f1", cyan: "#14e3c5" };
@@ -87,6 +88,7 @@ const SecurityChecklist = lazy(() => import("./assets/pages/SecurityChecklist.js
 const EmailAnalyzer = lazy(() => import("./assets/pages/EmailAnalyzer.jsx"));
 const CyberNews = lazy(() => import("./assets/pages/CyberNews.jsx"));
 const QRScanner = lazy(() => import("./assets/pages/QRScanner.jsx"));
+const PasswordChecker = lazy(() => import("./assets/pages/PasswordChecker.jsx"));
 const ForgotPassword = lazy(() => import("./assets/pages/ForgotPassword.jsx"));
 
 function ScrollToTop() {
@@ -131,6 +133,7 @@ function AppRoutes() {
             <Route path="/security-checklist" element={<ProtectedRoute><SecurityChecklist /></ProtectedRoute>} />
             <Route path="/email-analyzer" element={<ProtectedRoute><EmailAnalyzer /></ProtectedRoute>} />
             <Route path="/qr-scanner" element={<ProtectedRoute><QRScanner /></ProtectedRoute>} />
+            <Route path="/password-checker" element={<ProtectedRoute><PasswordChecker /></ProtectedRoute>} />
 
             {/* Protected — Learn, Blog, News (login required) */}
             <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
@@ -171,6 +174,7 @@ function App() {
       <Router>
         <AppRoutes />
         <CookieConsent />
+        <PWAInstallPrompt />
       </Router>
     </AuthProvider>
     </ToastProvider>

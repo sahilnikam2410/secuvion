@@ -3,6 +3,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
 import { saveToolResult } from "../../services/toolHistoryService";
+import { exportReport } from "../../utils/exportPDF";
 
 const T = { bg: "#030712", dark: "#0a0f1e", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", green: "#22c55e", red: "#ef4444", gold: "#eab308", blue: "#38bdf8", border: "rgba(148,163,184,0.08)", card: "rgba(17,24,39,0.6)", surface: "#111827" };
 
@@ -408,6 +409,44 @@ export default function IPLookup() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={() => exportReport({
+                    title: "IP Lookup Report",
+                    subtitle: `IP: ${result.query}`,
+                    sections: [
+                      { heading: "Overview", items: [
+                        { label: "IP Address", value: result.query },
+                        { label: "Location", value: [result.city, result.regionName, result.country].filter(Boolean).join(", ") || "N/A" },
+                        { label: "ISP", value: result.isp || "N/A" },
+                        { label: "Organization", value: result.org || "N/A" },
+                        { label: "Threat Level", value: `${result.threat.level} (${result.threat.score}/100)`, color: result.threat.color },
+                      ]},
+                      { heading: "Network Details", items: [
+                        { label: "AS Number", value: result.as || "N/A" },
+                        { label: "Reverse DNS", value: result.reverse || "No PTR record" },
+                        { label: "Proxy Detected", value: result.proxy ? "Yes" : "No", color: result.proxy ? "#ef4444" : "#22c55e" },
+                        { label: "Hosting / Datacenter", value: result.hosting ? "Yes" : "No", color: result.hosting ? "#eab308" : "#22c55e" },
+                      ]},
+                      { heading: "Geolocation", items: [
+                        { label: "Country", value: `${result.country || "N/A"} (${result.countryCode || "N/A"})` },
+                        { label: "Region", value: result.regionName || "N/A" },
+                        { label: "City", value: result.city || "N/A" },
+                        { label: "ZIP / Postal", value: result.zip || "N/A" },
+                        { label: "Latitude", value: result.lat != null ? String(result.lat.toFixed(4)) : "N/A" },
+                        { label: "Longitude", value: result.lon != null ? String(result.lon.toFixed(4)) : "N/A" },
+                        { label: "Timezone", value: result.timezone || "N/A" },
+                      ]},
+                      { heading: "Threat Indicators", items: result.threat.reasons.map((reason, i) => ({
+                        label: `Indicator #${i + 1}`,
+                        value: reason,
+                        color: result.threat.color,
+                      }))},
+                    ],
+                  })}
+                  style={{ padding: "8px 16px", background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#818cf8", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Plus Jakarta Sans'" }}
+                >
+                  📄 Export Report
+                </button>
                 <Badge color={result.threat.color}>{result.threat.level} Risk</Badge>
                 <span style={{ fontFamily: fonts.mono, fontSize: 12, color: T.muted }}>{result.isp}</span>
               </div>

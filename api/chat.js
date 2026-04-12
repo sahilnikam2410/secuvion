@@ -1,6 +1,15 @@
+import { checkRateLimit } from './_rateLimit.js';
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const clientIP = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  const rl = checkRateLimit(clientIP, 15);
+  if (!rl.allowed) {
+    res.setHeader("Retry-After", rl.retryAfter);
+    return res.status(429).json({ error: "Too many requests", retryAfter: rl.retryAfter });
   }
 
   const { message, history = [] } = req.body;
