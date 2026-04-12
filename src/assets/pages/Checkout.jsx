@@ -148,8 +148,10 @@ export default function Checkout() {
   const [method, setMethod] = useState("cashfree");
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [errors, setErrors] = useState({});
   const [showAdmin, setShowAdmin] = useState(false);
+  const [activePlan, setActivePlan] = useState(null);
 
   // UPI state
   const [upiTxnId, setUpiTxnId] = useState("");
@@ -170,40 +172,55 @@ export default function Checkout() {
   const btcAddress = localStorage.getItem("secuvion_btc_address") || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
   const ethAddress = localStorage.getItem("secuvion_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
 
-  const savePaymentRecord = useCallback((paymentId, paymentMethod) => {
-    const records = JSON.parse(localStorage.getItem("secuvion_payments") || "[]");
-    records.push({
-      id: paymentId,
-      method: paymentMethod,
-      plan: planKey,
-      amount: price,
-      currency: "INR",
-      date: new Date().toISOString(),
-      status: "success",
-    });
-    localStorage.setItem("secuvion_payments", JSON.stringify(records));
-  }, [planKey, price]);
+  // Check if user already has this plan active
+  useEffect(() => {
+    if (user?.plan && user.plan !== "free") {
+      setActivePlan(user.plan);
+    }
+  }, [user]);
 
-  const handlePaymentSuccess = useCallback((paymentMethod, paymentId) => {
-    updatePlan(planKey);
+  const PLAN_MAP = { starter: "starter", standard: "starter", pro: "pro", advanced: "pro", enterprise: "enterprise" };
+  const normalizedPlanKey = PLAN_MAP[planKey] || "pro";
+  const hasActivePlan = activePlan && activePlan === normalizedPlanKey;
+
+  const handlePaymentSuccess = useCallback((verifiedPlan) => {
+    updatePlan(verifiedPlan || planKey);
     const creditData = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "{}");
-    creditData.plan = planKey === "pro" || planKey === "advanced" ? "pro" : planKey === "enterprise" ? "unlimited" : "starter";
+    creditData.plan = verifiedPlan === "pro" ? "pro" : verifiedPlan === "enterprise" ? "unlimited" : "starter";
     creditData.used = 0;
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(creditData));
-    savePaymentRecord(paymentId || `pay_${Date.now()}`, paymentMethod);
     setProcessing(false);
+    setVerifying(false);
     setSuccess(true);
     setTimeout(() => navigate("/dashboard"), 3000);
-  }, [planKey, updatePlan, navigate, savePaymentRecord]);
+  }, [planKey, updatePlan, navigate]);
 
-  // Handle Cashfree success redirect
+  // Handle Cashfree success redirect — verify server-side
   useEffect(() => {
     const isSuccess = params.get("success") === "true";
     const orderId = params.get("order_id");
-    if (isSuccess && orderId) {
-      handlePaymentSuccess("cashfree", orderId);
+    if (isSuccess && orderId && user?.uid && !verifying && !success) {
+      setVerifying(true);
+      fetch("/api/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, uid: user.uid }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            handlePaymentSuccess(data.plan);
+          } else {
+            setErrors({ verify: data.error || "Payment verification failed" });
+            setVerifying(false);
+          }
+        })
+        .catch(() => {
+          setErrors({ verify: "Could not verify payment. Please contact support." });
+          setVerifying(false);
+        });
     }
-  }, [params, handlePaymentSuccess]);
+  }, [params, user, verifying, success, handlePaymentSuccess]);
 
   // Cashfree Checkout handler
   const handleCashfreeCheckout = async () => {
@@ -283,6 +300,40 @@ export default function Checkout() {
   const btcEquiv = (price / btcPriceINR).toFixed(6);
   const ethEquiv = (price / ethPriceINR).toFixed(4);
   const usdtEquiv = (price / 85).toFixed(2);
+
+  /* ==================== VERIFYING SCREEN ==================== */
+  if (verifying) {
+    return (
+      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <SEO title="Verifying Payment" description="Verifying your payment..." path="/checkout" />
+        <Navbar />
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 100 }}>
+          <div style={{ textAlign: "center", maxWidth: 440, padding: "0 24px" }}>
+            <div style={{
+              width: 96, height: 96, borderRadius: "50%",
+              background: "rgba(99,102,241,0.1)", border: "2px solid rgba(99,102,241,0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 28px", animation: "pulse-glow-verify 1.5s ease-in-out infinite",
+            }}>
+              <IconShieldCheck size={44} color={T.accent} />
+            </div>
+            <h2 style={{ fontSize: 28, fontWeight: 700, color: T.white, marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif" }}>
+              Verifying Payment...
+            </h2>
+            <p style={{ fontSize: 14, color: T.muted }}>
+              Confirming your payment with Cashfree. This takes a few seconds.
+            </p>
+          </div>
+        </div>
+        <style>{`
+          @keyframes pulse-glow-verify {
+            0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.15); }
+            50% { box-shadow: 0 0 80px rgba(99,102,241,0.3); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   /* ==================== SUCCESS SCREEN ==================== */
   if (success) {
@@ -446,13 +497,26 @@ export default function Checkout() {
                   ))}
                 </div>
 
+                {hasActivePlan && (
+                  <div style={{ padding: "12px 16px", background: "rgba(251,191,36,0.1)", borderRadius: 8, border: "1px solid rgba(251,191,36,0.2)", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>&#9888;</span>
+                    <span style={{ fontSize: 13, color: "#fbbf24" }}>You already have an active <strong>{activePlan}</strong> subscription. Choose a different plan to upgrade.</span>
+                  </div>
+                )}
+
                 {errors.cashfree && (
                   <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: `1px solid rgba(239,68,68,0.2)`, marginBottom: 16 }}>
                     <span style={{ fontSize: 13, color: T.red }}>{errors.cashfree}</span>
                   </div>
                 )}
 
-                <button onClick={handleCashfreeCheckout} disabled={processing} style={{
+                {errors.verify && (
+                  <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: `1px solid rgba(239,68,68,0.2)`, marginBottom: 16 }}>
+                    <span style={{ fontSize: 13, color: T.red }}>{errors.verify}</span>
+                  </div>
+                )}
+
+                <button onClick={handleCashfreeCheckout} disabled={processing || hasActivePlan} style={{
                   width: "100%", padding: "16px", border: "none", borderRadius: 10,
                   background: processing ? "rgba(99,102,241,0.4)" : `linear-gradient(135deg, ${T.accent}, ${T.cyan})`,
                   color: "#fff", fontSize: 16, fontWeight: 700, cursor: processing ? "wait" : "pointer",
