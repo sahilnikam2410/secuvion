@@ -93,6 +93,15 @@ const IdentityXray = lazy(() => import("./assets/pages/IdentityXray.jsx"));
 const ShippingPolicy = lazy(() => import("./assets/pages/ShippingPolicy.jsx"));
 const RefundPolicy = lazy(() => import("./assets/pages/RefundPolicy.jsx"));
 const ForgotPassword = lazy(() => import("./assets/pages/ForgotPassword.jsx"));
+const WhoisLookup = lazy(() => import("./assets/pages/WhoisLookup.jsx"));
+const SecurityHeaders = lazy(() => import("./assets/pages/SecurityHeaders.jsx"));
+const BrowserFingerprint = lazy(() => import("./assets/pages/BrowserFingerprint.jsx"));
+const PhishingTrainer = lazy(() => import("./assets/pages/PhishingTrainer.jsx"));
+const FileHashScanner = lazy(() => import("./assets/pages/FileHashScanner.jsx"));
+const DnsLeakTest = lazy(() => import("./assets/pages/DnsLeakTest.jsx"));
+const TwoFactorGuide = lazy(() => import("./assets/pages/TwoFactorGuide.jsx"));
+const Referral = lazy(() => import("./assets/pages/Referral.jsx"));
+const SecurityAudit = lazy(() => import("./assets/pages/SecurityAudit.jsx"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -140,6 +149,17 @@ function AppRoutes() {
             <Route path="/email-analyzer" element={<ProtectedRoute><EmailAnalyzer /></ProtectedRoute>} />
             <Route path="/qr-scanner" element={<ProtectedRoute><QRScanner /></ProtectedRoute>} />
             <Route path="/password-checker" element={<ProtectedRoute><PasswordChecker /></ProtectedRoute>} />
+            <Route path="/whois-lookup" element={<ProtectedRoute><WhoisLookup /></ProtectedRoute>} />
+            <Route path="/security-headers" element={<ProtectedRoute><SecurityHeaders /></ProtectedRoute>} />
+            <Route path="/browser-fingerprint" element={<ProtectedRoute><BrowserFingerprint /></ProtectedRoute>} />
+            <Route path="/phishing-trainer" element={<ProtectedRoute><PhishingTrainer /></ProtectedRoute>} />
+            <Route path="/file-hash-scanner" element={<ProtectedRoute><FileHashScanner /></ProtectedRoute>} />
+            <Route path="/dns-leak-test" element={<ProtectedRoute><DnsLeakTest /></ProtectedRoute>} />
+            <Route path="/2fa-guide" element={<ProtectedRoute><TwoFactorGuide /></ProtectedRoute>} />
+            <Route path="/security-audit" element={<ProtectedRoute><SecurityAudit /></ProtectedRoute>} />
+
+            {/* Protected — Referral (login required) */}
+            <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
 
             {/* Protected — Learn, Blog, News (login required) */}
             <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />

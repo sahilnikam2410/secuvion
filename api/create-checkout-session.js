@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         customer_name: name || "SECUVION User",
       },
       order_meta: {
-        return_url: `${origin}/checkout?success=true&plan=${planKey}&order_id=${orderId}`,
+        return_url: `${origin}/checkout?plan=${planKey}&order_id=${orderId}`,
         notify_url: `${origin}/api/cashfree-webhook`,
       },
       order_tags: {

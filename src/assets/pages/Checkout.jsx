@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { doc, updateDoc, collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from "firebase/firestore";
@@ -197,71 +197,71 @@ export default function Checkout() {
     setTimeout(() => navigate("/dashboard"), 3000);
   }, [planKey, updatePlan, navigate]);
 
-  // Handle Cashfree success redirect — verify server-side, then update Firestore
+  // Handle Cashfree redirect — verify server-side, then update Firestore
+  const verifyAttempted = useRef(false);
   useEffect(() => {
-    const isSuccess = params.get("success") === "true";
     const orderId = params.get("order_id");
-    if (isSuccess && orderId && user?.uid && !verifying && !success) {
-      setVerifying(true);
-      (async () => {
-        try {
-          // 1. Verify payment with Cashfree via our server
-          const res = await fetch("/api/verify-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ orderId }),
-          });
-          const data = await res.json();
-          if (!data.verified) {
-            setErrors({ verify: data.error || "Payment verification failed" });
-            setVerifying(false);
-            return;
-          }
-
-          // 2. Check if this payment was already processed
-          const paymentsRef = collection(db, "users", user.uid, "payments");
-          const dupCheck = query(paymentsRef, where("transactionId", "==", orderId));
-          const dupSnap = await getDocs(dupCheck);
-          if (!dupSnap.empty) {
-            // Already processed — just go to success
-            handlePaymentSuccess(data.plan);
-            return;
-          }
-
-          // 3. Update user subscription in Firestore
-          const userRef = doc(db, "users", user.uid);
-          await updateDoc(userRef, {
-            plan: data.plan,
-            subscriptionActive: true,
-            subscriptionBilling: data.billing,
-            subscriptionStartedAt: serverTimestamp(),
-            subscriptionExpiresAt: Timestamp.fromDate(new Date(data.expiresAt)),
-            subscriptionOrderId: orderId,
-            updatedAt: serverTimestamp(),
-          });
-
-          // 4. Save payment record
-          await addDoc(paymentsRef, {
-            amount: data.amount || 0,
-            plan: data.plan,
-            billing: data.billing,
-            method: "cashfree",
-            transactionId: orderId,
-            cfOrderId: data.cfOrderId || "",
-            status: "completed",
-            createdAt: serverTimestamp(),
-          });
-
-          // 5. Activate
-          handlePaymentSuccess(data.plan);
-        } catch (err) {
-          console.error("Payment verification error:", err);
-          setErrors({ verify: "Could not verify payment. Please contact support." });
+    if (!orderId || !user?.uid || verifyAttempted.current || success) return;
+    verifyAttempted.current = true;
+    setVerifying(true);
+    (async () => {
+      try {
+        // 1. Verify payment with Cashfree via our server
+        const res = await fetch("/api/verify-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        const data = await res.json();
+        if (!data.verified) {
+          setErrors({ verify: data.error || "Payment was not completed. You were not charged." });
           setVerifying(false);
+          return;
         }
-      })();
-    }
-  }, [params, user, verifying, success, handlePaymentSuccess]);
+
+        // 2. Check if this payment was already processed
+        const paymentsRef = collection(db, "users", user.uid, "payments");
+        const dupCheck = query(paymentsRef, where("transactionId", "==", orderId));
+        const dupSnap = await getDocs(dupCheck);
+        if (!dupSnap.empty) {
+          // Already processed — just go to success
+          handlePaymentSuccess(data.plan);
+          return;
+        }
+
+        // 3. Update user subscription in Firestore
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          plan: data.plan,
+          subscriptionActive: true,
+          subscriptionBilling: data.billing,
+          subscriptionStartedAt: serverTimestamp(),
+          subscriptionExpiresAt: Timestamp.fromDate(new Date(data.expiresAt)),
+          subscriptionOrderId: orderId,
+          updatedAt: serverTimestamp(),
+        });
+
+        // 4. Save payment record
+        await addDoc(paymentsRef, {
+          amount: data.amount || 0,
+          plan: data.plan,
+          billing: data.billing,
+          method: "cashfree",
+          transactionId: orderId,
+          cfOrderId: data.cfOrderId || "",
+          status: "completed",
+          createdAt: serverTimestamp(),
+        });
+
+        // 5. Activate
+        handlePaymentSuccess(data.plan);
+      } catch (err) {
+        console.error("Payment verification error:", err);
+        setErrors({ verify: "Could not verify payment. Please contact support." });
+        setVerifying(false);
+      }
+    })();
+  }, [params, user, success, handlePaymentSuccess]);
 
   // Cashfree Checkout handler
   const handleCashfreeCheckout = async () => {
@@ -343,27 +343,56 @@ export default function Checkout() {
   const usdtEquiv = (price / 85).toFixed(2);
 
   /* ==================== VERIFYING SCREEN ==================== */
-  if (verifying) {
+  if (verifying || errors.verify) {
     return (
       <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-        <SEO title="Verifying Payment" description="Verifying your payment..." path="/checkout" />
+        <SEO title={errors.verify ? "Payment Failed" : "Verifying Payment"} description="Verifying your payment..." path="/checkout" />
         <Navbar />
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 100 }}>
           <div style={{ textAlign: "center", maxWidth: 440, padding: "0 24px" }}>
-            <div style={{
-              width: 96, height: 96, borderRadius: "50%",
-              background: "rgba(99,102,241,0.1)", border: "2px solid rgba(99,102,241,0.3)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 28px", animation: "pulse-glow-verify 1.5s ease-in-out infinite",
-            }}>
-              <IconShieldCheck size={44} color={T.accent} />
-            </div>
-            <h2 style={{ fontSize: 28, fontWeight: 700, color: T.white, marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif" }}>
-              Verifying Payment...
-            </h2>
-            <p style={{ fontSize: 14, color: T.muted }}>
-              Confirming your payment with Cashfree. This takes a few seconds.
-            </p>
+            {errors.verify ? (
+              <>
+                <div style={{
+                  width: 96, height: 96, borderRadius: "50%",
+                  background: "rgba(239,68,68,0.1)", border: "2px solid rgba(239,68,68,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 28px",
+                }}>
+                  <span style={{ fontSize: 44 }}>&#x2717;</span>
+                </div>
+                <h2 style={{ fontSize: 28, fontWeight: 700, color: T.red, marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Payment Failed
+                </h2>
+                <p style={{ fontSize: 14, color: T.muted, marginBottom: 24 }}>
+                  {errors.verify}
+                </p>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                  <button onClick={() => { setErrors({}); setVerifying(false); verifyAttempted.current = false; navigate(`/checkout?plan=${planKey}`, { replace: true }); }} style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${T.accent},${T.cyan})`, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif" }}>
+                    Try Again
+                  </button>
+                  <button onClick={() => navigate("/pricing")} style={{ padding: "12px 28px", borderRadius: 10, border: `1px solid ${T.border}`, background: "rgba(15,23,42,0.6)", color: T.muted, fontSize: 15, cursor: "pointer" }}>
+                    Back to Pricing
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  width: 96, height: 96, borderRadius: "50%",
+                  background: "rgba(99,102,241,0.1)", border: "2px solid rgba(99,102,241,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto 28px", animation: "pulse-glow-verify 1.5s ease-in-out infinite",
+                }}>
+                  <IconShieldCheck size={44} color={T.accent} />
+                </div>
+                <h2 style={{ fontSize: 28, fontWeight: 700, color: T.white, marginBottom: 10, fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Verifying Payment...
+                </h2>
+                <p style={{ fontSize: 14, color: T.muted }}>
+                  Confirming your payment with Cashfree. This takes a few seconds.
+                </p>
+              </>
+            )}
           </div>
         </div>
         <style>{`

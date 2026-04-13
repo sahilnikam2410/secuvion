@@ -13,4 +13,13 @@
   <url><loc>https://secuvion.vercel.app/emergency-help</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
   <url><loc>https://secuvion.vercel.app/blog</loc><priority>0.7</priority><changefreq>weekly</changefreq></url>
   <url><loc>https://secuvion.vercel.app/identity-xray</loc><priority>1.0</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/whois-lookup</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/security-headers</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/browser-fingerprint</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/phishing-trainer</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/file-hash-scanner</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/dns-leak-test</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/2fa-guide</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/referral</loc><priority>0.6</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://secuvion.vercel.app/security-audit</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
 </urlset>

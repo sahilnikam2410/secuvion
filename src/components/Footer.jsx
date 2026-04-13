@@ -58,6 +58,10 @@ const Footer = () => (
             <FooterLink to="/qr-scanner">QR Scanner</FooterLink>
             <FooterLink to="/identity-xray">Identity X-Ray</FooterLink>
             <FooterLink to="/password-checker">Password Checker</FooterLink>
+            <FooterLink to="/whois-lookup">WHOIS Lookup</FooterLink>
+            <FooterLink to="/security-headers">Security Headers</FooterLink>
+            <FooterLink to="/file-hash-scanner">File Hash Scanner</FooterLink>
+            <FooterLink to="/security-audit">Security Audit</FooterLink>
           </ul>
         </div>
 
@@ -72,6 +76,11 @@ const Footer = () => (
             <FooterLink to="/security-score">Security Score</FooterLink>
             <FooterLink to="/scam-database">Scam Database</FooterLink>
             <FooterLink to="/emergency-help">Emergency Help</FooterLink>
+            <FooterLink to="/2fa-guide">2FA Setup Guide</FooterLink>
+            <FooterLink to="/phishing-trainer">Phishing Trainer</FooterLink>
+            <FooterLink to="/browser-fingerprint">Browser Fingerprint</FooterLink>
+            <FooterLink to="/dns-leak-test">DNS Leak Test</FooterLink>
+            <FooterLink to="/referral">Refer & Earn</FooterLink>
           </ul>
         </div>
 
