@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useUsageLimit } from "../../hooks/useUsageLimit";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
@@ -15,6 +16,7 @@ const CHECKS = [
 
 export default function SecurityAudit() {
   const { user } = useAuth();
+  const { checkLimit, limitError } = useUsageLimit("security-audit");
   const [email, setEmail] = useState(user?.email || "");
   const [domain, setDomain] = useState("");
   const [running, setRunning] = useState(false);
@@ -24,6 +26,8 @@ export default function SecurityAudit() {
 
   const runAudit = async () => {
     if (!email.trim() && !domain.trim()) return;
+    const ok = await checkLimit();
+    if (!ok) return;
     setRunning(true); setProgress(0); setResults(null);
     const auditResults = {};
     let score = 0; let maxScore = 0;
@@ -119,6 +123,12 @@ export default function SecurityAudit() {
               <input value={domain} onChange={e => setDomain(e.target.value)} placeholder="https://example.com" style={{ width: "100%", padding: "14px 16px", background: "rgba(15,23,42,0.6)", border: `1px solid ${T.border}`, borderRadius: 10, color: T.white, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
             </div>
 
+            {limitError && (
+              <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", marginBottom: 16 }}>
+                <span style={{ fontSize: 13, color: T.red }}>{limitError}</span>
+                <a href="/pricing" style={{ fontSize: 13, color: T.accent, marginLeft: 8 }}>Upgrade</a>
+              </div>
+            )}
             <button onClick={runAudit} disabled={running || (!email.trim() && !domain.trim())} style={{ width: "100%", padding: "16px", borderRadius: 10, border: "none", background: running ? "rgba(99,102,241,0.4)" : `linear-gradient(135deg,${T.accent},${T.cyan})`, color: "#fff", fontSize: 16, fontWeight: 700, cursor: running ? "wait" : "pointer", fontFamily: "'Space Grotesk',sans-serif" }}>
               {running ? `Running Audit... ${progress}%` : "Run Security Audit"}
             </button>

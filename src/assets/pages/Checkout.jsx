@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { doc, updateDoc, collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
+import { sendPaymentConfirmation } from "../../services/emailService";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
@@ -185,17 +186,23 @@ export default function Checkout() {
   const normalizedPlanKey = PLAN_MAP[planKey] || "pro";
   const hasActivePlan = activePlan && activePlan === normalizedPlanKey;
 
-  const handlePaymentSuccess = useCallback((verifiedPlan) => {
+  const handlePaymentSuccess = useCallback((verifiedPlan, amount) => {
     updatePlan(verifiedPlan || planKey);
     const creditData = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "{}");
     creditData.plan = verifiedPlan === "pro" ? "pro" : verifiedPlan === "enterprise" ? "unlimited" : "starter";
     creditData.used = 0;
     localStorage.setItem("secuvion_ai_credits", JSON.stringify(creditData));
+    // Send payment confirmation email
+    const name = user?.displayName || user?.name || "User";
+    const email = user?.email;
+    if (email) {
+      sendPaymentConfirmation(name, email, verifiedPlan || planKey, amount || price, billing);
+    }
     setProcessing(false);
     setVerifying(false);
     setSuccess(true);
     setTimeout(() => navigate("/dashboard"), 3000);
-  }, [planKey, updatePlan, navigate]);
+  }, [planKey, billing, price, user, updatePlan, navigate]);
 
   // Handle Cashfree redirect — verify server-side, then update Firestore
   const verifyAttempted = useRef(false);
@@ -254,7 +261,7 @@ export default function Checkout() {
         });
 
         // 5. Activate
-        handlePaymentSuccess(data.plan);
+        handlePaymentSuccess(data.plan, data.amount);
       } catch (err) {
         console.error("Payment verification error:", err);
         setErrors({ verify: "Could not verify payment. Please contact support." });

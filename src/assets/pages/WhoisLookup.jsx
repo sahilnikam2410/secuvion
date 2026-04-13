@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUsageLimit } from "../../hooks/useUsageLimit";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
@@ -10,6 +11,7 @@ function daysBetween(a, b) { return Math.floor((new Date(b) - new Date(a)) / 864
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "N/A"; }
 
 export default function WhoisLookup() {
+  const { checkLimit, limitError } = useUsageLimit("whois");
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -17,6 +19,8 @@ export default function WhoisLookup() {
 
   const lookup = async () => {
     if (!domain.trim()) return;
+    const ok = await checkLimit();
+    if (!ok) return;
     setLoading(true); setError(""); setResult(null);
     try {
       const res = await fetch("/api/whois", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain: domain.trim() }) });
@@ -59,7 +63,7 @@ export default function WhoisLookup() {
           </button>
         </div>
 
-        {error && <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", marginBottom: 20 }}><span style={{ fontSize: 13, color: T.red }}>{error}</span></div>}
+        {(limitError || error) && <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", marginBottom: 20 }}><span style={{ fontSize: 13, color: T.red }}>{limitError || error}</span>{limitError && <a href="/pricing" style={{ fontSize: 13, color: T.accent, marginLeft: 8 }}>Upgrade</a>}</div>}
 
         {result && (
           <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 28, backdropFilter: "blur(10px)" }}>

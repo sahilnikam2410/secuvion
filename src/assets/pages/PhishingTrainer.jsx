@@ -164,7 +164,7 @@ export default function PhishingTrainer() {
             <div style={{ fontSize: 60, marginBottom: 12 }}>{accuracy >= 80 ? "\uD83C\uDFC6" : accuracy >= 50 ? "\uD83D\uDC4D" : "\uD83D\uDCA1"}</div>
             <h2 style={{ fontSize: 28, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk',sans-serif", marginBottom: 8 }}>Training Complete!</h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, maxWidth: 400, margin: "24px auto" }}>
+            <div className="phish-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, maxWidth: 400, margin: "24px auto" }}>
               <div style={{ padding: 16, background: T.card, borderRadius: 12, border: `1px solid ${T.border}` }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: T.cyan, fontFamily: "'Space Grotesk',sans-serif" }}>{score}</div>
                 <div style={{ fontSize: 11, color: T.muted }}>Score</div>
@@ -187,6 +187,11 @@ export default function PhishingTrainer() {
         )}
       </div>
       <Footer />
+      <style>{`
+        @media (max-width: 480px) {
+          .phish-stats-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+        }
+      `}</style>
     </div>
   );
 }

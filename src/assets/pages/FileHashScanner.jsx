@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useUsageLimit } from "../../hooks/useUsageLimit";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
@@ -13,6 +14,7 @@ async function computeHash(file) {
 }
 
 export default function FileHashScanner() {
+  const { checkLimit, limitError } = useUsageLimit("file-hash");
   const [mode, setMode] = useState("file");
   const [hash, setHash] = useState("");
   const [fileName, setFileName] = useState("");
@@ -32,6 +34,8 @@ export default function FileHashScanner() {
 
   const checkHash = async () => {
     if (!hash.trim()) return;
+    const ok = await checkLimit();
+    if (!ok) return;
     setLoading(true); setError(""); setResult(null);
     try {
       const res = await fetch("/api/file-hash-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hash: hash.trim() }) });
@@ -104,7 +108,7 @@ export default function FileHashScanner() {
           {loading ? "Scanning..." : "Check Hash"}
         </button>
 
-        {error && <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", marginBottom: 20 }}><span style={{ fontSize: 13, color: T.red }}>{error}</span></div>}
+        {(limitError || error) && <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)", marginBottom: 20 }}><span style={{ fontSize: 13, color: T.red }}>{limitError || error}</span>{limitError && <a href="/pricing" style={{ fontSize: 13, color: T.accent, marginLeft: 8 }}>Upgrade</a>}</div>}
 
         {result && (
           <div style={{ background: T.card, border: `1px solid ${result.status === "clean" ? "rgba(34,197,94,0.2)" : result.status === "malicious" ? "rgba(239,68,68,0.2)" : "rgba(251,191,36,0.2)"}`, borderRadius: 16, padding: 28 }}>

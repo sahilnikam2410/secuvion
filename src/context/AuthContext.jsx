@@ -16,7 +16,7 @@ import {
   updateUserProfile as firestoreUpdateProfile,
   updateUserPlan,
 } from "../services/userService";
-import { sendWelcomeEmail } from "../services/emailService";
+import { sendWelcomeEmail, sendExpiryWarning, sendPromoEmail } from "../services/emailService";
 
 const AuthContext = createContext(null);
 
@@ -88,6 +88,28 @@ export function AuthProvider({ children }) {
 
           const merged = mergeUserData(firebaseUser, profile);
           setUser(merged);
+
+          // Check subscription expiry — warn if within 3 days
+          if (profile?.subscriptionExpiresAt && profile.plan !== "free") {
+            const expires = profile.subscriptionExpiresAt?.toDate ? profile.subscriptionExpiresAt.toDate() : new Date(profile.subscriptionExpiresAt);
+            const daysLeft = (expires - Date.now()) / 86400000;
+            const lastWarning = localStorage.getItem(`secuvion_expiry_warned_${firebaseUser.uid}`);
+            const today = new Date().toISOString().split("T")[0];
+            if (daysLeft > 0 && daysLeft <= 3 && lastWarning !== today) {
+              sendExpiryWarning(merged.name || merged.email, merged.email, profile.plan, expires);
+              localStorage.setItem(`secuvion_expiry_warned_${firebaseUser.uid}`, today);
+            }
+          }
+
+          // Send promo email 3 days after signup (once)
+          if (profile?.createdAt && !localStorage.getItem(`secuvion_promo_sent_${firebaseUser.uid}`)) {
+            const created = profile.createdAt?.toDate ? profile.createdAt.toDate() : new Date(profile.createdAt);
+            const daysSinceSignup = (Date.now() - created) / 86400000;
+            if (daysSinceSignup >= 3) {
+              sendPromoEmail(merged.name || merged.email, merged.email);
+              localStorage.setItem(`secuvion_promo_sent_${firebaseUser.uid}`, "true");
+            }
+          }
         } catch (error) {
           console.error("Error loading user profile:", error);
           const fallback = mergeUserData(firebaseUser, null);

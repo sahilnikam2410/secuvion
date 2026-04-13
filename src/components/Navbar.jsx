@@ -13,13 +13,26 @@ const toolsMenu = [
     { to: "/security-score", label: "📊 Security Score", desc: "Check your security" },
     { to: "/vulnerability-scanner", label: "🛡️ Vulnerability Scanner", desc: "Scan websites" },
     { to: "/dark-web-monitor", label: "🕵️ Dark Web Monitor", desc: "Check data leaks" },
+    { to: "/security-audit", label: "🔒 Security Audit", desc: "One-click full audit" },
+    { to: "/security-headers", label: "🛡 Security Headers", desc: "Scan HTTP headers" },
+    { to: "/file-hash-scanner", label: "🧬 File Hash Scanner", desc: "Check file for malware" },
   ]},
-  { label: "Privacy Tools", items: [
+  { label: "Privacy & More", items: [
     { to: "/password-vault", label: "🔐 Password Vault", desc: "Generate & manage" },
     { to: "/email-analyzer", label: "📧 Email Analyzer", desc: "Detect spoofing" },
     { to: "/ip-lookup", label: "🌐 IP Lookup", desc: "Geolocation & threat" },
     { to: "/qr-scanner", label: "📱 QR Scanner", desc: "Scan & generate QR" },
     { to: "/security-checklist", label: "✅ Security Checklist", desc: "Personal audit" },
+    { to: "/whois-lookup", label: "🔎 WHOIS Lookup", desc: "Domain registration" },
+    { to: "/dns-leak-test", label: "🌊 DNS Leak Test", desc: "Check IP & DNS leaks" },
+    { to: "/browser-fingerprint", label: "🖥️ Browser Fingerprint", desc: "Test browser privacy" },
+  ]},
+  { label: "Learn & Earn", items: [
+    { to: "/phishing-trainer", label: "🎣 Phishing Trainer", desc: "Spot phishing URLs" },
+    { to: "/2fa-guide", label: "🔑 2FA Setup Guide", desc: "Secure your accounts" },
+    { to: "/password-checker", label: "🔓 Password Checker", desc: "Test password strength" },
+    { to: "/identity-xray", label: "🔬 Identity X-Ray", desc: "Digital footprint scan" },
+    { to: "/referral", label: "🎁 Refer & Earn", desc: "Invite friends, earn rewards" },
   ]},
 ];
 
@@ -41,6 +54,17 @@ const SEARCH_ITEMS = [
   { label: "IP Lookup", to: "/ip-lookup", cat: "Tools", icon: "\uD83C\uDF10" },
   { label: "QR Scanner", to: "/qr-scanner", cat: "Tools", icon: "\uD83D\uDCF1" },
   { label: "Security Checklist", to: "/security-checklist", cat: "Tools", icon: "\u2705" },
+  { label: "Security Audit", to: "/security-audit", cat: "Tools", icon: "\uD83D\uDD12" },
+  { label: "Security Headers", to: "/security-headers", cat: "Tools", icon: "\uD83D\uDEE1" },
+  { label: "File Hash Scanner", to: "/file-hash-scanner", cat: "Tools", icon: "\uD83E\uDDEC" },
+  { label: "WHOIS Lookup", to: "/whois-lookup", cat: "Tools", icon: "\uD83D\uDD0E" },
+  { label: "DNS Leak Test", to: "/dns-leak-test", cat: "Tools", icon: "\uD83C\uDF0A" },
+  { label: "Browser Fingerprint", to: "/browser-fingerprint", cat: "Tools", icon: "\uD83D\uDDA5\uFE0F" },
+  { label: "Phishing Trainer", to: "/phishing-trainer", cat: "Tools", icon: "\uD83C\uDFA3" },
+  { label: "2FA Setup Guide", to: "/2fa-guide", cat: "Tools", icon: "\uD83D\uDD11" },
+  { label: "Password Checker", to: "/password-checker", cat: "Tools", icon: "\uD83D\uDD13" },
+  { label: "Identity X-Ray", to: "/identity-xray", cat: "Tools", icon: "\uD83D\uDD2C" },
+  { label: "Refer & Earn", to: "/referral", cat: "Tools", icon: "\uD83C\uDF81" },
   { label: "Learn", to: "/learn", cat: "Pages", icon: "\uD83D\uDCDA" },
   { label: "Blog", to: "/blog", cat: "Pages", icon: "\u270D\uFE0F" },
   { label: "Cyber News", to: "/cyber-news", cat: "Pages", icon: "\uD83D\uDCF0" },
@@ -174,7 +198,7 @@ const Navbar = () => {
                     position: "absolute", top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
                     background: mode === "dark" ? "rgba(10,15,30,0.98)" : "rgba(241,245,249,0.98)", backdropFilter: "blur(20px)",
                     border: `1px solid rgba(99,102,241,0.15)`, borderRadius: 14,
-                    padding: 16, minWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+                    padding: 16, minWidth: 740, boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
                     display: "flex", gap: 20, animation: "dropIn 0.2s ease",
                   }}>
                     {toolsMenu.map((group, gi) => (
@@ -459,12 +483,17 @@ const Navbar = () => {
               </button>
 
               {mobileToolsOpen && (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "4px 0 12px", animation: "navFadeIn 0.2s ease" }}>
-                  {toolsMenu.flatMap(g => g.items).map(item => (
-                    <Link key={item.to} to={item.to} style={{
-                      color: isActive(item.to) ? T.accent : T.muted, textDecoration: "none",
-                      fontSize: 15, fontWeight: 500, padding: "8px 24px",
-                    }}>{item.label}</Link>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "4px 0 12px", animation: "navFadeIn 0.2s ease", width: "100%", maxWidth: 300 }}>
+                  {toolsMenu.map((group, gi) => (
+                    <div key={gi} style={{ width: "100%", textAlign: "center" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: 1.5, padding: "10px 24px 4px", marginTop: gi > 0 ? 8 : 0 }}>{group.label}</div>
+                      {group.items.map(item => (
+                        <Link key={item.to} to={item.to} style={{
+                          color: isActive(item.to) ? T.accent : T.muted, textDecoration: "none",
+                          fontSize: 15, fontWeight: 500, padding: "7px 24px", display: "block",
+                        }}>{item.label}</Link>
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}

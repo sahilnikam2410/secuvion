@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { db } from "../../firebase/config";
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import Navbar from "../../components/Navbar";
 import SEO from "../../components/SEO";
 
@@ -114,6 +116,8 @@ const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const refCode = params.get("ref") || "";
   const { user, signup, loginWithGoogle, loginWithGithub, loginWithFacebook } = useAuth();
 
   // Redirect if already logged in (handles social signup race condition)
@@ -181,6 +185,29 @@ export default function Signup() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  // Track referral signup in Firestore
+  const trackReferral = async (code, newUid, name, email) => {
+    try {
+      // Find who owns this referral code
+      const refQuery = query(collection(db, "referrals"), where("code", "==", code));
+      const refSnap = await getDocs(refQuery);
+      if (refSnap.empty) return;
+      const referrer = refSnap.docs[0].data();
+      if (referrer.uid === newUid) return; // Don't self-refer
+      // Record the referral
+      await addDoc(collection(db, "referral_signups"), {
+        referredBy: referrer.uid,
+        referredUser: newUid,
+        code,
+        name: name || "",
+        email: email || "",
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Referral tracking failed:", err);
+    }
+  };
+
   const handleSignup = async (e) => {
     e.preventDefault();
     setError("");
@@ -230,6 +257,10 @@ export default function Signup() {
         setError(result.error || "Signup failed. Please try again.");
         setLoading(false);
       } else {
+        // Track referral if ref code present
+        if (refCode && result?.user?.uid) {
+          trackReferral(refCode, result.user.uid, form.firstName.trim() + " " + form.lastName.trim(), form.email.trim());
+        }
         navigate("/welcome");
       }
     } catch (err) {
