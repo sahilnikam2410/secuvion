@@ -14,10 +14,36 @@ export default function FraudAnalyzer() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState("");
+  const [aiError, setAiError] = useState("");
+
+  const explainWithAI = async () => {
+    if (!result) return;
+    setAiLoading(true); setAiError(""); setAiExplanation("");
+    try {
+      const res = await fetch("/api/tools?tool=ai-explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toolName: "Fraud Analyzer",
+          input: `${result.mode.toUpperCase()}: ${result.input}`,
+          result: { level: result.level, score: result.score, msg: result.msg, details: result.details },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "AI request failed");
+      setAiExplanation(data.explanation);
+    } catch (err) {
+      setAiError(err.message || "Could not generate AI explanation");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const scan = async () => {
     if (!input.trim()) return;
-    setLoading(true); setResult(null);
+    setLoading(true); setResult(null); setAiExplanation(""); setAiError("");
 
     try {
       // For URLs, use real threat scanning API
@@ -143,7 +169,14 @@ export default function FraudAnalyzer() {
 
           {result && (
             <div style={{ padding: 24, background: `${result.color}06`, border: `1px solid ${result.color}15`, borderRadius: 14 }}>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={explainWithAI}
+                  disabled={aiLoading}
+                  style={{ padding: "8px 16px", background: "rgba(20,227,197,0.12)", border: "1px solid rgba(20,227,197,0.3)", borderRadius: 8, color: T.cyan, fontSize: 12, fontWeight: 600, cursor: aiLoading ? "default" : "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Plus Jakarta Sans'", opacity: aiLoading ? 0.6 : 1 }}
+                >
+                  {aiLoading ? "Analyzing..." : "🤖 Explain with AI"}
+                </button>
                 <button
                   onClick={() => exportReport({
                     title: "Fraud Analyzer Report",
@@ -186,6 +219,20 @@ export default function FraudAnalyzer() {
                   </div>
                 ))}
               </div>
+
+              {(aiExplanation || aiError) && (
+                <div style={{ marginTop: 20, padding: "16px 18px", background: "rgba(20,227,197,0.05)", border: "1px solid rgba(20,227,197,0.15)", borderRadius: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 14 }}>🤖</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>AI ANALYSIS</span>
+                  </div>
+                  {aiError ? (
+                    <div style={{ fontSize: 13, color: T.red }}>{aiError}</div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiExplanation}</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

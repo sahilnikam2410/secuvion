@@ -1,4 +1,4 @@
-import { checkRateLimit } from "./_rateLimit.js";
+import { applyRateLimit } from "./_rateLimit.js";
 
 // ─── WHOIS ──────────────────────────────────────────────────────────
 
@@ -349,12 +349,77 @@ async function handleFileHashCheck(req, res) {
   }
 }
 
+// ─── GEMINI AI EXPLAIN ──────────────────────────────────────────────
+
+async function handleGeminiExplain(req, res) {
+  const { toolName, input, result } = req.body || {};
+  if (!toolName || !result) {
+    return res.status(400).json({ error: "toolName and result are required" });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: "AI explanation is not configured" });
+  }
+
+  const safeInput = String(input || "").slice(0, 500);
+  const safeResult = JSON.stringify(result).slice(0, 3000);
+
+  const prompt = `You are a cybersecurity expert writing for a non-technical user. Tool: ${toolName}. Input scanned: ${safeInput}. Scan result JSON: ${safeResult}.
+
+Write a concise analysis in plain English (max 180 words) with:
+1. A one-sentence verdict (safe / suspicious / dangerous).
+2. 2-3 specific reasons backed by the scan data.
+3. 2-3 concrete next steps the user should take.
+
+Format as markdown with short bullet points. Do not repeat the raw JSON. Do not use jargon.`;
+
+  try {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const gRes = await fetch(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 400 },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+        ],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!gRes.ok) {
+      const text = await gRes.text().catch(() => "");
+      console.error("Gemini error:", gRes.status, text.slice(0, 300));
+      return res.status(502).json({ error: "AI service unavailable" });
+    }
+
+    const data = await gRes.json();
+    const explanation = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("").trim();
+    if (!explanation) {
+      return res.status(502).json({ error: "AI returned empty response" });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({ explanation, model: "gemini-1.5-flash" });
+  } catch (err) {
+    const message = err.name === "TimeoutError" ? "AI request timed out" : "AI service error";
+    console.error("Gemini explain error:", err.message);
+    return res.status(502).json({ error: message });
+  }
+}
+
 // ─── ROUTER ─────────────────────────────────────────────────────────
 
 const HANDLERS = {
   whois: handleWhois,
   "security-headers": handleSecurityHeaders,
   "file-hash-check": handleFileHashCheck,
+  "ai-explain": handleGeminiExplain,
 };
 
 export default async function handler(req, res) {
@@ -362,8 +427,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const clientIP = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
-  const rl = checkRateLimit(clientIP, 20, 60000);
+  const rl = applyRateLimit(req, { ipLimit: 20, userLimit: 60, windowMs: 60000 });
   if (!rl.allowed) {
     res.setHeader("Retry-After", rl.retryAfter);
     return res.status(429).json({ error: "Too many requests", retryAfter: rl.retryAfter });

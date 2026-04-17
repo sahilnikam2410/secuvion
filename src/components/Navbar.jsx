@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { subscribe as subNotif, listNotifications, markAllRead as notifMarkAll, dismissNotification, markRead, seedWelcome } from "../services/notificationService";
 
 const TD = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", accent: "#6366f1", cyan: "#14e3c5", border: "rgba(148,163,184,0.08)" };
 const TL = { bg: "#f8fafc", white: "#0f172a", muted: "#475569", accent: "#6366f1", cyan: "#0d9488", border: "rgba(15,23,42,0.08)" };
@@ -89,16 +90,19 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState([
-    { id: 1, msg: "New phishing threat detected in your region", time: "2m ago", color: "#ef4444", icon: "!", read: false },
-    { id: 2, msg: "Security score updated: 92/100", time: "1h ago", color: "#22c55e", icon: "\u2713", read: false },
-    { id: 3, msg: "Dark web scan complete \u2014 no leaks found", time: "3h ago", color: "#14e3c5", icon: "\u25C6", read: false },
-    { id: 4, msg: "Password vault: 2 weak passwords detected", time: "5h ago", color: "#f97316", icon: "!", read: true },
-    { id: 5, msg: "Welcome to SECUVION! Start your security journey", time: "1d ago", color: "#6366f1", icon: "\u2605", read: true },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  useEffect(() => {
+    if (!user?.uid) { setNotifications([]); return; }
+    seedWelcome(user.uid);
+    const refresh = () => setNotifications(listNotifications(user.uid));
+    refresh();
+    const unsub = subNotif(refresh);
+    const interval = setInterval(refresh, 30000); // refresh relative timestamps
+    return () => { unsub(); clearInterval(interval); };
+  }, [user?.uid]);
   const unreadCount = notifications.filter(n => !n.read).length;
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  const dismissNotif = (id) => setNotifications(prev => prev.filter(n => n.id !== id));
+  const markAllRead = () => user?.uid && notifMarkAll(user.uid);
+  const dismissNotif = (id) => user?.uid && dismissNotification(user.uid, id);
   const dropRef = useRef(null);
   const notifRef = useRef(null);
   const searchRef = useRef(null);
@@ -392,7 +396,7 @@ const Navbar = () => {
                         <div key={n.id} style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", transition: "background 0.2s", background: n.read ? "transparent" : (mode === "dark" ? "rgba(99,102,241,0.03)" : "rgba(99,102,241,0.04)") }}
                           onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.06)"}
                           onMouseLeave={e => e.currentTarget.style.background = n.read ? "transparent" : (mode === "dark" ? "rgba(99,102,241,0.03)" : "rgba(99,102,241,0.04)")}
-                          onClick={(e) => { e.stopPropagation(); setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x)); }}
+                          onClick={(e) => { e.stopPropagation(); if (user?.uid) markRead(user.uid, n.id); }}
                         >
                           <span style={{ width: 28, height: 28, borderRadius: 8, background: `${n.color}12`, border: `1px solid ${n.color}25`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: n.color, flexShrink: 0, fontWeight: 700 }}>{n.icon}</span>
                           <div style={{ flex: 1 }}>

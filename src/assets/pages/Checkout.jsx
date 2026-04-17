@@ -168,7 +168,12 @@ export default function Checkout() {
     ethAddress: localStorage.getItem("secuvion_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
   });
 
-  const price = billing === "annual" ? plan.annual : plan.price;
+  const EDU_RE = /\.(edu|ac\.in|edu\.in|ac\.uk|edu\.au|edu\.ng)$/i;
+  const studentRequested = params.get("student") === "1";
+  const eduVerified = !!(user?.email && EDU_RE.test(user.email));
+  const studentDiscount = studentRequested && eduVerified;
+  const basePrice = billing === "annual" ? plan.annual : plan.price;
+  const price = studentDiscount ? Math.round(basePrice * 0.5) : basePrice;
   const savings = billing === "annual" ? (plan.price * 12 - plan.annual) : 0;
 
   const merchantUpiId = localStorage.getItem("secuvion_upi_id") || "secuvion@ptyes";
@@ -920,6 +925,16 @@ export default function Checkout() {
 
               {/* Pricing breakdown */}
               <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16 }}>
+                {studentRequested && !eduVerified && (
+                  <div style={{ marginBottom: 10, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8 }}>
+                    <span style={{ fontSize: 12, color: T.red }}>🎓 Student discount requires a verified .edu / .ac.in email. Sign in with an educational email to unlock 50% off.</span>
+                  </div>
+                )}
+                {studentDiscount && (
+                  <div style={{ marginBottom: 10, padding: "10px 12px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8 }}>
+                    <span style={{ fontSize: 12, color: T.cyan }}>🎓 Student discount applied — 50% off</span>
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 13, color: T.muted }}>Subtotal</span>
                   <span style={{ fontSize: 13, color: T.white }}>{"\u20B9"}{price.toLocaleString("en-IN")}</span>

@@ -17,6 +17,7 @@ import {
   updateUserPlan,
 } from "../services/userService";
 import { sendWelcomeEmail, sendExpiryWarning, sendPromoEmail } from "../services/emailService";
+import { setUser as setReporterUser } from "../services/errorReporter";
 
 const AuthContext = createContext(null);
 
@@ -88,6 +89,7 @@ export function AuthProvider({ children }) {
 
           const merged = mergeUserData(firebaseUser, profile);
           setUser(merged);
+          setReporterUser(merged);
 
           // Check subscription expiry — warn if within 3 days
           if (profile?.subscriptionExpiresAt && profile.plan !== "free") {
@@ -117,6 +119,7 @@ export function AuthProvider({ children }) {
         }
       } else {
         setUser(null);
+        setReporterUser(null);
       }
       setLoading(false);
     });

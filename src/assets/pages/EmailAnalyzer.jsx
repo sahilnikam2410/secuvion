@@ -203,6 +203,37 @@ export default function EmailAnalyzer() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState("");
+  const [aiError, setAiError] = useState("");
+
+  const explainWithAI = async () => {
+    if (!result || result.error) return;
+    setAiLoading(true); setAiError(""); setAiExplanation("");
+    try {
+      const res = await fetch("/api/tools?tool=ai-explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toolName: "Email Header Analyzer",
+          input: result.fromEmail || result.from || "email",
+          result: {
+            verdict: result.assessment?.label,
+            spf: result.spf, dkim: result.dkim, dmarc: result.dmarc,
+            suspiciousFlags: result.suspiciousFlags?.map((f) => ({ label: f.label, severity: f.severity })) || [],
+            hops: result.hops?.length || 0,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "AI request failed");
+      setAiExplanation(data.explanation);
+    } catch (err) {
+      setAiError(err.message || "Could not generate AI explanation");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const analyze = () => {
     if (!input.trim()) return;
@@ -283,7 +314,15 @@ export default function EmailAnalyzer() {
                   <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 700, color: result.assessment.color, marginBottom: 4 }}>{result.assessment.label}</div>
                   <p style={{ color: T.muted, fontSize: 14, lineHeight: 1.6, margin: 0 }}>{result.assessment.desc}</p>
                 </div>
+                <button onClick={explainWithAI} disabled={aiLoading} style={{ padding: "8px 14px", background: "rgba(20,227,197,0.1)", border: "1px solid rgba(20,227,197,0.25)", borderRadius: 8, color: T.cyan, fontSize: 12, fontWeight: 600, cursor: aiLoading ? "default" : "pointer", fontFamily: "'Plus Jakarta Sans'", flexShrink: 0, opacity: aiLoading ? 0.6 : 1 }}>{aiLoading ? "…" : "🤖 AI"}</button>
               </div>
+              {(aiExplanation || aiError) && (
+                <div style={{ marginTop: 16, padding: "14px 16px", background: "rgba(20,227,197,0.05)", border: "1px solid rgba(20,227,197,0.15)", borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.cyan, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5, marginBottom: 8 }}>🤖 AI ANALYSIS</div>
+                  {aiError ? <div style={{ fontSize: 13, color: T.red }}>{aiError}</div>
+                    : <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiExplanation}</div>}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
                 {[{ label: "SPF", val: result.spf }, { label: "DKIM", val: result.dkim }, { label: "DMARC", val: result.dmarc }].map((a) => (
                   <div key={a.label} style={{ flex: 1, padding: "12px 16px", background: "rgba(0,0,0,0.25)", borderRadius: 10, border: `1px solid ${authColor(a.val)}15`, textAlign: "center" }}>

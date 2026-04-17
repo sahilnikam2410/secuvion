@@ -1,12 +1,18 @@
 import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import SEO from "../../components/SEO";
 
 const T = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", mutedDark: "#64748b", accent: "#6366f1", cyan: "#14e3c5", border: "rgba(148,163,184,0.08)" };
 
 export default function Privacy() {
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.white, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <SEO
+        title="Privacy Policy"
+        description="SECUVION Privacy Policy. Learn how we collect, use, and protect your personal data. GDPR-compliant. AES-256 encryption. No data sold to third parties."
+        path="/privacy"
+      />
       <Navbar />
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "120px 24px 80px" }}>
         <div style={{ marginBottom: 48 }}>

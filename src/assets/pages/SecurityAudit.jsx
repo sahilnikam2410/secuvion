@@ -5,6 +5,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
 import { exportReport } from "../../utils/exportPDF";
+import { saveToolResult } from "../../services/toolHistoryService";
 
 const T = { bg: "#030712", card: "rgba(17,24,39,0.8)", accent: "#6366f1", cyan: "#14e3c5", green: "#22c55e", red: "#ef4444", yellow: "#fbbf24", white: "#f1f5f9", muted: "#94a3b8", border: "rgba(148,163,184,0.08)" };
 
@@ -23,6 +24,32 @@ export default function SecurityAudit() {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState(null);
   const [currentCheck, setCurrentCheck] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState("");
+  const [aiError, setAiError] = useState("");
+
+  const explainWithAI = async () => {
+    if (!results) return;
+    setAiLoading(true); setAiError(""); setAiExplanation("");
+    try {
+      const res = await fetch("/api/tools?tool=ai-explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toolName: "Security Audit",
+          input: `Email: ${email}, Domain: ${domain}`,
+          result: { score: results.score, grade: results.grade, checks: results.checks },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "AI request failed");
+      setAiExplanation(data.explanation);
+    } catch (err) {
+      setAiError(err.message || "Could not generate AI explanation");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const runAudit = async () => {
     if (!email.trim() && !domain.trim()) return;
@@ -81,6 +108,12 @@ export default function SecurityAudit() {
     setResults({ checks: auditResults, score: finalScore, grade, maxScore });
     setCurrentCheck("");
     setRunning(false);
+    saveToolResult(
+      "Security Audit",
+      [email, domain].filter(Boolean).join(" | "),
+      `Score ${finalScore}/100 (Grade ${grade})`,
+      finalScore >= 70 ? "success" : finalScore >= 40 ? "warning" : "error"
+    );
   };
 
   const doExport = () => {
@@ -155,10 +188,21 @@ export default function SecurityAudit() {
               <h2 style={{ fontSize: 22, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk',sans-serif", marginBottom: 8 }}>
                 {results.score >= 70 ? "Good Security Posture" : results.score >= 40 ? "Needs Improvement" : "Critical Issues Found"}
               </h2>
-              <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                 <button onClick={doExport} style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: `linear-gradient(135deg,${T.accent},${T.cyan})`, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Export Full Report</button>
-                <button onClick={() => setResults(null)} style={{ padding: "10px 20px", borderRadius: 8, border: `1px solid ${T.border}`, background: "rgba(15,23,42,0.6)", color: T.muted, fontSize: 14, cursor: "pointer" }}>New Audit</button>
+                <button onClick={explainWithAI} disabled={aiLoading} style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid rgba(20,227,197,0.3)", background: "rgba(20,227,197,0.08)", color: T.cyan, fontSize: 14, fontWeight: 600, cursor: aiLoading ? "default" : "pointer", opacity: aiLoading ? 0.6 : 1 }}>{aiLoading ? "Analyzing..." : "🤖 Explain with AI"}</button>
+                <button onClick={() => { setResults(null); setAiExplanation(""); setAiError(""); }} style={{ padding: "10px 20px", borderRadius: 8, border: `1px solid ${T.border}`, background: "rgba(15,23,42,0.6)", color: T.muted, fontSize: 14, cursor: "pointer" }}>New Audit</button>
               </div>
+              {(aiExplanation || aiError) && (
+                <div style={{ marginTop: 20, padding: "16px 18px", background: "rgba(20,227,197,0.05)", border: "1px solid rgba(20,227,197,0.15)", borderRadius: 12, textAlign: "left" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 14 }}>🤖</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>AI ANALYSIS</span>
+                  </div>
+                  {aiError ? <div style={{ fontSize: 13, color: T.red }}>{aiError}</div>
+                    : <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiExplanation}</div>}
+                </div>
+              )}
             </div>
 
             {/* Individual results */}

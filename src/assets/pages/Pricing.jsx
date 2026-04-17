@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import SEO, { faqSchema } from "../../components/SEO";
 import { useAuth } from "../../context/AuthContext";
 
 const T = {
@@ -139,15 +140,22 @@ function ChevronIcon({ open }) {
   );
 }
 
+const EDU_DOMAINS = /\.(edu|ac\.in|edu\.in|ac\.uk|edu\.au|edu\.ng)$/i;
+const STUDENT_DISCOUNT = 0.5; // 50% off
+
 export default function Pricing() {
   const { user } = useAuth();
   const [annual, setAnnual] = useState(false);
   const [hoveredPlan, setHoveredPlan] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
 
+  const eduEmail = user?.email && EDU_DOMAINS.test(user.email);
+  const [student, setStudent] = useState(eduEmail || false);
+
   function getPrice(plan) {
     if (plan.monthlyPrice === 0) return 0;
-    return annual ? plan.monthlyPrice * 10 : plan.monthlyPrice;
+    const base = annual ? plan.monthlyPrice * 10 : plan.monthlyPrice;
+    return student ? Math.round(base * (1 - STUDENT_DISCOUNT)) : base;
   }
 
   function getPeriodLabel(plan) {
@@ -157,6 +165,13 @@ export default function Pricing() {
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.white, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <SEO
+        title="Pricing — Free, Standard, Advanced & Enterprise Plans"
+        description="SECUVION pricing: Free plan with daily usage limits, Standard (₹49/mo), Advanced (₹99/mo), Enterprise (₹199/mo). 30-day money-back guarantee. UPI/cards accepted."
+        path="/pricing"
+        keywords="cybersecurity pricing India, affordable security software, UPI security tools, SECUVION plans"
+        jsonLd={faqSchema(faqs)}
+      />
       <Navbar />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
 
@@ -229,6 +244,45 @@ export default function Pricing() {
               </span>
             )}
           </div>
+
+          {/* Student discount banner */}
+          <div style={{
+            marginTop: 24,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 18px",
+            borderRadius: 100,
+            background: student ? "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(20,227,197,0.08))" : T.card,
+            border: `1px solid ${student ? T.accent + "40" : T.border}`,
+            transition: "all 0.3s",
+          }}>
+            <span style={{ fontSize: 16 }}>🎓</span>
+            <span style={{ fontSize: 13, color: T.white, fontWeight: 500 }}>
+              Student? Get <b style={{ color: T.cyan }}>50% off</b>{eduEmail && <span style={{ color: T.green, fontSize: 11, marginLeft: 6 }}>✓ verified .edu email</span>}
+            </span>
+            <button
+              onClick={() => setStudent((v) => !v)}
+              aria-label="Toggle student discount"
+              style={{
+                position: "relative", width: 36, height: 20, borderRadius: 100,
+                background: student ? `linear-gradient(135deg, ${T.accent}, ${T.cyan})` : "rgba(148,163,184,0.2)",
+                border: "none", cursor: "pointer", transition: "background 0.2s", padding: 0, flexShrink: 0,
+              }}
+            >
+              <span style={{
+                position: "absolute", top: 2, left: student ? 18 : 2,
+                width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                transition: "left 0.2s", display: "block",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+              }} />
+            </button>
+          </div>
+          {student && !eduEmail && (
+            <p style={{ fontSize: 11, color: T.mutedDark, marginTop: 10 }}>
+              You'll need to verify with a .edu / .ac.in email at checkout to confirm the discount.
+            </p>
+          )}
         </div>
 
         {/* Pricing Cards */}
@@ -360,7 +414,7 @@ export default function Pricing() {
                   </Link>
                 ) : (
                   <Link
-                    to={user ? `/checkout?plan=${plan.key}&billing=${annual ? "annual" : "monthly"}` : "/signup"}
+                    to={user ? `/checkout?plan=${plan.key}&billing=${annual ? "annual" : "monthly"}${student ? "&student=1" : ""}` : "/signup"}
                     style={{
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       padding: "13px 20px",

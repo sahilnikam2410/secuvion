@@ -4,6 +4,7 @@ import { useToast } from "../../context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/SEO";
 import PlanGate, { isPlanAllowed } from "../../components/PlanGate";
+import OnboardingTour from "../../components/OnboardingTour";
 import { db } from "../../firebase/config";
 import { auth as firebaseAuth } from "../../firebase/config";
 import { collection, getDocs, doc, addDoc, deleteDoc, setDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
@@ -544,7 +545,13 @@ export default function UserDashboard() {
       </div>
       <AniCard delay={0.5} className="">
         <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Recent Activity</h3>
-        {activity.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No recent activity</p> :
+        {activity.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 12px" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(99,102,241,0.08)", border: `1px solid ${T.border}`, fontSize: 20 }}>📋</div>
+            <p style={{ fontSize: 13, color: T.white, margin: "0 0 4px", fontWeight: 500 }}>No activity yet</p>
+            <p style={{ fontSize: 11, color: T.muted, margin: 0, lineHeight: 1.6 }}>Your login events, scans, and security actions will appear here.</p>
+          </div>
+        ) :
           activity.slice(0, 5).map((a, i) => (
             <div key={i} className="dash-row" style={{ display: "flex", justifyContent: "space-between", padding: "10px 8px", borderBottom: i < 4 ? `1px solid ${T.border}` : "none", borderRadius: 6, animation: `slideInLeft 0.3s ease ${0.5 + i * 0.05}s both` }}>
               <span style={{ fontSize: 13, color: T.white }}>{a.detail || a.type}</span>
@@ -1163,7 +1170,14 @@ export default function UserDashboard() {
       {/* Payments */}
       <AniCard delay={isEmailProvider ? 0.5 : 0.4}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Payment History</h3>
-        {payments.length === 0 ? <p style={{ fontSize: 13, color: T.muted }}>No payments found</p> : (
+        {payments.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 12px" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(20,227,197,0.08)", border: `1px solid ${T.border}`, fontSize: 20 }}>💳</div>
+            <p style={{ fontSize: 13, color: T.white, margin: "0 0 4px", fontWeight: 500 }}>No payments yet</p>
+            <p style={{ fontSize: 11, color: T.muted, margin: "0 0 12px", lineHeight: 1.6 }}>You're on the free plan. Upgrade to unlock pro features.</p>
+            <button onClick={() => navigate("/pricing")} className="dash-btn" style={{ ...sty.btn("rgba(99,102,241,0.12)", T.accent), margin: "0 auto" }}>View Plans <HiOutlineChevronRight size={12} /></button>
+          </div>
+        ) : (
           <div>
             {payments.map((p, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < payments.length - 1 ? `1px solid ${T.border}` : "none" }}>
@@ -1217,6 +1231,7 @@ export default function UserDashboard() {
   return (
     <>
       <SEO title="Dashboard | Secuvion" description="Manage your security, devices, and account settings." />
+      <OnboardingTour uid={user?.uid} />
       <div style={{ minHeight: "100vh", background: T.bg, display: "flex", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
         {/* Mobile hamburger */}
         <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{

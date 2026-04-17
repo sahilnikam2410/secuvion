@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { Link } from "react-router-dom";
+import { captureException } from "../services/errorReporter";
 
 const T = {
   bg: "#030712", card: "rgba(17,24,39,0.6)", white: "#f1f5f9",
@@ -19,6 +20,10 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     console.error("[SECUVION] Uncaught error:", error, errorInfo);
+    captureException(error, {
+      tags: { source: "react.errorBoundary" },
+      extra: { componentStack: errorInfo?.componentStack },
+    });
   }
 
   render() {

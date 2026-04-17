@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { inject } from "@vercel/analytics";
 import { injectSpeedInsights } from "@vercel/speed-insights";
 import App from "./App.jsx";
+import { installGlobalHandlers } from "./services/errorReporter";
 import "./index.css";
 import "./styles/global.css";
 import "./styles/animations.css";
@@ -10,6 +11,7 @@ import "./styles/responsive.css";
 
 inject();
 injectSpeedInsights();
+installGlobalHandlers();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
