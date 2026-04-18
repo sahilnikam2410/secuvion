@@ -395,7 +395,18 @@ Format as markdown with short bullet points. Do not repeat the raw JSON. Do not 
     if (!gRes.ok) {
       const text = await gRes.text().catch(() => "");
       console.error("Gemini error:", gRes.status, text.slice(0, 300));
-      return res.status(502).json({ error: "AI service unavailable" });
+      // Surface Gemini's own message so the client can display it for debugging.
+      // Gemini error bodies don't contain the API key, so this is safe to echo.
+      let detail = "";
+      try {
+        const parsed = JSON.parse(text);
+        detail = parsed?.error?.message || parsed?.error?.status || "";
+      } catch {
+        detail = text.slice(0, 200);
+      }
+      return res.status(502).json({
+        error: `AI service unavailable (Gemini ${gRes.status}${detail ? `: ${detail}` : ""})`,
+      });
     }
 
     const data = await gRes.json();
