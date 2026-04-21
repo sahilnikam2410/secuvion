@@ -167,9 +167,11 @@ function AppRoutes() {
             {/* Protected — Referral (login required) */}
             <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
 
-            {/* Protected — Learn, Blog, News (login required) */}
+            {/* Public — Blog is indexable for SEO */}
+            <Route path="/blog" element={<Blog />} />
+
+            {/* Protected — Learn, News (login required) */}
             <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
-            <Route path="/blog" element={<ProtectedRoute><Blog /></ProtectedRoute>} />
             <Route path="/cyber-news" element={<ProtectedRoute><CyberNews /></ProtectedRoute>} />
 
             {/* Welcome page after signup/login */}
