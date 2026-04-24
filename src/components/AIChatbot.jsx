@@ -108,7 +108,7 @@ About VRIKAAN:
 - Features: Threat Map, Fraud Analyzer, Security Score, Dark Web Monitor, Password Vault, Vulnerability Scanner, Learn Academy, Blog
 - Founded by Sahil Anil Nikam
 - Website: vrikaan.com
-- Email: secuvion@gmail.com
+- Email: hello@vrikaan.com
 - Phone: +91 8329935878
 - Location: Nashik, Maharashtra, India
 

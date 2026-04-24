@@ -113,7 +113,7 @@ export const organizationSchema = {
   sameAs: [],
   contactPoint: {
     "@type": "ContactPoint",
-    email: "secuvion@gmail.com",
+    email: "hello@vrikaan.com",
     contactType: "customer support",
     areaServed: "IN",
     availableLanguage: ["en"],
