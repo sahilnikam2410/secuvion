@@ -757,7 +757,7 @@ const ProductDemo = () => {
               <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#eab308" }} />
               <span style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
               <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 12, color: T.mutedDark }}>
-                secuvion.com / {tabs[activeTab].label.toLowerCase().replace(" ", "-")}
+                vrikaan.com / {tabs[activeTab].label.toLowerCase().replace(" ", "-")}
               </div>
             </div>
 
@@ -905,7 +905,7 @@ const DeviceMockup = () => (
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#eab308" }} />
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-              <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10, color: T.mutedDark }}>app.secuvion.com</div>
+              <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10, color: T.mutedDark }}>app.vrikaan.com</div>
             </div>
             {/* Dashboard mockup */}
             <div style={{ padding: 20, minHeight: 280 }}>

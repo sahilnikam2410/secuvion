@@ -917,7 +917,7 @@ export default function UserDashboard() {
               </div>
             ))}
           </div>
-          <a href="https://docs.secuvion.com/api" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 13, color: T.cyan, textDecoration: "none", transition: "all 0.2s" }}>
+          <a href="https://docs.vrikaan.com/api" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 13, color: T.cyan, textDecoration: "none", transition: "all 0.2s" }}>
             <HiOutlineGlobe size={14} /> API Documentation <HiOutlineChevronRight size={12} />
           </a>
         </AniCard>
