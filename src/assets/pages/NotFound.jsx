@@ -114,7 +114,7 @@ export default function NotFound() {
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#eab308" }} />
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
-            <span style={{ flex: 1, textAlign: "center", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.mutedDark }}>secuvion-terminal</span>
+            <span style={{ flex: 1, textAlign: "center", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.mutedDark }}>vrikaan-terminal</span>
           </div>
           <div style={{ padding: "20px 20px 16px", fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
             <div style={{ color: T.mutedDark, marginBottom: 8 }}># Quick navigation — choose your destination:</div>

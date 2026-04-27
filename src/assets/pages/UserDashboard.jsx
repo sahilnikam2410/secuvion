@@ -351,7 +351,7 @@ export default function UserDashboard() {
     const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `secuvion-report-${r.generatedAt || "latest"}.json`;
+    a.href = url; a.download = `vrikaan-report-${r.generatedAt || "latest"}.json`;
     a.click(); URL.revokeObjectURL(url);
   };
 

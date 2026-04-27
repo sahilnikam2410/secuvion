@@ -495,7 +495,7 @@ async function generateCertificate(courseName, userName) {
   ctx.textAlign = "left";
   ctx.font = "11px 'Arial', sans-serif";
   ctx.fillStyle = light;
-  ctx.fillText("Verify this certificate at secuvion.onrender.com/verify/" + certId, 120, H - 85);
+  ctx.fillText("Verify this certificate at vrikaan.com/verify/" + certId, 120, H - 85);
 
   ctx.textAlign = "right";
   ctx.font = "11px 'Arial', sans-serif";
@@ -634,7 +634,7 @@ export default function Learn() {
     if (!certImage) return;
     const a = document.createElement("a");
     a.href = certImage;
-    a.download = `SECUVION_Certificate_${activeCourse.title.replace(/\s+/g, "_")}.png`;
+    a.download = `VRIKAAN_Certificate_${activeCourse.title.replace(/\s+/g, "_")}.png`;
     a.click();
     saveCertificate({ courseId: activeCourse.id, name: certName, date: new Date().toISOString(), course: activeCourse.title });
   };

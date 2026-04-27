@@ -440,7 +440,7 @@ const Hero = () => {
           {/* Typewriter subtitle */}
           <Reveal delay={0.15}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 15, color: T.cyan, marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: T.mutedDark }}>~/secuvion $</span>
+              <span style={{ color: T.mutedDark }}>~/vrikaan $</span>
               <span>{typed}</span>
               <span style={{ width: 2, height: 18, background: T.cyan, animation: "pulse-dot 1s step-end infinite" }} />
             </div>

@@ -273,7 +273,7 @@ async function generateMemberCertificate(userName, email, memberId) {
   ctx.textAlign = "left";
   ctx.font = "11px 'Arial', sans-serif";
   ctx.fillStyle = light;
-  ctx.fillText("Verify at secuvion.onrender.com/verify/" + memberId, 120, H - 85);
+  ctx.fillText("Verify at vrikaan.com/verify/" + memberId, 120, H - 85);
 
   ctx.textAlign = "right";
   ctx.font = "11px 'Arial', sans-serif";
@@ -338,7 +338,7 @@ export default function Welcome() {
     if (!certImage) return;
     const a = document.createElement("a");
     a.href = certImage;
-    a.download = `SECUVION_Membership_${(user?.name || "Member").replace(/\s+/g, "_")}.png`;
+    a.download = `VRIKAAN_Membership_${(user?.name || "Member").replace(/\s+/g, "_")}.png`;
     a.click();
   };
 
