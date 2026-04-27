@@ -91,81 +91,26 @@ function upgradePlan(planKey) {
   localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
 }
 
-// ─── AI Engine (Groq — free, fast, answers everything like ChatGPT) ───
-const SYSTEM_PROMPT = `You are VRIKAAN AI Assistant — a highly intelligent AI assistant built into the VRIKAAN cyber defense platform. You are like ChatGPT — you can answer ANY question on ANY topic.
-
-Your personality:
-- Friendly, professional, helpful, and knowledgeable
-- You answer ALL questions — cybersecurity, programming, science, math, history, general knowledge, coding, writing, creative tasks, etc.
-- Keep responses clear and well-formatted
-- Use **bold**, *italic*, bullet points, and code blocks when helpful
-- Keep responses concise (2-4 paragraphs) unless the user asks for detail
-- For code questions, provide working code examples
-- For cybersecurity questions, give actionable security advice
-
-About VRIKAAN:
-- AI-powered cyber defense platform
-- Features: Threat Map, Fraud Analyzer, Security Score, Dark Web Monitor, Password Vault, Vulnerability Scanner, Learn Academy, Blog
-- Founded by Sahil Anil Nikam
-- Website: vrikaan.com
-- Email: hello@vrikaan.com
-- Phone: +91 8329935878
-- Location: Nashik, Maharashtra, India
-
-You are powered by VRIKAAN AI. Be the most helpful assistant possible.`;
-
-const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const BUILT_IN_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
-let chatHistory = [];
-
-function initAI(apiKey) {
+// ─── AI Engine — calls server-side /api/chat (key stays server-side) ───
+async function askAI(message, history) {
   try {
-    chatHistory = [];
-    localStorage.setItem("secuvion_ai_key", apiKey);
-    return true;
-  } catch { return false; }
-}
-
-async function askAI(message, apiKey) {
-  if (!apiKey) return null;
-  chatHistory.push({ role: "user", content: message });
-  // Keep last 20 messages for context
-  if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-
-  try {
-    const res = await fetch(API_URL, {
+    const res = await fetch("/api/chat", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...chatHistory,
-        ],
-        max_tokens: 1024,
-        temperature: 0.7,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history: history.slice(-10) }),
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error("VRIKAAN AI Error:", res.status, err);
-      if (res.status === 401) return "ERROR_API_KEY";
       if (res.status === 429) return "ERROR_QUOTA";
+      console.error("VRIKAAN AI Error:", res.status);
       return "I'm experiencing a temporary issue. Please try again in a moment.";
     }
 
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't process that. Try again!";
-    chatHistory.push({ role: "assistant", content: reply });
-    return reply;
+    return data.reply || "Sorry, I couldn't process that. Try again!";
   } catch (e) {
     console.error("VRIKAAN AI Error:", e.message);
-    if (e.message?.includes("fetch") || e.message?.includes("network")) return "Network error — check your internet connection and try again.";
-    return "I'm experiencing a temporary issue. Please try again in a moment.";
+    return "Network error — check your internet connection and try again.";
   }
 }
 
@@ -217,9 +162,6 @@ export default function AIChatbot() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [keyInput, setKeyInput] = useState("");
-  const [connected, setConnected] = useState(false);
   const [credits, setCredits] = useState(getRemainingCredits());
   const [creditData, setCreditData] = useState(getCredits());
   const msgsRef = useRef(null);
@@ -230,15 +172,8 @@ export default function AIChatbot() {
     setCurrentUser(user || null);
   }, [user]);
 
-  // Auto-connect: use built-in key or saved custom key
+  // Initial credits load
   useEffect(() => {
-    const saved = localStorage.getItem("secuvion_ai_key");
-    const key = saved || BUILT_IN_KEY;
-    if (key) {
-      setApiKey(key);
-      initAI(key);
-      setConnected(true);
-    }
     setCredits(getRemainingCredits());
     setCreditData(getCredits());
   }, []);
@@ -305,63 +240,18 @@ export default function AIChatbot() {
     refreshCredits();
     setTyping(true);
 
-    // Resolve which key to use — custom saved > built-in
-    const activeKey = apiKey || BUILT_IN_KEY;
+    const history = messages.map(m => ({ role: m.role, text: m.text }));
+    const response = await askAI(msg, history);
+    setTyping(false);
 
-    if (activeKey) {
-      // Real AI — answers everything like ChatGPT
-      const response = await askAI(msg, activeKey);
-      setTyping(false);
-
-      if (response === "ERROR_API_KEY") {
-        // Fallback to knowledge base if key fails
-        const fallback = getSmartResponse(msg);
-        setMessages(p => [...p, { role: "bot", text: fallback, time: new Date() }]);
-        return;
-      }
-      if (response === "ERROR_QUOTA") {
-        const fallback = getSmartResponse(msg);
-        setMessages(p => [...p, { role: "bot", text: fallback + "\n\n*⚡ High traffic — using offline knowledge. Try again in a few seconds for full AI.*", time: new Date() }]);
-        return;
-      }
-
-      setMessages(p => [...p, { role: "bot", text: response, time: new Date() }]);
+    if (response === "ERROR_QUOTA") {
+      const fallback = getSmartResponse(msg);
+      setMessages(p => [...p, { role: "bot", text: fallback + "\n\n*⚡ High traffic — using offline knowledge. Try again in a few seconds for full AI.*", time: new Date() }]);
       return;
     }
 
-    // No key available at all — use built-in knowledge base
-    setTimeout(() => {
-      const smartReply = getSmartResponse(msg);
-      setMessages(p => [...p, { role: "bot", text: smartReply, time: new Date() }]);
-      setTyping(false);
-    }, 600 + Math.random() * 800);
-  }, [input, typing, apiKey]);
-
-  const handleKeySetup = async () => {
-    if (!keyInput.trim()) return;
-    // Validate key with a quick test call
-    setTyping(true);
-    try {
-      const testRes = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${keyInput.trim()}` },
-        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "Say OK" }], max_tokens: 5 }),
-      });
-      setTyping(false);
-      if (testRes.ok) {
-        initAI(keyInput.trim());
-        setApiKey(keyInput.trim());
-        setConnected(true);
-        setView("chat");
-        setMessages(p => [...p, { role: "bot", text: "API key connected successfully! 🎉 I'm now powered by **real AI** — ask me **anything** on any topic, just like ChatGPT!", time: new Date() }]);
-      } else {
-        setMessages(p => [...p, { role: "bot", text: "Invalid API key. Please check and try again. Get a free key from **console.groq.com**", time: new Date(), isError: true }]);
-      }
-    } catch {
-      setTyping(false);
-      setMessages(p => [...p, { role: "bot", text: "Connection failed. Check your internet and try again.", time: new Date(), isError: true }]);
-    }
-  };
+    setMessages(p => [...p, { role: "bot", text: response, time: new Date() }]);
+  }, [input, typing, messages]);
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -498,48 +388,10 @@ export default function AIChatbot() {
             </div>
           </div>
 
-          <div style={{ fontSize: 12, fontWeight: 700, color: T.muted, marginBottom: 8, marginTop: 8 }}>Custom API Key (Optional)</div>
-          <p style={{ fontSize: 11, color: T.muted, lineHeight: 1.5, marginBottom: 12 }}>
-            Power users can connect their own Groq key for a dedicated connection.
-          </p>
-
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input
-              value={keyInput}
-              onChange={e => setKeyInput(e.target.value)}
-              placeholder="Paste custom Groq API key..."
-              type="password"
-              style={{
-                flex: 1, padding: "10px 14px", borderRadius: 8, border: `1px solid ${T.border}`,
-                background: "rgba(3,7,18,0.6)", color: T.white, fontSize: 13,
-                fontFamily: "'JetBrains Mono', monospace", outline: "none",
-              }}
-            />
-            <button onClick={handleKeySetup} style={{
-              padding: "10px 16px", borderRadius: 8, border: "none", cursor: "pointer",
-              background: "linear-gradient(135deg, #6366f1, #14e3c5)", color: "#fff",
-              fontSize: 13, fontWeight: 700,
-            }}>Connect</button>
-          </div>
-
-          {localStorage.getItem("secuvion_ai_key") && (
-            <button onClick={() => {
-              localStorage.removeItem("secuvion_ai_key");
-              const key = BUILT_IN_KEY;
-              setApiKey(key); if (key) { initAI(key); setConnected(true); } else setConnected(false);
-              chatHistory = [];
-              setMessages(p => [...p, { role: "bot", text: "Custom key removed. Using VRIKAAN's built-in AI.", time: new Date() }]);
-              setView("chat");
-            }} style={{
-              padding: "8px 14px", borderRadius: 8, border: `1px solid rgba(239,68,68,0.3)`,
-              background: "rgba(239,68,68,0.1)", color: T.red, fontSize: 12, cursor: "pointer",
-            }}>Remove Custom Key</button>
-          )}
-
-          <div style={{ marginTop: 20, padding: 12, background: "rgba(20,227,197,0.06)", borderRadius: 8, border: `1px solid rgba(20,227,197,0.15)` }}>
+          <div style={{ marginTop: 8, padding: 12, background: "rgba(20,227,197,0.06)", borderRadius: 8, border: `1px solid rgba(20,227,197,0.15)` }}>
             <div style={{ fontSize: 11, color: T.cyan, fontWeight: 700 }}>Privacy & Security</div>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 4, lineHeight: 1.6 }}>
-              All conversations are private. Custom API keys are stored locally on your device only.
+              All conversations are private. AI responses are routed through VRIKAAN's secure server — your data is never sent to third parties from your browser.
             </div>
           </div>
         </div>
