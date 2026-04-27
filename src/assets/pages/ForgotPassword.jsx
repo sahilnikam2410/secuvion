@@ -162,7 +162,7 @@ export default function ForgotPassword() {
 
       <div style={styles.card}>
         <div style={styles.logo}>
-          <div style={styles.logoIcon}>S</div>
+          <img src="/favicon.svg" alt="VRIKAAN" style={{ width: 48, height: 48, margin: "0 auto 12px", borderRadius: 12, display: "block" }} />
           <div style={styles.title}>
             {sent ? "Check Your Email" : "Reset Password"}
           </div>

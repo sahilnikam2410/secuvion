@@ -166,12 +166,7 @@ const Navbar = () => {
           fontSize: 20, fontWeight: 800, color: T.white, textDecoration: "none",
           fontFamily: "'Space Grotesk', sans-serif", display: "flex", alignItems: "center", gap: 10,
         }}>
-          <span style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: "linear-gradient(135deg, #14e3c5, #6366f1)",
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 14, fontWeight: 800, color: "#fff",
-          }}>S</span>
+          <img src="/favicon.svg" alt="VRIKAAN" style={{ width: 30, height: 30, borderRadius: 8 }} />
           VRIKAAN
         </Link>
 

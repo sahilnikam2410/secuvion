@@ -562,7 +562,7 @@ export default function Login() {
 
         {/* Header */}
         <div style={{ textAlign: "center" }}>
-          <div style={S.logoIcon}>S</div>
+          <img src="/favicon.svg" alt="VRIKAAN" style={{ width: 48, height: 48, margin: "0 auto 12px", borderRadius: 12, display: "block" }} />
           <div style={S.title}>Welcome Back</div>
         </div>
         <p style={S.subtitle}>Sign in to access your cybersecurity dashboard</p>
