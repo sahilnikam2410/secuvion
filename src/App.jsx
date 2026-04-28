@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { useEffect, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -51,6 +51,57 @@ const PageTransition = ({ children }) => {
     <div key={location.pathname} style={{ animation: "pageFadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both" }}>
       <style>{`@keyframes pageFadeIn { from { opacity: 0; transform: translateY(16px) scale(0.998); filter: blur(2px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }`}</style>
       {children}
+    </div>
+  );
+};
+
+/* ── Route Loader ── shows branded splash overlay on every navigation ── */
+const RouteLoader = () => {
+  const location = useLocation();
+  const [show, setShow] = useState(false);
+  const [firstMount, setFirstMount] = useState(true);
+
+  useEffect(() => {
+    // Skip on the very first render — the index.html splash already covers it
+    if (firstMount) { setFirstMount(false); return; }
+    setShow(true);
+    const t = setTimeout(() => setShow(false), 1200);
+    return () => clearTimeout(t);
+  }, [location.pathname]);
+
+  if (!show) return null;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 99998, background: "#030712",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      fontFamily: "system-ui, sans-serif",
+      animation: "rl-fade 0.3s ease-out",
+    }}>
+      <style>{`
+        @keyframes rl-fade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes rl-pulse { 0%,100% { filter: drop-shadow(0 0 10px rgba(20,227,197,0.4)) } 50% { filter: drop-shadow(0 0 22px rgba(20,227,197,0.7)) } }
+        @keyframes rl-snake1 { 0% { left:-35%; right:100% } 60%,100% { left:100%; right:-90% } }
+        @keyframes rl-snake2 { 0%,60% { left:-200%; right:100% } 100% { left:107%; right:-8% } }
+        .rl-track { position: relative; margin-top: 22px; width: 200px; height: 3px; background: rgba(148,163,184,0.08); border-radius: 2px; overflow: hidden; }
+        .rl-snake { position: absolute; top: 0; height: 100%; border-radius: 2px;
+          background: linear-gradient(90deg, transparent 0%, #6366f1 25%, #14e3c5 75%, #ffffff 100%);
+          box-shadow: 0 0 10px rgba(20,227,197,0.55), 0 0 20px rgba(99,102,241,0.35); }
+        .rl-snake.s1 { animation: rl-snake1 1.6s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite; }
+        .rl-snake.s2 { animation: rl-snake2 1.6s cubic-bezier(0.165, 0.84, 0.44, 1) infinite; }
+      `}</style>
+      <img
+        src="/wolf-compact.png"
+        alt="VRIKAAN"
+        width="72"
+        height="72"
+        style={{ animation: "rl-pulse 1.6s ease-in-out infinite", display: "block" }}
+      />
+      <div style={{ marginTop: 18, fontSize: 16, fontWeight: 700, color: "#f1f5f9", letterSpacing: 3 }}>VRIKAAN</div>
+      <div className="rl-track">
+        <div className="rl-snake s1" />
+        <div className="rl-snake s2" />
+      </div>
     </div>
   );
 };
@@ -116,6 +167,7 @@ function AppRoutes() {
   return (
     <>
       <ScrollToTop />
+      <RouteLoader />
       <AIChatbot />
       <Suspense fallback={<PageSkeleton />}>
         <PageTransition>
