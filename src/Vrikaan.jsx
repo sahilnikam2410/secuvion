@@ -2158,8 +2158,7 @@ const Footer = () => (
     <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1.5fr repeat(4, 1fr)", gap: "clamp(32px, 4vw, 60px)", alignItems: "start" }} className="footer-grid">
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-          <BrandIcon size={38} />
-          <span style={{ fontFamily: "var(--font-display)", fontSize: 17, letterSpacing: 3, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
         </div>
         <p style={{ fontFamily: "var(--font-body)", color: T.mutedDark, fontSize: 14, lineHeight: 1.8, marginBottom: 20, maxWidth: 240 }}>
           AI-powered cyber defense for everyone. Enterprise security made accessible.
@@ -2397,8 +2396,7 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
         opacity: pageReady ? 1 : 0, transform: pageReady ? "translateY(0)" : "translateY(-20px)",
       }}>
         <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}>
-          <BrandIcon size={38} />
-          <span style={{ fontFamily: "var(--font-display)", fontSize: 17, letterSpacing: 3, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
         </div>
         <div className="nav-links-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>
           {navLinks.map(l => (
