@@ -170,17 +170,20 @@
     </div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      // Remove splash once React renders
-      const observer = new MutationObserver(() => {
+      // Splash shows for exactly 5 seconds, then fades out — gives users
+      // time to register the brand mark + tagline on every page load.
+      // (If React is ready before 5s, it renders behind the splash silently;
+      //  if React takes longer than 5s, splash still hides and app continues
+      //  to mount in the background.)
+      const SPLASH_MS = 5000;
+      setTimeout(() => {
         const splash = document.getElementById('splash');
-        if (splash && document.getElementById('root').children.length > 1) {
-          splash.style.transition = 'opacity 0.4s';
+        if (splash) {
+          splash.style.transition = 'opacity 0.5s ease';
           splash.style.opacity = '0';
-          setTimeout(() => splash.remove(), 400);
-          observer.disconnect();
+          setTimeout(() => splash.remove(), 500);
         }
-      });
-      observer.observe(document.getElementById('root'), { childList: true });
+      }, SPLASH_MS);
     </script>
   </body>
 </html>
