@@ -17,13 +17,14 @@ OUT = os.path.join(ROOT, "public", "wolf-compact.png")
 src = Image.open(SRC).convert("RGBA")
 print(f"source: {src.size}")
 
-# SUPER tight crop — just the head (ears + eyes + top of snout, NO lower jaw)
-# Square aspect so it can render in equal width/height boxes without distortion
+# Full head — ear tips to bottom of chin/snout
+# Then pad to square so the FULL wolf face stays visible at any display size
+# (image will fit-contain in the box with transparent padding if needed)
 w, h = src.size
-left = int(w * 0.10)
-right = int(w * 0.90)
-top = int(h * 0.06)
-bottom = int(h * 0.62)  # cut off at top of muzzle, before lower jaw
+left = int(w * 0.06)
+right = int(w * 0.94)
+top = int(h * 0.02)
+bottom = int(h * 0.94)  # include full chin/jaw point
 cropped = src.crop((left, top, right, bottom))
 
 # Pad to square so display fits in width=height containers cleanly
