@@ -129,13 +129,41 @@
       <div id="splash" style="position:fixed;inset:0;z-index:99999;background:#030712;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;">
         <style>
           @keyframes sp-pulse{0%,100%{opacity:0.4;transform:scale(0.95)}50%{opacity:1;transform:scale(1)}}
-          @keyframes sp-bar{0%{width:0}100%{width:100%}}
+          @keyframes sp-snake1 {
+            0%   { left: -35%; right: 100%; }
+            60%  { left: 100%; right: -90%; }
+            100% { left: 100%; right: -90%; }
+          }
+          @keyframes sp-snake2 {
+            0%,60% { left: -200%; right: 100%; }
+            100%   { left: 107%; right: -8%; }
+          }
           #splash svg{animation:sp-pulse 1.8s ease-in-out infinite}
+          #splash .sp-track {
+            position: relative;
+            margin-top: 16px;
+            width: 180px;
+            height: 3px;
+            background: rgba(148,163,184,0.08);
+            border-radius: 2px;
+            overflow: hidden;
+          }
+          #splash .sp-snake {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, transparent 0%, #6366f1 25%, #14e3c5 75%, #ffffff 100%);
+            box-shadow: 0 0 10px rgba(20,227,197,0.55), 0 0 20px rgba(99,102,241,0.35);
+          }
+          #splash .sp-snake.s1 { animation: sp-snake1 2.1s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite; }
+          #splash .sp-snake.s2 { animation: sp-snake2 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) infinite; }
         </style>
         <img src="/wolf-mark.png?v=2" alt="VRIKAAN" width="80" height="80" />
         <div style="margin-top:20px;font-size:18px;font-weight:700;color:#f1f5f9;letter-spacing:2px">VRIKAAN</div>
-        <div style="margin-top:16px;width:120px;height:2px;background:rgba(148,163,184,0.1);border-radius:2px;overflow:hidden">
-          <div style="height:100%;background:linear-gradient(90deg,#6366f1,#14e3c5);animation:sp-bar 2s ease-in-out infinite;border-radius:2px"></div>
+        <div class="sp-track">
+          <div class="sp-snake s1"></div>
+          <div class="sp-snake s2"></div>
         </div>
         <div style="margin-top:12px;font-size:11px;color:#64748b;letter-spacing:0.5px">Initializing secure environment...</div>
       </div>
