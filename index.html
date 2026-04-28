@@ -129,64 +129,100 @@
       <div id="splash" style="position:fixed;inset:0;z-index:99999;background:#030712;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;">
         <style>
           @keyframes sp-pulse{0%,100%{opacity:0.4;transform:scale(0.95)}50%{opacity:1;transform:scale(1)}}
-          #splash svg.wolf-svg{animation:sp-pulse 1.8s ease-in-out infinite}
-          #splash .snake-loader { margin-top: 18px; }
-          @keyframes sp-slither {
-            0%   { stroke-dashoffset: 500; }
-            100% { stroke-dashoffset: 0; }
+          #splash img.wolf-svg{animation:sp-pulse 1.8s ease-in-out infinite}
+          #splash .jl-px-slow { animation: jl-px 28s linear infinite; }
+          #splash .jl-px-mid  { animation: jl-px 14s linear infinite; }
+          #splash .jl-px-fast { animation: jl-px 5s linear infinite; }
+          #splash .jl-wolf    { animation: jl-bob 0.42s ease-in-out infinite; transform-origin: center bottom; }
+          #splash .jl-twinkle { animation: jl-tw 2.4s ease-in-out infinite; }
+          @keyframes jl-px  { from { transform: translateX(0) } to { transform: translateX(-360px) } }
+          @keyframes jl-bob { 0%,100% { transform: translateY(0) } 25% { transform: translateY(-3px) rotate(-1deg) } 50% { transform: translateY(-1px) } 75% { transform: translateY(-3px) rotate(1deg) } }
+          @keyframes jl-tw  { 0%,100% { opacity: 0.4 } 50% { opacity: 1 } }
+          #splash .jungle-frame {
+            margin-top: 18px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(20,227,197,0.15) inset;
           }
         </style>
         <img class="wolf-svg" src="/wolf-mark.png?v=2" alt="VRIKAAN" width="80" height="80" />
-        <div style="margin-top:20px;font-size:18px;font-weight:700;color:#f1f5f9;letter-spacing:2px">VRIKAAN</div>
-        <svg class="snake-loader" width="320" height="64" viewBox="0 0 320 64" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
-          <defs>
-            <linearGradient id="sk-grad" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%"   stop-color="#6366f1" stop-opacity="0"/>
-              <stop offset="12%"  stop-color="#6366f1" stop-opacity="0.35"/>
-              <stop offset="38%"  stop-color="#8b5cf6" stop-opacity="0.85"/>
-              <stop offset="68%"  stop-color="#14e3c5" stop-opacity="1"/>
-              <stop offset="92%"  stop-color="#ffffff" stop-opacity="1"/>
-              <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-            </linearGradient>
-            <radialGradient id="sk-ambient" cx="50%" cy="50%" r="60%">
-              <stop offset="0%"   stop-color="#14e3c5" stop-opacity="0.22"/>
-              <stop offset="55%"  stop-color="#6366f1" stop-opacity="0.10"/>
-              <stop offset="100%" stop-color="#14e3c5" stop-opacity="0"/>
-            </radialGradient>
-            <filter id="sk-blur-heavy" x="-30%" y="-100%" width="160%" height="300%">
-              <feGaussianBlur stdDeviation="6"/>
-            </filter>
-            <filter id="sk-blur-med" x="-20%" y="-80%" width="140%" height="260%">
-              <feGaussianBlur stdDeviation="2.5"/>
-            </filter>
-          </defs>
-          <!-- Ambient breathing halo -->
-          <ellipse cx="160" cy="32" rx="170" ry="28" fill="url(#sk-ambient)">
-            <animate attributeName="opacity" values="0.4;0.85;0.4" dur="2.6s" repeatCount="indefinite"/>
-            <animate attributeName="rx" values="160;180;160" dur="2.6s" repeatCount="indefinite"/>
-          </ellipse>
-          <!-- Faint dashed track -->
-          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
-                fill="none" stroke="rgba(148,163,184,0.12)" stroke-width="1.5"
-                stroke-linecap="round" stroke-dasharray="3 5"/>
-          <!-- Snake LAYER 1 — heavy outer halo -->
-          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
-                fill="none" stroke="url(#sk-grad)" stroke-width="9" stroke-linecap="round"
-                stroke-dasharray="95 420" stroke-dashoffset="500" opacity="0.55"
-                filter="url(#sk-blur-heavy)"
-                style="animation: sp-slither 2s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
-          <!-- Snake LAYER 2 — medium glow -->
-          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
-                fill="none" stroke="url(#sk-grad)" stroke-width="4.5" stroke-linecap="round"
-                stroke-dasharray="95 420" stroke-dashoffset="500"
-                filter="url(#sk-blur-med)"
-                style="animation: sp-slither 2s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
-          <!-- Snake LAYER 3 — sharp body -->
-          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
-                fill="none" stroke="url(#sk-grad)" stroke-width="2" stroke-linecap="round"
-                stroke-dasharray="95 420" stroke-dashoffset="500"
-                style="animation: sp-slither 2s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
-        </svg>
+        <div style="margin-top:18px;font-size:18px;font-weight:700;color:#f1f5f9;letter-spacing:4px">VRIKAAN</div>
+        <div class="jungle-frame">
+          <svg width="360" height="140" viewBox="0 0 360 140" xmlns="http://www.w3.org/2000/svg" style="display:block">
+            <defs>
+              <linearGradient id="jl-sky" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%"   stop-color="#0a0f1e"/>
+                <stop offset="55%"  stop-color="#0d1431"/>
+                <stop offset="100%" stop-color="#020411"/>
+              </linearGradient>
+              <radialGradient id="jl-moon-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%"   stop-color="#dde7ff" stop-opacity="0.95"/>
+                <stop offset="60%"  stop-color="#6366f1" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="jl-fog" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%"   stop-color="#14e3c5" stop-opacity="0"/>
+                <stop offset="60%"  stop-color="#14e3c5" stop-opacity="0.06"/>
+                <stop offset="100%" stop-color="#14e3c5" stop-opacity="0.18"/>
+              </linearGradient>
+              <linearGradient id="jl-ground" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#020411"/>
+                <stop offset="100%" stop-color="#000"/>
+              </linearGradient>
+              <symbol id="jl-trees-far" viewBox="0 0 360 60">
+                <path d="M 0 60 L 14 36 L 24 60 L 38 32 L 50 60 L 64 40 L 80 60 L 96 28 L 110 60 L 124 38 L 138 60 L 156 30 L 172 60 L 188 42 L 204 60 L 220 26 L 238 60 L 252 36 L 270 60 L 286 32 L 302 60 L 318 38 L 332 60 L 346 30 L 360 60 Z" fill="rgba(99,102,241,0.18)"/>
+              </symbol>
+              <symbol id="jl-trees-mid" viewBox="0 0 360 80">
+                <path d="M 0 80 L 8 50 L 16 80 L 28 38 L 44 80 L 58 32 L 76 80 L 92 44 L 108 80 L 124 28 L 144 80 L 162 36 L 180 80 L 198 22 L 220 80 L 240 40 L 260 80 L 280 24 L 302 80 L 322 38 L 342 80 L 360 30 L 360 80 Z" fill="#070b1c"/>
+              </symbol>
+              <symbol id="jl-grass" viewBox="0 0 360 30">
+                <path d="M 0 30 L 6 20 L 9 30 L 14 22 L 18 30 L 22 18 L 26 30 L 30 24 L 34 30 L 40 16 L 44 30 L 48 22 L 52 30 L 56 14 L 62 30 L 66 24 L 70 30 L 76 18 L 80 30 L 84 22 L 88 30 L 94 16 L 100 30 L 106 22 L 110 30 L 116 18 L 120 30 L 126 14 L 132 30 L 138 22 L 144 30 L 150 18 L 156 30 L 162 24 L 168 30 L 174 16 L 180 30 L 186 22 L 192 30 L 200 18 L 208 30 L 216 24 L 224 30 L 232 18 L 240 30 L 248 22 L 256 30 L 264 16 L 272 30 L 280 22 L 288 30 L 296 18 L 304 30 L 314 24 L 322 30 L 332 18 L 340 30 L 350 22 L 360 30 Z" fill="#000"/>
+              </symbol>
+            </defs>
+            <rect width="360" height="140" fill="url(#jl-sky)"/>
+            <circle cx="290" cy="32" r="18" fill="url(#jl-moon-glow)" opacity="0.9"/>
+            <circle cx="290" cy="32" r="8" fill="#f1f5f9" opacity="0.85"/>
+            <circle class="jl-twinkle" cx="40"  cy="22" r="0.8" fill="#fff"/>
+            <circle class="jl-twinkle" cx="80"  cy="14" r="0.6" fill="#fff" style="animation-delay:0.4s"/>
+            <circle class="jl-twinkle" cx="125" cy="28" r="0.7" fill="#fff" style="animation-delay:0.9s"/>
+            <circle class="jl-twinkle" cx="170" cy="18" r="0.5" fill="#fff" style="animation-delay:1.6s"/>
+            <circle class="jl-twinkle" cx="220" cy="40" r="0.6" fill="#fff" style="animation-delay:0.7s"/>
+            <circle class="jl-twinkle" cx="245" cy="20" r="0.7" fill="#fff" style="animation-delay:2.1s"/>
+            <circle class="jl-twinkle" cx="335" cy="48" r="0.5" fill="#fff" style="animation-delay:1.2s"/>
+            <g transform="translate(0,55)" style="overflow:visible">
+              <g class="jl-px-slow">
+                <use href="#jl-trees-far"/>
+                <use href="#jl-trees-far" x="360"/>
+              </g>
+            </g>
+            <g transform="translate(0,55)" style="overflow:visible">
+              <g class="jl-px-mid">
+                <use href="#jl-trees-mid"/>
+                <use href="#jl-trees-mid" x="360"/>
+              </g>
+            </g>
+            <rect x="0" y="118" width="360" height="22" fill="url(#jl-ground)"/>
+            <g class="jl-wolf" transform="translate(160,118)">
+              <path d="M -36 -2 C -38 -10 -32 -14 -26 -14 L -18 -16 C -10 -18 -2 -18 6 -16 C 12 -14 18 -12 22 -8 L 26 -10 L 30 -8 L 32 -10 L 34 -6 L 32 -2 L 26 -1 C 18 0 10 0 0 -1 C -8 -1 -16 0 -22 1 L -26 4 L -28 6 L -32 6 L -36 4 Z" fill="#000" stroke="#1a1f3a" stroke-width="0.5"/>
+              <path d="M -10 -16 L -6 -22 L -2 -16 Z" fill="#000"/>
+              <path d="M -36 -2 L -44 -6 L -42 -1 Z" fill="#000"/>
+              <rect x="-16" y="2" width="2.5" height="6" fill="#000"/>
+              <rect x="-22" y="3" width="2.5" height="5" fill="#000" transform="rotate(15 -21 5)"/>
+              <rect x="14"  y="2" width="2.5" height="6" fill="#000"/>
+              <rect x="18"  y="3" width="2.5" height="5" fill="#000" transform="rotate(-15 19 5)"/>
+              <circle cx="26" cy="-6" r="1.2" fill="#14e3c5">
+                <animate attributeName="r" values="1;1.6;1" dur="1.4s" repeatCount="indefinite"/>
+              </circle>
+            </g>
+            <g transform="translate(0,108)" style="overflow:visible">
+              <g class="jl-px-fast">
+                <use href="#jl-grass"/>
+                <use href="#jl-grass" x="360"/>
+              </g>
+            </g>
+            <rect width="360" height="140" fill="url(#jl-fog)" opacity="0.6"/>
+          </svg>
+        </div>
         <div style="margin-top:12px;font-size:11px;color:#64748b;letter-spacing:0.5px">Initializing secure environment...</div>
       </div>
     </div>
