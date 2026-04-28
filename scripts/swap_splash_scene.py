@@ -1,181 +1,15 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#030712" />
-    <link rel="manifest" href="/manifest.json" />
-    <!-- PWA capability: keep apple-* for iOS Safari (still required there), add the standard mobile-web-app-capable for everything else. -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="VRIKAAN" />
-    <meta name="description" content="VRIKAAN — AI-powered cyber defense platform protecting real people from fraud, phishing, and identity theft. Enterprise-grade security for everyone." />
-    <meta name="keywords" content="cybersecurity, AI security, fraud detection, phishing protection, identity theft, dark web monitoring, VRIKAAN" />
-    <meta name="author" content="Sahil Anil Nikam" />
-    <meta name="robots" content="index, follow" />
+"""
+Swap the old pixel-art jungle scene in index.html with the new cinematic
+cyber-forest. Replaces everything between `<div class="jungle-frame">`
+and the matching closing `</div>` (one block) with the new scene markup.
+"""
+import os
+import re
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://vrikaan.com/" />
-    <meta property="og:title" content="VRIKAAN — AI-Powered Cyber Defense Platform" />
-    <meta property="og:description" content="Protect yourself from fraud, phishing & identity theft with AI-powered security. Free tools, real-time monitoring, and enterprise-grade protection for everyone." />
-    <meta property="og:image" content="https://vrikaan.com/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:site_name" content="VRIKAAN" />
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+INDEX = os.path.join(ROOT, "index.html")
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="VRIKAAN — AI-Powered Cyber Defense" />
-    <meta name="twitter:description" content="AI-powered protection against fraud, phishing, and identity theft. Enterprise security made accessible for everyone." />
-    <meta name="twitter:image" content="https://vrikaan.com/og-image.png" />
-
-    <!-- Consent-gated analytics (DPDP Act 2023 + GDPR compliant) -->
-    <!-- GA4 + Microsoft Clarity only load after user grants analytics consent -->
-    <script>
-      (function () {
-        window.dataLayer = window.dataLayer || [];
-        window.gtag = function () { dataLayer.push(arguments); };
-        gtag('js', new Date());
-        // Consent defaults: deny until user accepts (Google Consent Mode v2)
-        gtag('consent', 'default', {
-          ad_storage: 'denied',
-          ad_user_data: 'denied',
-          ad_personalization: 'denied',
-          analytics_storage: 'denied',
-          functionality_storage: 'granted',
-          security_storage: 'granted',
-          wait_for_update: 500
-        });
-
-        function loadAnalytics() {
-          if (window.__secuvionAnalyticsLoaded) return;
-          window.__secuvionAnalyticsLoaded = true;
-
-          // GA4
-          var ga = document.createElement('script');
-          ga.async = true;
-          ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-TDRWQQVZP3';
-          document.head.appendChild(ga);
-          gtag('consent', 'update', { analytics_storage: 'granted' });
-          gtag('config', 'G-TDRWQQVZP3', { anonymize_ip: true });
-
-          // Microsoft Clarity — replace YOUR_CLARITY_ID with actual project ID from clarity.microsoft.com
-          (function (c, l, a, r, i, t, y) {
-            c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
-            t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
-            y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
-          })(window, document, 'clarity', 'script', 'wf0yr6fsb2');
-        }
-
-        try {
-          var consent = JSON.parse(localStorage.getItem('secuvion_consent_v2') || 'null');
-          if (consent && consent.analytics) loadAnalytics();
-        } catch (e) { /* ignore */ }
-
-        // React CookieConsent fires this event after user decision
-        window.addEventListener('secuvion:consent-updated', function (e) {
-          if (e && e.detail && e.detail.analytics) loadAnalytics();
-        });
-      })();
-    </script>
-
-    <link rel="canonical" href="https://vrikaan.com/" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="dns-prefetch" href="https://api.groq.com" />
-    <link rel="dns-prefetch" href="https://vrikaan.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <title>VRIKAAN — AI-Powered Cyber Defense Platform</title>
-
-    <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "VRIKAAN",
-      "applicationCategory": "SecurityApplication",
-      "operatingSystem": "Web",
-      "description": "AI-powered cyber defense platform protecting real people from fraud, phishing, and identity theft with enterprise-grade security.",
-      "url": "https://vrikaan.com",
-      "author": {
-        "@type": "Person",
-        "name": "Sahil Anil Nikam"
-      },
-      "offers": [
-        { "@type": "Offer", "price": "0", "priceCurrency": "INR", "name": "Recon (Free)" },
-        { "@type": "Offer", "price": "49", "priceCurrency": "INR", "name": "Sentinel" },
-        { "@type": "Offer", "price": "99", "priceCurrency": "INR", "name": "Fortress" },
-        { "@type": "Offer", "price": "199", "priceCurrency": "INR", "name": "Citadel" }
-      ],
-      "featureList": ["AI Fraud Detection", "Email Breach Scanner", "Dark Web Monitoring", "Identity Protection", "Phishing Alerts", "Security Score"],
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.9",
-        "ratingCount": "1247"
-      }
-    }
-    </script>
-  </head>
-  <body>
-    <div id="root">
-      <!-- Branded splash screen while JS loads -->
-      <div id="splash" style="position:fixed;inset:0;z-index:99999;background:#030712;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;">
-        <style>
-          @keyframes sp-pulse{0%,100%{opacity:0.4;transform:scale(0.95)}50%{opacity:1;transform:scale(1)}}
-          #splash img.wolf-svg{animation:sp-pulse 1.8s ease-in-out infinite}
-          @keyframes cw-px-mist  { from { transform: translateX(0) } to { transform: translateX(-420px) } }
-          @keyframes cw-px-far   { from { transform: translateX(0) } to { transform: translateX(-420px) } }
-          @keyframes cw-px-mid   { from { transform: translateX(0) } to { transform: translateX(-420px) } }
-          @keyframes cw-px-grass { from { transform: translateX(0) } to { transform: translateX(-420px) } }
-          @keyframes cw-body-bob { 0%,100% { transform: translate(0, 0) } 25% { transform: translate(0, -2px) } 50% { transform: translate(0, 1px) } 75% { transform: translate(0, -1px) } }
-          @keyframes cw-tail-wag { 0%,100% { transform: rotate(2deg) } 50% { transform: rotate(-2deg) } }
-          @keyframes cw-leg-cycle {
-            0%   { transform: translate(-2px, 0) rotate(-25deg) }
-            25%  { transform: translate(0, 0) rotate(0deg) }
-            50%  { transform: translate(3px, 0) rotate(20deg) }
-            75%  { transform: translate(0, -2px) rotate(-10deg) }
-            100% { transform: translate(-2px, 0) rotate(-25deg) }
-          }
-          @keyframes cw-eye-pulse { 0%,100% { fill: #14e3c5 } 50% { fill: #fff } }
-          @keyframes cw-tw { 0%,100% { opacity: 0.3 } 50% { opacity: 1 } }
-          @keyframes cw-firefly-1 { 0% { transform: translate(0, 0); opacity: 0 } 15% { opacity: 0.8 } 85% { opacity: 0.8 } 100% { transform: translate(-440px, -10px); opacity: 0 } }
-          @keyframes cw-firefly-2 { 0% { transform: translate(0, 0); opacity: 0 } 15% { opacity: 0.6 } 85% { opacity: 0.6 } 100% { transform: translate(-440px, 6px); opacity: 0 } }
-          @keyframes cw-scan { 0% { transform: translateX(-30%); opacity: 0 } 20% { opacity: 0.55 } 80% { opacity: 0.55 } 100% { transform: translateX(120%); opacity: 0 } }
-          @keyframes cw-dust { 0% { transform: translate(0, 0) scale(0.6); opacity: 0.7 } 100% { transform: translate(-30px, -4px) scale(1.2); opacity: 0 } }
-          #splash .cw-mist  { animation: cw-px-mist 40s linear infinite; }
-          #splash .cw-far   { animation: cw-px-far  24s linear infinite; }
-          #splash .cw-mid   { animation: cw-px-mid  12s linear infinite; }
-          #splash .cw-grass { animation: cw-px-grass 3s linear infinite; }
-          #splash .cw-body  { animation: cw-body-bob 0.36s ease-in-out infinite; transform-origin: center bottom; }
-          #splash .cw-tail  { animation: cw-tail-wag 0.36s ease-in-out infinite; transform-origin: 0 0; }
-          #splash .cw-leg   { animation: cw-leg-cycle 0.36s linear infinite; transform-box: fill-box; transform-origin: top; }
-          #splash .cw-leg.l-fl, #splash .cw-leg.l-br { animation-delay: 0s; }
-          #splash .cw-leg.l-fr, #splash .cw-leg.l-bl { animation-delay: -0.18s; }
-          #splash .cw-eye   { animation: cw-eye-pulse 1.2s ease-in-out infinite; }
-          #splash .cw-twinkle { animation: cw-tw 2.2s ease-in-out infinite; }
-          #splash .cw-firefly-1 { animation: cw-firefly-1 7s linear infinite; }
-          #splash .cw-firefly-2 { animation: cw-firefly-2 9s linear infinite; }
-          #splash .cw-scan  { animation: cw-scan 5s ease-in-out infinite; }
-          #splash .cw-dust  { animation: cw-dust 0.6s ease-out infinite; }
-          #splash .jungle-frame {
-            margin-top: 18px;
-            border-radius: 14px;
-            overflow: hidden;
-            border: 1px solid rgba(20,227,197,0.22);
-            box-shadow: 0 0 60px rgba(20,227,197,0.10) inset, 0 8px 32px rgba(0,0,0,0.5);
-            background: #020411;
-          }
-        </style>
-        <img class="wolf-svg" src="/wolf-mark.png?v=2" alt="VRIKAAN" width="80" height="80" />
-        <div style="margin-top:18px;font-size:18px;font-weight:700;color:#f1f5f9;letter-spacing:4px">VRIKAAN</div>
-        <div class="jungle-frame">
+NEW_SCENE = """        <div class="jungle-frame">
           <svg width="420" height="160" viewBox="0 0 420 160" xmlns="http://www.w3.org/2000/svg" style="display:block">
             <defs>
               <linearGradient id="cw-sky" x1="0" x2="0" y1="0" y2="1">
@@ -376,26 +210,18 @@
             <rect class="cw-scan" x="0" y="0" width="60" height="160" fill="url(#cw-scan-grad)"/>
             <rect x="0" y="0" width="420" height="160" fill="url(#cw-vignette)"/>
           </svg>
-        </div>
-        <div style="margin-top:12px;font-size:11px;color:#64748b;letter-spacing:0.5px">Initializing secure environment...</div>
-      </div>
-    </div>
-    <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Splash shows for exactly 5 seconds, then fades out — gives users
-      // time to register the brand mark + tagline on every page load.
-      // (If React is ready before 5s, it renders behind the splash silently;
-      //  if React takes longer than 5s, splash still hides and app continues
-      //  to mount in the background.)
-      const SPLASH_MS = 5000;
-      setTimeout(() => {
-        const splash = document.getElementById('splash');
-        if (splash) {
-          splash.style.transition = 'opacity 0.5s ease';
-          splash.style.opacity = '0';
-          setTimeout(() => splash.remove(), 500);
-        }
-      }, SPLASH_MS);
-    </script>
-  </body>
-</html>
+        </div>"""
+
+with open(INDEX, "r", encoding="utf-8") as f:
+    content = f.read()
+
+# Match the entire jungle-frame block (greedy across newlines)
+pattern = re.compile(r'        <div class="jungle-frame">[\s\S]*?\n        </div>', re.MULTILINE)
+new_content, n = pattern.subn(NEW_SCENE, content, count=1)
+if n != 1:
+    print(f"ERROR: expected 1 substitution, got {n}")
+    raise SystemExit(1)
+
+with open(INDEX, "w", encoding="utf-8") as f:
+    f.write(new_content)
+print(f"Replaced jungle-frame block in {INDEX}")
