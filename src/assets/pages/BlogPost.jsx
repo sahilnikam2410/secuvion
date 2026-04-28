@@ -74,7 +74,7 @@ export default function BlogPost() {
       publisher: {
         "@type": "Organization",
         name: "VRIKAAN",
-        logo: { "@type": "ImageObject", url: "https://vrikaan.com/favicon.svg" },
+        logo: { "@type": "ImageObject", url: "https://vrikaan.com/wolf-icon.png" },
       },
       mainEntityOfPage: { "@type": "WebPage", "@id": url },
       keywords: article.tags.join(", "),

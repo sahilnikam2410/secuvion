@@ -5,7 +5,7 @@ const defaults = {
   title: "VRIKAAN - AI-Powered Cyber Defense Platform",
   description: "Enterprise-grade cybersecurity for everyone. Real-time threat detection, fraud analysis, and digital protection powered by AI. 15+ security tools in one dashboard.",
   url: "https://vrikaan.com",
-  image: "https://vrikaan.com/api/og?title=VRIKAAN&subtitle=AI-Powered+Cyber+Defense+Platform",
+  image: "https://vrikaan.com/og-image.png",
   twitter: "@vrikaan",
 };
 

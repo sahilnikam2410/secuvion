@@ -52,12 +52,7 @@ export default function PWAInstallPrompt() {
       boxShadow: "0 8px 32px rgba(0,0,0,0.4)", animation: "pwaSlideUp 0.4s ease"
     }}>
       <style>{`@keyframes pwaSlideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
-      <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <polyline points="9 12 11 14 15 10"/>
-        </svg>
-      </div>
+      <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Install VRIKAAN</div>
         <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Get instant access from your home screen</div>

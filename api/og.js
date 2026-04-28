@@ -101,23 +101,14 @@ export default function handler(req) {
                     props: {
                       style: { display: "flex", alignItems: "center", gap: 16 },
                       children: [
-                        // Shield icon (inline SVG via emoji-like rendering not supported, using a styled box)
+                        // VRIKAAN origami wolf logo (loaded from public asset)
                         {
-                          type: "div",
+                          type: "img",
                           props: {
-                            style: {
-                              width: 56,
-                              height: 56,
-                              borderRadius: 14,
-                              background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.cyan} 100%)`,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 32,
-                              fontWeight: 800,
-                              color: "#fff",
-                            },
-                            children: "S",
+                            src: `${new URL(req.url).origin}/wolf-icon.png`,
+                            width: 80,
+                            height: 80,
+                            style: { borderRadius: 18, display: "flex" },
                           },
                         },
                         {

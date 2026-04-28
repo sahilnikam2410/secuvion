@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid plan or billing period" });
     }
 
-    const orderId = `SECUVION_${planKey}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const orderId = `VRIKAAN_${planKey}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const origin = req.headers.origin || "https://vrikaan.com";
 
     const orderPayload = {
