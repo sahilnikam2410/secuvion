@@ -81,14 +81,7 @@ const RouteLoader = () => {
       <style>{`
         @keyframes rl-fade { from { opacity: 0 } to { opacity: 1 } }
         @keyframes rl-pulse { 0%,100% { filter: drop-shadow(0 0 10px rgba(20,227,197,0.4)) } 50% { filter: drop-shadow(0 0 22px rgba(20,227,197,0.7)) } }
-        @keyframes rl-snake1 { 0% { left:-35%; right:100% } 60%,100% { left:100%; right:-90% } }
-        @keyframes rl-snake2 { 0%,60% { left:-200%; right:100% } 100% { left:107%; right:-8% } }
-        .rl-track { position: relative; margin-top: 22px; width: 200px; height: 3px; background: rgba(148,163,184,0.08); border-radius: 2px; overflow: hidden; }
-        .rl-snake { position: absolute; top: 0; height: 100%; border-radius: 2px;
-          background: linear-gradient(90deg, transparent 0%, #6366f1 25%, #14e3c5 75%, #ffffff 100%);
-          box-shadow: 0 0 10px rgba(20,227,197,0.55), 0 0 20px rgba(99,102,241,0.35); }
-        .rl-snake.s1 { animation: rl-snake1 1.6s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite; }
-        .rl-snake.s2 { animation: rl-snake2 1.6s cubic-bezier(0.165, 0.84, 0.44, 1) infinite; }
+        @keyframes rl-slither { 0% { stroke-dashoffset: 320 } 100% { stroke-dashoffset: 0 } }
       `}</style>
       <img
         src="/wolf-compact.png"
@@ -98,10 +91,26 @@ const RouteLoader = () => {
         style={{ animation: "rl-pulse 1.6s ease-in-out infinite", display: "block" }}
       />
       <div style={{ marginTop: 18, fontSize: 16, fontWeight: 700, color: "#f1f5f9", letterSpacing: 3 }}>VRIKAAN</div>
-      <div className="rl-track">
-        <div className="rl-snake s1" />
-        <div className="rl-snake s2" />
-      </div>
+      <svg width="220" height="40" viewBox="0 0 220 40" style={{ marginTop: 18, display: "block" }}>
+        <defs>
+          <linearGradient id="rl-snake-grad" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%"  stopColor="#6366f1" stopOpacity="0"/>
+            <stop offset="35%" stopColor="#6366f1" stopOpacity="0.95"/>
+            <stop offset="75%" stopColor="#14e3c5"/>
+            <stop offset="100%" stopColor="#ffffff"/>
+          </linearGradient>
+          <filter id="rl-snake-glow" x="-20%" y="-50%" width="140%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <path d="M 6 20 C 30 4, 55 36, 80 20 S 130 4, 155 20 S 205 36, 214 20"
+              fill="none" stroke="rgba(148,163,184,0.10)" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M 6 20 C 30 4, 55 36, 80 20 S 130 4, 155 20 S 205 36, 214 20"
+              fill="none" stroke="url(#rl-snake-grad)" strokeWidth="3" strokeLinecap="round"
+              strokeDasharray="55 320" filter="url(#rl-snake-glow)"
+              style={{ animation: "rl-slither 1.8s cubic-bezier(0.45,0.05,0.55,0.95) infinite" }}/>
+      </svg>
     </div>
   );
 };
