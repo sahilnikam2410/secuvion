@@ -17,15 +17,21 @@ OUT = os.path.join(ROOT, "public", "wolf-compact.png")
 src = Image.open(SRC).convert("RGBA")
 print(f"source: {src.size}")
 
-# Tight crop — focus on the head only (skip the lower jaw + full mesh)
-# wolf-clean-1024 has wolf centered. We want top 75% of height roughly.
+# SUPER tight crop — just the head (ears + eyes + top of snout, NO lower jaw)
+# Square aspect so it can render in equal width/height boxes without distortion
 w, h = src.size
-# Pad horizontally 5%, crop top 5% to 80% (head + top of muzzle)
-left = int(w * 0.08)
-right = int(w * 0.92)
-top = int(h * 0.05)
-bottom = int(h * 0.78)
+left = int(w * 0.10)
+right = int(w * 0.90)
+top = int(h * 0.06)
+bottom = int(h * 0.62)  # cut off at top of muzzle, before lower jaw
 cropped = src.crop((left, top, right, bottom))
+
+# Pad to square so display fits in width=height containers cleanly
+cw, ch = cropped.size
+side = max(cw, ch)
+square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+square.paste(cropped, ((side - cw) // 2, (side - ch) // 2), cropped)
+cropped = square
 print(f"cropped: {cropped.size}")
 
 # Resize to 256 max dim for crisp small-size rendering

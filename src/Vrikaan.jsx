@@ -58,15 +58,16 @@ const T = {
 };
 
 /* ── VRIKAAN WOLF MARK — real origami wolf head (cropped tight for small UI) ── */
-const WolfMark = ({ size = 44 }) => (
+const WolfMark = ({ size = 40 }) => (
   <img
     src="/wolf-compact.png"
     alt="VRIKAAN"
     width={size}
-    height={Math.round(size * 235 / 256)}
+    height={size}
     style={{
       display: "block",
       flexShrink: 0,
+      objectFit: "contain",
       filter: "drop-shadow(0 0 6px rgba(20,227,197,0.4))",
       animation: "wolfPulse 2.6s ease-in-out infinite",
     }}
@@ -2174,7 +2175,7 @@ const Footer = () => (
     <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1.5fr repeat(4, 1fr)", gap: "clamp(32px, 4vw, 60px)", alignItems: "start" }} className="footer-grid">
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <WolfMark size={56} />
+          <WolfMark size={48} />
           <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
         </div>
         <p style={{ fontFamily: "var(--font-body)", color: T.mutedDark, fontSize: 14, lineHeight: 1.8, marginBottom: 20, maxWidth: 240 }}>
@@ -2414,7 +2415,7 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
         opacity: pageReady ? 1 : 0, transform: pageReady ? "translateY(0)" : "translateY(-20px)",
       }}>
         <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-          <WolfMark size={48} />
+          <WolfMark size={40} />
           <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
         </div>
         <div className="nav-links-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>

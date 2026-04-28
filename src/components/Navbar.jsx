@@ -169,11 +169,12 @@ const Navbar = () => {
           <img
             src="/wolf-compact.png"
             alt="VRIKAAN"
-            width="48"
-            height="44"
+            width="40"
+            height="40"
             style={{
               display: "block",
               flexShrink: 0,
+              objectFit: "contain",
               filter: "drop-shadow(0 0 6px rgba(20,227,197,0.4))",
               animation: "wolfPulse 2.6s ease-in-out infinite",
             }}
