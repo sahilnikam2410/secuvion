@@ -132,33 +132,60 @@
           #splash svg.wolf-svg{animation:sp-pulse 1.8s ease-in-out infinite}
           #splash .snake-loader { margin-top: 18px; }
           @keyframes sp-slither {
-            0%   { stroke-dashoffset: 320; }
+            0%   { stroke-dashoffset: 500; }
             100% { stroke-dashoffset: 0; }
           }
         </style>
         <img class="wolf-svg" src="/wolf-mark.png?v=2" alt="VRIKAAN" width="80" height="80" />
         <div style="margin-top:20px;font-size:18px;font-weight:700;color:#f1f5f9;letter-spacing:2px">VRIKAAN</div>
-        <svg class="snake-loader" width="220" height="40" viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg">
+        <svg class="snake-loader" width="320" height="64" viewBox="0 0 320 64" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
           <defs>
             <linearGradient id="sk-grad" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%"  stop-color="#6366f1" stop-opacity="0"/>
-              <stop offset="35%" stop-color="#6366f1" stop-opacity="0.95"/>
-              <stop offset="75%" stop-color="#14e3c5"/>
-              <stop offset="100%" stop-color="#ffffff"/>
+              <stop offset="0%"   stop-color="#6366f1" stop-opacity="0"/>
+              <stop offset="12%"  stop-color="#6366f1" stop-opacity="0.35"/>
+              <stop offset="38%"  stop-color="#8b5cf6" stop-opacity="0.85"/>
+              <stop offset="68%"  stop-color="#14e3c5" stop-opacity="1"/>
+              <stop offset="92%"  stop-color="#ffffff" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
             </linearGradient>
-            <filter id="sk-glow" x="-20%" y="-50%" width="140%" height="200%">
-              <feGaussianBlur stdDeviation="2" result="b"/>
-              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            <radialGradient id="sk-ambient" cx="50%" cy="50%" r="60%">
+              <stop offset="0%"   stop-color="#14e3c5" stop-opacity="0.22"/>
+              <stop offset="55%"  stop-color="#6366f1" stop-opacity="0.10"/>
+              <stop offset="100%" stop-color="#14e3c5" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="sk-blur-heavy" x="-30%" y="-100%" width="160%" height="300%">
+              <feGaussianBlur stdDeviation="6"/>
+            </filter>
+            <filter id="sk-blur-med" x="-20%" y="-80%" width="140%" height="260%">
+              <feGaussianBlur stdDeviation="2.5"/>
             </filter>
           </defs>
-          <!-- Faint background wave -->
-          <path d="M 6 20 C 30 4, 55 36, 80 20 S 130 4, 155 20 S 205 36, 214 20"
-                fill="none" stroke="rgba(148,163,184,0.10)" stroke-width="2" stroke-linecap="round"/>
-          <!-- Glowing slithering snake -->
-          <path d="M 6 20 C 30 4, 55 36, 80 20 S 130 4, 155 20 S 205 36, 214 20"
-                fill="none" stroke="url(#sk-grad)" stroke-width="3" stroke-linecap="round"
-                stroke-dasharray="55 320" stroke-dashoffset="320" filter="url(#sk-glow)"
-                style="animation: sp-slither 1.8s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
+          <!-- Ambient breathing halo -->
+          <ellipse cx="160" cy="32" rx="170" ry="28" fill="url(#sk-ambient)">
+            <animate attributeName="opacity" values="0.4;0.85;0.4" dur="2.6s" repeatCount="indefinite"/>
+            <animate attributeName="rx" values="160;180;160" dur="2.6s" repeatCount="indefinite"/>
+          </ellipse>
+          <!-- Faint dashed track -->
+          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
+                fill="none" stroke="rgba(148,163,184,0.12)" stroke-width="1.5"
+                stroke-linecap="round" stroke-dasharray="3 5"/>
+          <!-- Snake LAYER 1 — heavy outer halo -->
+          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
+                fill="none" stroke="url(#sk-grad)" stroke-width="9" stroke-linecap="round"
+                stroke-dasharray="95 420" stroke-dashoffset="500" opacity="0.55"
+                filter="url(#sk-blur-heavy)"
+                style="animation: sp-slither 2s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
+          <!-- Snake LAYER 2 — medium glow -->
+          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
+                fill="none" stroke="url(#sk-grad)" stroke-width="4.5" stroke-linecap="round"
+                stroke-dasharray="95 420" stroke-dashoffset="500"
+                filter="url(#sk-blur-med)"
+                style="animation: sp-slither 2s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
+          <!-- Snake LAYER 3 — sharp body -->
+          <path d="M 8 32 C 44 8, 76 56, 112 32 S 184 8, 216 32 S 288 56, 312 32"
+                fill="none" stroke="url(#sk-grad)" stroke-width="2" stroke-linecap="round"
+                stroke-dasharray="95 420" stroke-dashoffset="500"
+                style="animation: sp-slither 2s cubic-bezier(0.45,0.05,0.55,0.95) infinite"/>
         </svg>
         <div style="margin-top:12px;font-size:11px;color:#64748b;letter-spacing:0.5px">Initializing secure environment...</div>
       </div>
