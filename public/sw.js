@@ -1,6 +1,6 @@
-const CACHE_NAME = "secuvion-v3";
-const STATIC_CACHE = "secuvion-static-v3";
-const PRECACHE_URLS = ["/", "/index.html", "/favicon.svg", "/manifest.json", "/offline.html"];
+const CACHE_NAME = "vrikaan-v5";
+const STATIC_CACHE = "vrikaan-static-v5";
+const PRECACHE_URLS = ["/", "/index.html", "/favicon.svg", "/manifest.json", "/offline.html", "/wolf-mark.png", "/wolf-icon.png"];
 
 // Install: precache essential files
 self.addEventListener("install", (event) => {
