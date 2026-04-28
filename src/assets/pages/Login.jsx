@@ -562,7 +562,7 @@ export default function Login() {
 
         {/* Header */}
         <div style={{ textAlign: "center" }}>
-          <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 56, height: 56, margin: "0 auto 12px", borderRadius: 14, display: "block" }} />
+          <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 72, height: 72, margin: "0 auto 12px", display: "block" }} />
           <div style={S.title}>Welcome Back</div>
         </div>
         <p style={S.subtitle}>Sign in to access your cybersecurity dashboard</p>

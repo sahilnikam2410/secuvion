@@ -52,7 +52,7 @@ export default function PWAInstallPrompt() {
       boxShadow: "0 8px 32px rgba(0,0,0,0.4)", animation: "pwaSlideUp 0.4s ease"
     }}>
       <style>{`@keyframes pwaSlideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
-      <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0 }} />
+      <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 44, height: 44, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Install VRIKAAN</div>
         <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Get instant access from your home screen</div>

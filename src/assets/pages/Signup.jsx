@@ -338,7 +338,7 @@ export default function Signup() {
         </div>
 
         <div style={styles.logo}>
-          <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 56, height: 56, margin: "0 auto 12px", borderRadius: 14, display: "block" }} />
+          <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 72, height: 72, margin: "0 auto 12px", display: "block" }} />
           <div style={styles.title}>Create Account</div>
         </div>
         <p style={styles.subtitle}>Join VRIKAAN to protect your digital life</p>

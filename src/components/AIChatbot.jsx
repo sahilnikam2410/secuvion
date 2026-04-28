@@ -343,7 +343,7 @@ export default function AIChatbot() {
         borderBottom: `1px solid ${T.border}`,
         background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(20,227,197,0.05))",
       }}>
-        <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 36, height: 36, borderRadius: 10 }} />
+        <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 36, height: 36, borderRadius: 10 }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>VRIKAAN AI</div>
           <div style={{ fontSize: 11, color: T.green, display: "flex", alignItems: "center", gap: 4 }}>
@@ -498,7 +498,7 @@ export default function AIChatbot() {
               <div key={i} style={{ display: "flex", flexDirection: m.role === "user" ? "row-reverse" : "row", gap: 8, alignItems: "flex-start" }}>
                 {/* Avatar */}
                 {m.role === "bot" && (
-                  <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0 }} />
+                  <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0 }} />
                 )}
                 {m.role === "user" && (
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: T.accent, flexShrink: 0 }}>U</div>
@@ -535,7 +535,7 @@ export default function AIChatbot() {
             {/* Typing indicator */}
             {typing && (
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 28, height: 28, borderRadius: 8 }} />
+                <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 28, height: 28, borderRadius: 8 }} />
                 <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(148,163,184,0.06)", border: `1px solid ${T.border}`, display: "flex", gap: 4 }}>
                   {[0, 1, 2].map(i => (
                     <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: T.accent, animation: `dotBounce 1.2s ease-in-out ${i * 0.15}s infinite` }} />
