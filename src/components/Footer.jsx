@@ -23,7 +23,7 @@ const Footer = () => (
         {/* Brand */}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 42, height: 42 }} />
+            <img src="/wolf-mark.png?v=2" alt="VRIKAAN" style={{ width: 56, height: 56, filter: "drop-shadow(0 0 8px rgba(20,227,197,0.35))" }} />
             <span style={{ fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 3, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
           </div>
           <p style={{ fontFamily: "var(--font-body)", color: T.mutedDark, fontSize: 14, lineHeight: 1.8, marginBottom: 20, maxWidth: 240 }}>

@@ -162,7 +162,7 @@ export default function ForgotPassword() {
 
       <div style={styles.card}>
         <div style={styles.logo}>
-          <img src="/wolf-mark.png" alt="VRIKAAN" style={{ width: 72, height: 72, margin: "0 auto 12px", display: "block" }} />
+          <img src="/wolf-mark.png?v=2" alt="VRIKAAN" style={{ width: 72, height: 72, margin: "0 auto 12px", display: "block" }} />
           <div style={styles.title}>
             {sent ? "Check Your Email" : "Reset Password"}
           </div>
