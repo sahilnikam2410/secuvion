@@ -166,7 +166,7 @@ const Navbar = () => {
           fontSize: 20, fontWeight: 800, color: T.white, textDecoration: "none",
           fontFamily: "'Space Grotesk', sans-serif", display: "flex", alignItems: "center", gap: 10,
         }}>
-          <img src="/favicon.svg" alt="VRIKAAN" style={{ width: 30, height: 30, borderRadius: 8 }} />
+          <img src="/wolf-icon.png" alt="VRIKAAN" style={{ width: 32, height: 32, borderRadius: 8 }} />
           VRIKAAN
         </Link>
 
