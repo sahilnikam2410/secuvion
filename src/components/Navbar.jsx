@@ -166,7 +166,6 @@ const Navbar = () => {
           fontSize: 20, fontWeight: 800, color: T.white, textDecoration: "none",
           fontFamily: "'Space Grotesk', sans-serif", display: "flex", alignItems: "center", gap: 10,
         }}>
-          <img src="/wolf-mark.png" alt="VRIKAAN" width="56" height="56" style={{ display: "block" }} />
           VRIKAAN
         </Link>
 

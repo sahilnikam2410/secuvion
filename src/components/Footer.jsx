@@ -23,8 +23,7 @@ const Footer = () => (
         {/* Brand */}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <img src="/wolf-mark.png" alt="VRIKAAN" width="64" height="64" style={{ display: "block" }} />
-            <span style={{ fontFamily: "var(--font-display)", fontSize: 16, letterSpacing: 3, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
           </div>
           <p style={{ fontFamily: "var(--font-body)", color: T.mutedDark, fontSize: 14, lineHeight: 1.8, marginBottom: 20, maxWidth: 240 }}>
             AI-powered cyber defense for everyone. Enterprise security made accessible.
