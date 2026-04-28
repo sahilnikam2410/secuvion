@@ -57,43 +57,20 @@ const T = {
   gradient: "linear-gradient(135deg, #6366f1, #8b5cf6)",
 };
 
-/* ── VRIKAAN WOLF MARK (small inline, animated cyan eye glow) ── */
-const WolfMark = ({ size = 36 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block", flexShrink: 0 }} aria-label="VRIKAAN">
-    <defs>
-      <linearGradient id="wm-eye" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#14e3c5"/>
-        <stop offset="100%" stopColor="#6366f1"/>
-      </linearGradient>
-      <filter id="wm-glow" x="-100%" y="-100%" width="300%" height="300%">
-        <feGaussianBlur stdDeviation="0.9" result="b"/>
-        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>
-    {/* Wolf head silhouette in soft white (visible on dark surfaces) */}
-    <path
-      d="M 6.5 12 L 8 4 L 12 11 L 16 10 L 20 11 L 24 4 L 25.5 12 L 25 18 L 22 23 L 16 27 L 10 23 L 7 18 Z"
-      fill="#f1f5f9"
-      opacity="0.92"
-    />
-    {/* Inner ear shadow accents */}
-    <path d="M 9 6 L 11 10 L 9.5 11 Z" fill="#0a0f1e" opacity="0.6"/>
-    <path d="M 23 6 L 21 10 L 22.5 11 Z" fill="#0a0f1e" opacity="0.6"/>
-    {/* Snout shadow */}
-    <path d="M 14 17 L 18 17 L 17 22 L 16 24 L 15 22 Z" fill="#0a0f1e" opacity="0.55"/>
-    {/* Glowing cyan eyes — animated pulse */}
-    <g filter="url(#wm-glow)">
-      <path d="M 9.5 15.5 L 13.5 14 L 13.7 16.2 L 9.8 17.4 Z" fill="url(#wm-eye)">
-        <animate attributeName="opacity" values="0.7;1;0.7" dur="2.4s" repeatCount="indefinite"/>
-      </path>
-      <path d="M 22.5 15.5 L 18.5 14 L 18.3 16.2 L 22.2 17.4 Z" fill="url(#wm-eye)">
-        <animate attributeName="opacity" values="0.7;1;0.7" dur="2.4s" repeatCount="indefinite"/>
-      </path>
-    </g>
-    {/* Sharp white eye cores so they pop at small sizes */}
-    <path d="M 10.5 15.7 L 13 14.7 L 13.1 15.9 L 10.6 16.7 Z" fill="#fff"/>
-    <path d="M 21.5 15.7 L 19 14.7 L 18.9 15.9 L 21.4 16.7 Z" fill="#fff"/>
-  </svg>
+/* ── VRIKAAN WOLF MARK — real origami wolf head (cropped tight for small UI) ── */
+const WolfMark = ({ size = 44 }) => (
+  <img
+    src="/wolf-compact.png"
+    alt="VRIKAAN"
+    width={size}
+    height={Math.round(size * 235 / 256)}
+    style={{
+      display: "block",
+      flexShrink: 0,
+      filter: "drop-shadow(0 0 6px rgba(20,227,197,0.4))",
+      animation: "wolfPulse 2.6s ease-in-out infinite",
+    }}
+  />
 );
 
 /* ── VRIKAAN SHIELD LOGO ── */
@@ -2197,7 +2174,7 @@ const Footer = () => (
     <div style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1.5fr repeat(4, 1fr)", gap: "clamp(32px, 4vw, 60px)", alignItems: "start" }} className="footer-grid">
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <WolfMark size={42} />
+          <WolfMark size={56} />
           <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
         </div>
         <p style={{ fontFamily: "var(--font-body)", color: T.mutedDark, fontSize: 14, lineHeight: 1.8, marginBottom: 20, maxWidth: 240 }}>
@@ -2293,6 +2270,7 @@ html { scroll-behavior: smooth; }
 @keyframes brand-orbit-ring { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes brand-orbit-ring2 { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 @keyframes status-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); } 50% { box-shadow: 0 0 0 4px rgba(34,197,94,0); } }
+@keyframes wolfPulse { 0%,100% { filter: drop-shadow(0 0 6px rgba(20,227,197,0.4)); } 50% { filter: drop-shadow(0 0 14px rgba(20,227,197,0.7)); } }
 @keyframes card-enter { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @property --cta-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 @keyframes cta-rotate { to { --cta-angle: 360deg; } }
@@ -2436,7 +2414,7 @@ input:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
         opacity: pageReady ? 1 : 0, transform: pageReady ? "translateY(0)" : "translateY(-20px)",
       }}>
         <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-          <WolfMark size={36} />
+          <WolfMark size={48} />
           <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 4, color: T.white, fontWeight: 700 }}>VRIKAAN</span>
         </div>
         <div className="nav-links-desktop" style={{ display: "flex", gap: 28, alignItems: "center" }}>
