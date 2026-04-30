@@ -155,6 +155,19 @@ The VRIKAAN Team`,
 }
 
 /**
+ * Generic admin broadcast — used by AdminDashboard "Broadcast" tab to send a
+ * custom subject + message to a filtered list of users.
+ */
+export async function sendBroadcast(name, email, subject, message) {
+  return safeSend(NOTIFY_TEMPLATE, {
+    to_name: name,
+    to_email: email,
+    subject,
+    message,
+  });
+}
+
+/**
  * Promotional/feature highlight email — sent 3 days after signup.
  */
 export async function sendPromoEmail(name, email) {

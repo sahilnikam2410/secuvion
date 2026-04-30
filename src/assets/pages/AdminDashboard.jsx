@@ -14,9 +14,12 @@ import {
   HiOutlineHome, HiOutlineMap, HiOutlineAcademicCap, HiOutlineShieldCheck,
   HiOutlineSearchCircle, HiOutlineFingerPrint, HiOutlineLightningBolt,
   HiOutlineGlobe, HiOutlineKey, HiOutlineMail, HiOutlineNewspaper,
+  HiOutlineClipboardList, HiOutlineSpeakerphone, HiOutlineX, HiOutlineEye,
+  HiOutlineUserCircle, HiOutlineCheckCircle, HiOutlineClock,
 } from "react-icons/hi";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
+  LineChart, Line, BarChart, Bar, CartesianGrid, Legend,
 } from "recharts";
 import SEO from "../../components/SEO";
 
@@ -82,8 +85,33 @@ const TABS = [
   { id: "dashboard", label: "Dashboard", icon: HiOutlineViewGrid },
   { id: "users", label: "Users", icon: HiOutlineUsers },
   { id: "payments", label: "Payments", icon: HiOutlineCreditCard },
+  { id: "broadcast", label: "Broadcast", icon: HiOutlineSpeakerphone },
+  { id: "audit", label: "Audit Log", icon: HiOutlineClipboardList },
   { id: "settings", label: "Settings", icon: HiOutlineCog },
 ];
+
+// Audit log persists to localStorage so admin can review actions across sessions.
+const AUDIT_KEY = "vrikaan_admin_audit_v1";
+const AUDIT_MAX = 200;
+
+function readAudit() {
+  try { return JSON.parse(localStorage.getItem(AUDIT_KEY) || "[]"); } catch { return []; }
+}
+
+function logAudit(actor, action, target, meta = {}) {
+  try {
+    const list = readAudit();
+    list.unshift({
+      id: `a_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      actor: actor || "admin",
+      action,
+      target: target || "",
+      meta,
+      ts: new Date().toISOString(),
+    });
+    localStorage.setItem(AUDIT_KEY, JSON.stringify(list.slice(0, AUDIT_MAX)));
+  } catch { /* storage full */ }
+}
 
 const TOOL_LINKS = [
   { icon: HiOutlineMap, label: "Threat Map", path: "/threat-map" },
@@ -124,6 +152,19 @@ export default function AdminDashboard() {
   const [methodFilter, setMethodFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState("all"); // all | 7d | 30d | 90d
+
+  // Automation + UX state
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [detailUser, setDetailUser] = useState(null);
+  const [auditEntries, setAuditEntries] = useState(() => readAudit());
+  const [bcastSubject, setBcastSubject] = useState("");
+  const [bcastMessage, setBcastMessage] = useState("");
+  const [bcastFilter, setBcastFilter] = useState("all"); // all | free | paid | admin
+  const [bcastSending, setBcastSending] = useState(false);
+  const [showBulkPlanModal, setShowBulkPlanModal] = useState(false);
+  const [bulkNewPlan, setBulkNewPlan] = useState("starter");
 
   // Settings
   const [settings, setSettings] = useState({
@@ -170,6 +211,7 @@ export default function AdminDashboard() {
         }
       }
       setPayments(paymentsData);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Fetch error:", err);
     }
@@ -178,19 +220,62 @@ export default function AdminDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Auto-refresh every 60s when enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => fetchData(), 60000);
+    return () => clearInterval(id);
+  }, [autoRefresh, fetchData]);
+
   useEffect(() => {
     if (!isAdmin && user) navigate("/dashboard");
   }, [isAdmin, user, navigate]);
 
-  // Stats
+  // Core stats
   const totalUsers = users.length;
   const now = Date.now();
   const activeUsers = users.filter(u => {
     const t = u.updatedAt?.toDate ? u.updatedAt.toDate().getTime() : new Date(u.updatedAt || 0).getTime();
     return now - t < 7 * 86400000;
   }).length;
+  const onlineUsers = users.filter(u => {
+    const t = u.updatedAt?.toDate ? u.updatedAt.toDate().getTime() : new Date(u.updatedAt || 0).getTime();
+    return now - t < 5 * 60000; // last 5 min
+  }).length;
   const totalRevenue = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
   const activeSubs = users.filter(u => u.plan && u.plan !== "free").length;
+
+  // Today's signups
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todaySignups = users.filter(u => {
+    const t = u.createdAt?.toDate ? u.createdAt.toDate().getTime() : new Date(u.createdAt || 0).getTime();
+    return t >= todayStart.getTime();
+  }).length;
+
+  // 30-day revenue
+  const last30Cutoff = now - 30 * 86400000;
+  const last30Payments = payments.filter(p => {
+    const ts = p.date?.toDate ? p.date.toDate().getTime() : new Date(p.date || 0).getTime();
+    return ts >= last30Cutoff;
+  });
+  const mrr = last30Payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  // ARPU = revenue per active subscriber
+  const arpu = activeSubs > 0 ? Math.round(totalRevenue / activeSubs) : 0;
+  // Conversion = paid / total
+  const conversionRate = totalUsers > 0 ? ((activeSubs / totalUsers) * 100).toFixed(1) : "0.0";
+
+  // Revenue by month (last 12) for chart
+  const revenueData = (() => {
+    const map = {};
+    payments.forEach(p => {
+      const d = p.date?.toDate ? p.date.toDate() : new Date(p.date || 0);
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      map[key] = (map[key] || 0) + Number(p.amount || 0);
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([month, revenue]) => ({ month, revenue }));
+  })();
 
   // Chart data: user signups by month
   const growthData = (() => {
@@ -262,6 +347,8 @@ export default function AdminDashboard() {
     try {
       await updateDoc(doc(db, "users", uid), { [field]: value });
       setUsers(prev => prev.map(u => u.uid === uid ? { ...u, [field]: value } : u));
+      logAudit(user?.email, `update_user_${field}`, uid, { value });
+      setAuditEntries(readAudit());
       toast?.success?.(`User ${field} updated`);
     } catch (err) {
       toast?.error?.("Update failed: " + err.message);
@@ -273,10 +360,66 @@ export default function AdminDashboard() {
     try {
       await deleteDoc(doc(db, "users", uid));
       setUsers(prev => prev.filter(u => u.uid !== uid));
+      logAudit(user?.email, "delete_user", uid);
+      setAuditEntries(readAudit());
       toast?.success?.("User deleted");
     } catch (err) {
       toast?.error?.("Delete failed: " + err.message);
     }
+  };
+
+  // Bulk plan change
+  const handleBulkPlan = async () => {
+    if (selectedUserIds.length === 0) { setShowBulkPlanModal(false); return; }
+    let ok = 0, fail = 0;
+    for (const uid of selectedUserIds) {
+      try {
+        await updateDoc(doc(db, "users", uid), { plan: bulkNewPlan });
+        ok++;
+      } catch { fail++; }
+    }
+    setUsers(prev => prev.map(u => selectedUserIds.includes(u.uid) ? { ...u, plan: bulkNewPlan } : u));
+    logAudit(user?.email, "bulk_plan_change", `${ok} users`, { plan: bulkNewPlan, ok, fail });
+    setAuditEntries(readAudit());
+    toast?.success?.(`${ok} users updated to ${bulkNewPlan}${fail ? ` (${fail} failed)` : ""}`);
+    setSelectedUserIds([]);
+    setShowBulkPlanModal(false);
+  };
+
+  // Email broadcast
+  const handleBroadcast = async () => {
+    if (!bcastSubject.trim() || !bcastMessage.trim()) {
+      toast?.error?.("Subject and message required");
+      return;
+    }
+    setBcastSending(true);
+    try {
+      const targets = users.filter(u => {
+        if (bcastFilter === "all") return !!u.email;
+        if (bcastFilter === "free") return u.email && (u.plan || "free") === "free";
+        if (bcastFilter === "paid") return u.email && u.plan && u.plan !== "free";
+        if (bcastFilter === "admin") return u.email && u.role === "admin";
+        return false;
+      });
+      // Lazy-load email service to avoid pulling EmailJS into initial bundle
+      const { sendBroadcast } = await import("../../services/emailService");
+      let ok = 0, fail = 0;
+      // EmailJS rate-limit: do sequential with small delay
+      for (const t of targets) {
+        try {
+          await sendBroadcast(t.name || "User", t.email, bcastSubject, bcastMessage);
+          ok++;
+        } catch { fail++; }
+        await new Promise(r => setTimeout(r, 250));
+      }
+      logAudit(user?.email, "broadcast_email", `${ok}/${targets.length}`, { subject: bcastSubject, filter: bcastFilter, ok, fail });
+      setAuditEntries(readAudit());
+      toast?.success?.(`Broadcast sent to ${ok} users${fail ? ` (${fail} failed)` : ""}`);
+      setBcastSubject(""); setBcastMessage("");
+    } catch (err) {
+      toast?.error?.("Broadcast failed: " + err.message);
+    }
+    setBcastSending(false);
   };
 
   const handleExportUsers = () => {
@@ -298,10 +441,12 @@ export default function AdminDashboard() {
   const handleLogout = async () => { await logout(); navigate("/login"); };
 
   const statCards = [
-    { label: "Total Users", value: totalUsers, icon: HiOutlineUsers, color: T.cyan },
-    { label: "Active Users", value: activeUsers, icon: HiOutlineTrendingUp, color: T.green },
-    { label: "Total Revenue", value: formatINR(totalRevenue), icon: HiOutlineCurrencyRupee, color: T.gold },
-    { label: "Active Subs", value: activeSubs, icon: HiOutlineCreditCard, color: T.accent },
+    { label: "Total Users", value: totalUsers, sub: `+${todaySignups} today`, icon: HiOutlineUsers, color: T.cyan },
+    { label: "Online Now", value: onlineUsers, sub: "active in last 5 min", icon: HiOutlineCheckCircle, color: T.green, pulse: onlineUsers > 0 },
+    { label: "Active Users (7d)", value: activeUsers, sub: `${totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0}% of total`, icon: HiOutlineTrendingUp, color: T.cyan },
+    { label: "Total Revenue", value: formatINR(totalRevenue), sub: `${formatINR(mrr)} last 30d`, icon: HiOutlineCurrencyRupee, color: T.gold },
+    { label: "Active Subs", value: activeSubs, sub: `${conversionRate}% conversion`, icon: HiOutlineCreditCard, color: T.accent },
+    { label: "ARPU", value: formatINR(arpu), sub: "revenue per paid user", icon: HiOutlineTrendingUp, color: T.pink },
   ];
 
   // ── Render ──
@@ -312,14 +457,16 @@ export default function AdminDashboard() {
         {statCards.map((s, i) => {
           const gradients = [`linear-gradient(90deg, ${T.cyan}, ${T.green})`, `linear-gradient(90deg, ${T.accent}, ${T.cyan})`, `linear-gradient(90deg, ${T.gold}, ${T.orange})`, `linear-gradient(90deg, ${T.pink}, ${T.accent})`];
           return (
-          <div key={s.label} className="adm-stat" style={{ ...sty.card, display: "flex", alignItems: "center", gap: 16, position: "relative", overflow: "hidden", animation: `fadeInUp 0.5s ease ${i * 0.08}s both` }}>
+          <div key={s.label} className="adm-stat" style={{ ...sty.card, display: "flex", alignItems: "center", gap: 14, position: "relative", overflow: "hidden", padding: 18, animation: `fadeInUp 0.5s ease ${i * 0.08}s both` }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: gradients[i % 4], borderRadius: "16px 16px 0 0" }} />
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <s.icon size={22} color={s.color} />
+            <div style={{ position: "relative", width: 44, height: 44, borderRadius: 12, background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <s.icon size={20} color={s.color} />
+              {s.pulse && <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: s.color, animation: "pulseDot 1.4s infinite" }} />}
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: T.muted }}>{s.label}</div>
-              <div className="stat-val" style={{ fontSize: 22, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk', sans-serif" }}>{s.value}</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.label}</div>
+              <div className="stat-val" style={{ fontSize: 20, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk', sans-serif", marginTop: 2 }}>{s.value}</div>
+              {s.sub && <div style={{ fontSize: 10, color: s.color, marginTop: 2, fontWeight: 500 }}>{s.sub}</div>}
             </div>
           </div>
           );
@@ -379,15 +526,35 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {/* Revenue trend chart */}
+      <div className="adm-card" style={{ ...sty.card, animation: "fadeInUp 0.5s ease 0.45s both" }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk', sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Revenue Trend (Last 12 Months)</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: T.gold, fontFamily: "'JetBrains Mono', monospace" }}>{formatINR(totalRevenue)}</span>
+        </div>
+        {revenueData.length === 0 ? <Empty msg="No payment data yet" /> : (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={revenueData}>
+              <defs><linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={T.gold} stopOpacity={0.9} /><stop offset="100%" stopColor={T.gold} stopOpacity={0.3} /></linearGradient></defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.06)" />
+              <XAxis dataKey="month" tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v}`} />
+              <Tooltip contentStyle={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, color: T.white, fontSize: 12 }} formatter={(v) => formatINR(v)} />
+              <Bar dataKey="revenue" fill="url(#gGold)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
       {/* Quick Admin Actions */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {[
-          { label: "Export Users CSV", icon: "📥", color: T.cyan },
-          { label: "Send Broadcast", icon: "📢", color: T.accent },
-          { label: "View Audit Log", icon: "📋", color: T.gold },
-          { label: "System Settings", icon: "⚙️", color: T.muted },
+          { label: "Export Users CSV", icon: "📥", color: T.cyan, onClick: handleExportUsers },
+          { label: "Send Broadcast", icon: "📢", color: T.accent, onClick: () => setTab("broadcast") },
+          { label: "View Audit Log", icon: "📋", color: T.gold, onClick: () => setTab("audit") },
+          { label: "System Settings", icon: "⚙️", color: T.muted, onClick: () => setTab("settings") },
         ].map((a, i) => (
-          <button key={i} onClick={() => a.label.includes("Settings") && setActiveTab("settings")} className="adm-btn" style={{
+          <button key={i} onClick={a.onClick} className="adm-btn" style={{
             flex: "1 1 140px", padding: "14px 16px", borderRadius: 12,
             background: "rgba(99,102,241,0.06)", border: `1px solid ${T.border}`,
             color: T.white, fontSize: 13, fontWeight: 500, cursor: "pointer",
@@ -439,34 +606,94 @@ export default function AdminDashboard() {
         <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ ...sty.input, width: "auto", minWidth: 110 }}>
           {["all", "user", "admin"].map(v => <option key={v} value={v} style={{ background: T.surface }}>{v === "all" ? "All Roles" : v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
         </select>
+        <button onClick={handleExportUsers} className="adm-btn" style={{ ...sty.btn(T.green + "18", T.green) }}>
+          <HiOutlineDownload size={14} /> Export JSON
+        </button>
       </div>
+
+      {/* Bulk action bar — appears when rows selected */}
+      {selectedUserIds.length > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 16px", borderRadius: 12,
+          background: "rgba(99,102,241,0.1)",
+          border: `1px solid ${T.accent}30`,
+          animation: "fadeInUp 0.25s ease",
+        }}>
+          <span style={{ fontSize: 13, color: T.white, fontWeight: 600 }}>
+            {selectedUserIds.length} selected
+          </span>
+          <button onClick={() => setShowBulkPlanModal(true)} className="adm-btn" style={sty.btn(T.accent)}>
+            Change Plan
+          </button>
+          <button
+            onClick={() => { setTab("broadcast"); setBcastFilter("all"); }}
+            className="adm-btn"
+            style={sty.btn(T.cyan + "18", T.cyan)}
+          >
+            <HiOutlineMail size={14} /> Email Selected
+          </button>
+          <button onClick={() => setSelectedUserIds([])} className="adm-btn" style={{ ...sty.btn("transparent", T.muted), border: `1px solid ${T.border}` }}>
+            Clear
+          </button>
+        </div>
+      )}
 
       <div style={{ ...sty.card, padding: 0, overflow: "hidden" }}>
         {filteredUsers.length === 0 ? <Empty msg="No users found" /> : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 750 }}>
-              <thead><tr>{["User", "Email", "Role", "Plan", "Provider", "Joined", "Actions"].map(h => <th key={h} style={sty.th}>{h}</th>)}</tr></thead>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...sty.th, width: 40 }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.length > 0 && selectedUserIds.length === filteredUsers.length}
+                      onChange={(e) => setSelectedUserIds(e.target.checked ? filteredUsers.map(u => u.uid) : [])}
+                      style={{ accentColor: T.cyan, cursor: "pointer" }}
+                    />
+                  </th>
+                  {["User", "Email", "Role", "Plan", "Provider", "Joined", "Actions"].map(h => <th key={h} style={sty.th}>{h}</th>)}
+                </tr>
+              </thead>
               <tbody>
-                {filteredUsers.map(u => (
-                  <tr key={u.uid} style={{ transition: "background 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.04)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <td style={{ ...sty.td, display: "flex", alignItems: "center", gap: 10 }}><Avatar name={u.name} photo={u.avatar} size={30} /><span style={{ fontWeight: 500 }}>{u.name || "Unnamed"}</span></td>
-                    <td style={{ ...sty.td, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{u.email}</td>
-                    <td style={sty.td}>
-                      <select value={u.role || "user"} onChange={e => handleUpdateUser(u.uid, "role", e.target.value)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: u.role === "admin" ? T.gold : T.muted, fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
-                        <option value="user" style={{ background: T.surface }}>User</option>
-                        <option value="admin" style={{ background: T.surface }}>Admin</option>
-                      </select>
-                    </td>
-                    <td style={sty.td}>
-                      <select value={u.plan || "free"} onChange={e => handleUpdateUser(u.uid, "plan", e.target.value)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.cyan, fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
-                        {["free", "starter", "pro", "enterprise"].map(p => <option key={p} value={p} style={{ background: T.surface }}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ ...sty.td, fontSize: 12 }}><span style={{ padding: "3px 8px", borderRadius: 20, background: `${T.accent}15`, color: T.accent, fontSize: 11 }}>{u.provider || "email"}</span></td>
-                    <td style={{ ...sty.td, color: T.muted, fontSize: 12 }}>{relTime(u.createdAt)}</td>
-                    <td style={sty.td}><button onClick={() => handleDeleteUser(u.uid)} style={{ ...sty.btn(T.red + "18", T.red), padding: "6px 10px" }}><HiOutlineTrash size={14} /></button></td>
-                  </tr>
-                ))}
+                {filteredUsers.map(u => {
+                  const checked = selectedUserIds.includes(u.uid);
+                  return (
+                    <tr key={u.uid} style={{ transition: "background 0.15s", background: checked ? "rgba(99,102,241,0.06)" : "transparent" }} onMouseEnter={e => { if (!checked) e.currentTarget.style.background = "rgba(99,102,241,0.04)"; }} onMouseLeave={e => { if (!checked) e.currentTarget.style.background = "transparent"; }}>
+                      <td style={sty.td}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => setSelectedUserIds(prev => e.target.checked ? [...prev, u.uid] : prev.filter(id => id !== u.uid))}
+                          style={{ accentColor: T.cyan, cursor: "pointer" }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td style={{ ...sty.td, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setDetailUser(u)}><Avatar name={u.name} photo={u.avatar} size={30} /><span style={{ fontWeight: 500 }}>{u.name || "Unnamed"}</span></td>
+                      <td style={{ ...sty.td, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{u.email}</td>
+                      <td style={sty.td}>
+                        <select value={u.role || "user"} onChange={e => handleUpdateUser(u.uid, "role", e.target.value)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: u.role === "admin" ? T.gold : T.muted, fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
+                          <option value="user" style={{ background: T.surface }}>User</option>
+                          <option value="admin" style={{ background: T.surface }}>Admin</option>
+                        </select>
+                      </td>
+                      <td style={sty.td}>
+                        <select value={u.plan || "free"} onChange={e => handleUpdateUser(u.uid, "plan", e.target.value)} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.cyan, fontSize: 12, padding: "4px 8px", cursor: "pointer" }}>
+                          {["free", "starter", "pro", "enterprise"].map(p => <option key={p} value={p} style={{ background: T.surface }}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ ...sty.td, fontSize: 12 }}><span style={{ padding: "3px 8px", borderRadius: 20, background: `${T.accent}15`, color: T.accent, fontSize: 11 }}>{u.provider || "email"}</span></td>
+                      <td style={{ ...sty.td, color: T.muted, fontSize: 12 }}>{relTime(u.createdAt)}</td>
+                      <td style={sty.td}>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => setDetailUser(u)} title="View details" style={{ ...sty.btn(T.cyan + "18", T.cyan), padding: "6px 10px" }}><HiOutlineEye size={14} /></button>
+                          <button onClick={() => handleDeleteUser(u.uid)} title="Delete user" style={{ ...sty.btn(T.red + "18", T.red), padding: "6px 10px" }}><HiOutlineTrash size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -529,6 +756,112 @@ export default function AdminDashboard() {
     );
   };
 
+  const renderBroadcast = () => {
+    const targetCount = users.filter(u => {
+      if (bcastFilter === "all") return !!u.email;
+      if (bcastFilter === "free") return u.email && (u.plan || "free") === "free";
+      if (bcastFilter === "paid") return u.email && u.plan && u.plan !== "free";
+      if (bcastFilter === "admin") return u.email && u.role === "admin";
+      return false;
+    }).length;
+    return (
+      <AniTab>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 700 }}>
+          <AniCard delay={0}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 16, fontFamily: "'Space Grotesk', sans-serif" }}>Email Broadcast</div>
+            <p style={{ fontSize: 12, color: T.muted, marginBottom: 16, lineHeight: 1.6 }}>
+              Send a custom email to filtered users. Goes through EmailJS with a 250ms delay between sends to respect rate limits.
+            </p>
+
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 6 }}>Recipient filter</label>
+            <select value={bcastFilter} onChange={e => setBcastFilter(e.target.value)} style={{ ...sty.input, marginBottom: 14 }}>
+              <option value="all" style={{ background: T.surface }}>All users ({users.filter(u => u.email).length})</option>
+              <option value="free" style={{ background: T.surface }}>Free plan only</option>
+              <option value="paid" style={{ background: T.surface }}>Paid plans only</option>
+              <option value="admin" style={{ background: T.surface }}>Admins only</option>
+            </select>
+
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 6 }}>Subject</label>
+            <input value={bcastSubject} onChange={e => setBcastSubject(e.target.value)} placeholder="Important update from VRIKAAN" style={{ ...sty.input, marginBottom: 14 }} />
+
+            <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 6 }}>Message</label>
+            <textarea
+              value={bcastMessage}
+              onChange={e => setBcastMessage(e.target.value)}
+              placeholder="Hi {{to_name}},&#10;&#10;Write your announcement here..."
+              rows={10}
+              style={{ ...sty.input, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, resize: "vertical", marginBottom: 16, lineHeight: 1.6 }}
+            />
+
+            <div style={{
+              padding: "10px 14px", borderRadius: 8,
+              background: "rgba(234,179,8,0.08)",
+              border: "1px solid rgba(234,179,8,0.2)",
+              fontSize: 12, color: T.gold, marginBottom: 16, lineHeight: 1.6,
+            }}>
+              ⚠ This will send <strong>{targetCount}</strong> emails. Estimated time: {Math.ceil(targetCount * 0.25)}s.
+              EmailJS free tier caps at 200/month — check usage before broadcasting.
+            </div>
+
+            <button
+              onClick={handleBroadcast}
+              disabled={bcastSending || !bcastSubject.trim() || !bcastMessage.trim() || targetCount === 0}
+              style={{ ...sty.btn(`linear-gradient(135deg, ${T.accent}, ${T.cyan})`), width: "100%", padding: "14px", justifyContent: "center", fontSize: 14, opacity: (bcastSending || targetCount === 0) ? 0.5 : 1, cursor: bcastSending ? "wait" : "pointer" }}
+            >
+              <HiOutlineSpeakerphone size={16} />
+              {bcastSending ? `Sending to ${targetCount}...` : `Send to ${targetCount} users`}
+            </button>
+          </AniCard>
+        </div>
+      </AniTab>
+    );
+  };
+
+  const renderAudit = () => (
+    <AniTab>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ fontSize: 12, color: T.muted }}>
+            {auditEntries.length} entries · last {AUDIT_MAX} actions kept · stored locally
+          </div>
+          <button
+            onClick={() => { localStorage.removeItem(AUDIT_KEY); setAuditEntries([]); toast?.success?.("Audit log cleared"); }}
+            disabled={auditEntries.length === 0}
+            className="adm-btn"
+            style={{ ...sty.btn(T.red + "18", T.red), opacity: auditEntries.length === 0 ? 0.4 : 1 }}
+          >
+            <HiOutlineTrash size={14} /> Clear Log
+          </button>
+        </div>
+
+        <div style={{ ...sty.card, padding: 0, overflow: "hidden" }}>
+          {auditEntries.length === 0 ? (
+            <Empty msg="No admin actions logged yet. Audit log captures plan changes, deletions, broadcasts, and bulk updates." />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
+                <thead><tr>{["When", "Actor", "Action", "Target", "Details"].map(h => <th key={h} style={sty.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {auditEntries.map((a) => (
+                    <tr key={a.id}>
+                      <td style={{ ...sty.td, color: T.muted, fontSize: 12, whiteSpace: "nowrap" }}>{relTime(a.ts)}</td>
+                      <td style={{ ...sty.td, fontSize: 12 }}>{a.actor}</td>
+                      <td style={sty.td}><span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: `${T.accent}18`, color: T.accent, fontFamily: "'JetBrains Mono', monospace" }}>{a.action}</span></td>
+                      <td style={{ ...sty.td, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: T.muted }}>{(a.target || "").slice(0, 24)}</td>
+                      <td style={{ ...sty.td, fontSize: 11, color: T.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {Object.keys(a.meta || {}).length > 0 ? JSON.stringify(a.meta).slice(0, 80) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </AniTab>
+  );
+
   const renderSettings = () => (
     <AniTab>
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 600 }}>
@@ -579,6 +912,8 @@ export default function AdminDashboard() {
         @keyframes glow { 0%,100% { box-shadow:0 0 5px rgba(99,102,241,0.3) } 50% { box-shadow:0 0 20px rgba(99,102,241,0.6) } }
         @keyframes gradientShift { 0% { background-position:0% 50% } 50% { background-position:100% 50% } 100% { background-position:0% 50% } }
         @keyframes float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-5px) } }
+        @keyframes pulseDot { 0%,100% { transform:scale(1); opacity:1 } 50% { transform:scale(1.4); opacity:0.6 } }
+        @keyframes slideInRight { from { transform:translateX(100%) } to { transform:translateX(0) } }
         .adm-side-link { transition: all 0.2s ease !important }
         .adm-side-link:hover { background: rgba(99,102,241,0.08) !important; transform: translateX(4px) }
         .adm-side-link.active { background: rgba(99,102,241,0.15) !important; color: ${T.cyan} !important; border-left: 3px solid ${T.cyan} !important }
@@ -674,9 +1009,25 @@ export default function AdminDashboard() {
                 <span className="adm-gradient-text">{TABS.find(t => t.id === tab)?.label}</span>
               </h1>
             </div>
-            <button onClick={fetchData} disabled={loading} style={{ ...sty.btn(T.surface, T.cyan), border: `1px solid ${T.border}`, opacity: loading ? 0.5 : 1 }}>
-              <HiOutlineRefresh size={14} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />{loading ? "Loading..." : "Refresh"}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {/* Auto-refresh toggle */}
+              <button
+                onClick={() => setAutoRefresh(v => !v)}
+                title={autoRefresh ? "Auto-refresh ON (every 60s)" : "Auto-refresh OFF"}
+                style={{ ...sty.btn(autoRefresh ? T.green + "18" : "rgba(148,163,184,0.08)", autoRefresh ? T.green : T.muted), border: `1px solid ${T.border}` }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: autoRefresh ? T.green : T.muted, animation: autoRefresh ? "pulseDot 1.4s infinite" : "none" }} />
+                Live
+              </button>
+              {lastUpdated && (
+                <span style={{ fontSize: 11, color: T.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {relTime(lastUpdated)}
+                </span>
+              )}
+              <button onClick={fetchData} disabled={loading} style={{ ...sty.btn(T.surface, T.cyan), border: `1px solid ${T.border}`, opacity: loading ? 0.5 : 1 }}>
+                <HiOutlineRefresh size={14} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />{loading ? "Loading..." : "Refresh"}
+              </button>
+            </div>
           </div>
 
           {loading ? <Spinner /> : (
@@ -684,10 +1035,117 @@ export default function AdminDashboard() {
               {tab === "dashboard" && renderDashboard()}
               {tab === "users" && renderUsers()}
               {tab === "payments" && renderPayments()}
+              {tab === "broadcast" && renderBroadcast()}
+              {tab === "audit" && renderAudit()}
               {tab === "settings" && renderSettings()}
             </>
           )}
         </main>
+
+        {/* User Detail Drawer */}
+        {detailUser && (
+          <>
+            <div onClick={() => setDetailUser(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", zIndex: 99, animation: "fadeIn 0.2s ease" }} />
+            <aside style={{
+              position: "fixed", top: 0, right: 0, bottom: 0,
+              width: "min(480px, 100vw)",
+              background: T.bg, borderLeft: `1px solid ${T.border}`,
+              boxShadow: "-12px 0 40px rgba(0,0,0,0.5)",
+              zIndex: 100, overflowY: "auto",
+              animation: "slideInRight 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+            }}>
+              <div style={{ padding: "20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>User Details</h3>
+                <button onClick={() => setDetailUser(null)} style={{ background: "transparent", border: "none", color: T.muted, cursor: "pointer", padding: 4 }}>
+                  <HiOutlineX size={20} />
+                </button>
+              </div>
+
+              <div style={{ padding: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+                  <Avatar name={detailUser.name} photo={detailUser.avatar || detailUser.photoURL} size={56} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>{detailUser.name || "Unnamed"}</div>
+                    <div style={{ fontSize: 12, color: T.muted, fontFamily: "'JetBrains Mono', monospace", wordBreak: "break-all" }}>{detailUser.email}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+                  {[
+                    { label: "Plan", value: (detailUser.plan || "free").toUpperCase(), color: T.cyan },
+                    { label: "Role", value: (detailUser.role || "user").toUpperCase(), color: detailUser.role === "admin" ? T.gold : T.muted },
+                    { label: "Provider", value: detailUser.provider || "email", color: T.accent },
+                    { label: "Joined", value: relTime(detailUser.createdAt), color: T.white },
+                    { label: "Last Active", value: relTime(detailUser.updatedAt), color: T.green },
+                    { label: "Phone", value: detailUser.phoneNumber || detailUser.phone || "—", color: T.white },
+                  ].map((f) => (
+                    <div key={f.label} style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(15,23,42,0.5)", border: `1px solid ${T.border}` }}>
+                      <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{f.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: f.color, marginTop: 3 }}>{f.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Payments for this user */}
+                <div style={{ fontSize: 12, color: T.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Payment History</div>
+                <div style={{ marginBottom: 20 }}>
+                  {(() => {
+                    const userPayments = payments.filter(p => p.userEmail === detailUser.email);
+                    if (userPayments.length === 0) return <div style={{ fontSize: 12, color: T.muted, padding: 12, textAlign: "center", border: `1px dashed ${T.border}`, borderRadius: 8 }}>No payments yet</div>;
+                    return userPayments.slice(0, 5).map((p, i) => (
+                      <div key={p.docId || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: 8, background: "rgba(15,23,42,0.5)", border: `1px solid ${T.border}`, marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: T.white }}>{(p.plan || "?").toUpperCase()}</div>
+                          <div style={{ fontSize: 10, color: T.muted }}>{relTime(p.date)}</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: T.gold, fontFamily: "'JetBrains Mono', monospace" }}>{formatINR(p.amount)}</div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    onClick={() => { setBcastFilter("all"); setBcastSubject(""); setBcastMessage(`Hi ${detailUser.name || "there"},\n\n`); setTab("broadcast"); setDetailUser(null); }}
+                    style={{ ...sty.btn(T.cyan + "18", T.cyan), justifyContent: "center", padding: "12px" }}
+                  >
+                    <HiOutlineMail size={16} /> Compose email
+                  </button>
+                  <button
+                    onClick={() => { handleDeleteUser(detailUser.uid); setDetailUser(null); }}
+                    style={{ ...sty.btn(T.red + "18", T.red), justifyContent: "center", padding: "12px" }}
+                  >
+                    <HiOutlineTrash size={16} /> Delete user
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </>
+        )}
+
+        {/* Bulk Plan Change Modal */}
+        {showBulkPlanModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "fadeIn 0.2s ease" }}>
+            <div style={{ ...sty.card, maxWidth: 420, width: "90%", animation: "scaleIn 0.3s ease both" }}>
+              <h3 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk'" }}>
+                Change plan for {selectedUserIds.length} users
+              </h3>
+              <p style={{ fontSize: 12, color: T.muted, marginBottom: 16, lineHeight: 1.6 }}>
+                This will overwrite the plan field on every selected user. Audit log will record the change.
+              </p>
+              <label style={{ fontSize: 12, color: T.muted, display: "block", marginBottom: 6 }}>New plan</label>
+              <select value={bulkNewPlan} onChange={e => setBulkNewPlan(e.target.value)} style={{ ...sty.input, marginBottom: 16 }}>
+                {["free", "starter", "pro", "enterprise"].map(p => <option key={p} value={p} style={{ background: T.surface }}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button onClick={() => setShowBulkPlanModal(false)} style={sty.btn("rgba(148,163,184,0.12)", T.muted)}>Cancel</button>
+                <button onClick={handleBulkPlan} style={sty.btn(T.accent)}>Apply</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
