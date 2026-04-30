@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { doc, updateDoc, collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { sendPaymentConfirmation } from "../../services/emailService";
+import { downloadInvoice, makeInvoiceNumber } from "../../services/invoiceService";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
@@ -155,6 +156,7 @@ export default function Checkout() {
   const [errors, setErrors] = useState({});
   const [showAdmin, setShowAdmin] = useState(false);
   const [activePlan, setActivePlan] = useState(null);
+  const [invoiceData, setInvoiceData] = useState(null);
 
   // UPI state
   const [upiTxnId, setUpiTxnId] = useState("");
@@ -191,7 +193,7 @@ export default function Checkout() {
   const normalizedPlanKey = PLAN_MAP[planKey] || "pro";
   const hasActivePlan = activePlan && activePlan === normalizedPlanKey;
 
-  const handlePaymentSuccess = useCallback((verifiedPlan, amount) => {
+  const handlePaymentSuccess = useCallback((verifiedPlan, amount, txnId) => {
     updatePlan(verifiedPlan || planKey);
     const creditData = JSON.parse(localStorage.getItem("vrikaan_ai_credits") || "{}");
     creditData.plan = verifiedPlan === "pro" ? "pro" : verifiedPlan === "enterprise" ? "unlimited" : "starter";
@@ -200,14 +202,28 @@ export default function Checkout() {
     // Send payment confirmation email
     const name = user?.displayName || user?.name || "User";
     const email = user?.email;
+    const finalAmount = amount || price;
+    const orderId = txnId || params.get("order_id") || `manual_${Date.now()}`;
     if (email) {
-      sendPaymentConfirmation(name, email, verifiedPlan || planKey, amount || price, billing);
+      sendPaymentConfirmation(name, email, verifiedPlan || planKey, finalAmount, billing);
     }
+    // Build invoice data for the success screen
+    setInvoiceData({
+      invoiceNumber: makeInvoiceNumber(orderId),
+      customerName: name,
+      customerEmail: email || "",
+      plan: (plans[verifiedPlan]?.name) || plan.name,
+      billing,
+      amount: finalAmount,
+      transactionId: orderId,
+      paidAt: new Date(),
+      method: method === "upi" ? "UPI Direct" : method === "crypto" ? `Crypto (${cryptoCoin?.toUpperCase()})` : "Cashfree",
+    });
     setProcessing(false);
     setVerifying(false);
     setSuccess(true);
-    setTimeout(() => navigate("/dashboard"), 3000);
-  }, [planKey, billing, price, user, updatePlan, navigate]);
+    setTimeout(() => navigate("/dashboard"), 8000);
+  }, [planKey, billing, price, user, updatePlan, navigate, params, plan.name, method, cryptoCoin]);
 
   // Handle Cashfree redirect — verify server-side, then update Firestore
   const verifyAttempted = useRef(false);
@@ -448,11 +464,27 @@ export default function Checkout() {
             <p style={{ fontSize: 14, color: T.muted, marginBottom: 24 }}>
               Your account has been upgraded. All features are now unlocked.
             </p>
+            {invoiceData && (
+              <button
+                type="button"
+                onClick={() => downloadInvoice(invoiceData)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px",
+                  background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`,
+                  border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700,
+                  cursor: "pointer", marginBottom: 16, fontFamily: "'Space Grotesk', sans-serif",
+                  boxShadow: "0 4px 16px rgba(99,102,241,0.3)",
+                }}
+              >
+                ⬇ Download Invoice (PDF)
+              </button>
+            )}
             <div style={{
-              display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px",
+              display: "flex", flexDirection: "column", gap: 8,
+              padding: "10px 20px",
               background: "rgba(99,102,241,0.1)", borderRadius: 8, border: `1px solid rgba(99,102,241,0.2)`,
             }}>
-              <span style={{ fontSize: 13, color: T.muted }}>Redirecting to dashboard in 3 seconds...</span>
+              <span style={{ fontSize: 13, color: T.muted }}>Redirecting to dashboard in 8 seconds...</span>
             </div>
           </div>
         </div>
