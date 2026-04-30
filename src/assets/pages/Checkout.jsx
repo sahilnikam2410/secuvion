@@ -1063,7 +1063,15 @@ export default function Checkout() {
         @media (max-width: 768px) {
           .checkout-grid {
             grid-template-columns: 1fr !important;
+            gap: 20px !important;
+            padding: 16px 14px 32px !important;
           }
+          /* Cashfree tiles: 2 cols on phone instead of 4 */
+          .checkout-grid > div > div > div[style*="repeat(4, 1fr)"] {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          h2 { font-size: 22px !important; }
+          h3 { font-size: 16px !important; }
         }
       `}</style>
     </div>

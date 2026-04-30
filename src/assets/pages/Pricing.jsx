@@ -562,7 +562,9 @@ export default function Pricing() {
 
       <style>{`
         @media (max-width: 768px) {
-          .resp-grid-3 { grid-template-columns: 1fr !important; }
+          .resp-grid-3 { grid-template-columns: 1fr !important; gap: 16px !important; }
+          h1 { font-size: 36px !important; line-height: 1.15 !important; }
+          h2 { font-size: 22px !important; }
         }
         @media (max-width: 900px) and (min-width: 769px) {
           .resp-grid-3 { grid-template-columns: 1fr 1fr !important; }

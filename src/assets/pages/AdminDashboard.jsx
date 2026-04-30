@@ -104,7 +104,15 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const [tab, setTab] = useState("dashboard");
-  const [sideOpen, setSideOpen] = useState(window.innerWidth > 768);
+  const [viewport, setViewport] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+  useEffect(() => {
+    const onResize = () => setViewport(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const isMobile = viewport < 768;
+  const isTablet = viewport >= 768 && viewport < 1024;
+  const [sideOpen, setSideOpen] = useState(viewport > 768);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -618,7 +626,7 @@ export default function AdminDashboard() {
           <nav className="adm-side-nav" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, padding: "0 10px", overflowY: "auto" }}>
             <p style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1.5, padding: "0 4px", margin: "4px 0 4px" }}>Admin</p>
             {TABS.map((t, i) => (
-              <button key={t.id} className={`adm-side-link ${tab === t.id ? "active" : ""}`} onClick={() => { setTab(t.id); if (window.innerWidth < 768) setSideOpen(false); }}
+              <button key={t.id} className={`adm-side-link ${tab === t.id ? "active" : ""}`} onClick={() => { setTab(t.id); if (isMobile) setSideOpen(false); }}
                 style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", border: "none", background: "transparent", color: tab === t.id ? T.cyan : T.muted, fontSize: 13, fontWeight: 500, cursor: "pointer", borderRadius: 8, textAlign: "left", fontFamily: "'Plus Jakarta Sans', sans-serif", width: "100%", animation: `slideInLeft 0.3s ease ${i * 0.05}s both` }}>
                 <t.icon size={18} />{t.label}
               </button>
@@ -626,7 +634,7 @@ export default function AdminDashboard() {
             <div style={{ height: 1, background: T.border, margin: "8px 4px" }} />
             <p style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1.5, padding: "0 4px", margin: "4px 0 4px" }}>Tools & Features</p>
             {TOOL_LINKS.map((t, i) => (
-              <button key={t.path} className="adm-tool-link" onClick={() => { navigate(t.path); if (window.innerWidth < 768) setSideOpen(false); }}
+              <button key={t.path} className="adm-tool-link" onClick={() => { navigate(t.path); if (isMobile) setSideOpen(false); }}
                 style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", border: "none", background: "transparent", color: T.muted, fontSize: 12, fontWeight: 400, cursor: "pointer", borderRadius: 8, textAlign: "left", fontFamily: "'Plus Jakarta Sans', sans-serif", width: "100%", animation: `slideInLeft 0.3s ease ${0.2 + i * 0.03}s both` }}>
                 <t.icon size={16} />{t.label}
               </button>
@@ -648,10 +656,17 @@ export default function AdminDashboard() {
         </aside>
 
         {/* Overlay for mobile */}
-        {sideOpen && window.innerWidth < 768 && <div onClick={() => setSideOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />}
+        {sideOpen && isMobile && <div onClick={() => setSideOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />}
 
         {/* Main */}
-        <main style={{ flex: 1, marginLeft: sideOpen && window.innerWidth >= 768 ? 240 : 0, transition: "margin 0.25s", padding: "24px", minHeight: "100vh" }}>
+        <main style={{
+          flex: 1,
+          marginLeft: sideOpen && !isMobile ? 240 : 0,
+          transition: "margin 0.25s",
+          padding: isMobile ? "16px 12px" : isTablet ? "20px 18px" : "24px",
+          minHeight: "100vh",
+          minWidth: 0,
+        }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {!sideOpen && <button onClick={() => setSideOpen(true)} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", display: "flex" }}><HiOutlineMenu size={22} /></button>}
