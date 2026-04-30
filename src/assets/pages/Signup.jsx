@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "../../firebase/config";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import Navbar from "../../components/Navbar";
 import SEO from "../../components/SEO";
+
+// Cloudflare Turnstile site key — set VITE_TURNSTILE_SITE_KEY in Vercel.
+// When unset the CAPTCHA gate is bypassed (useful for local dev).
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 
 const styles = {
   page: {
@@ -139,6 +143,46 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captchaContainerRef = useRef(null);
+  const captchaWidgetIdRef = useRef(null);
+
+  // Load Turnstile script + render widget when site key is configured
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    let widgetId = null;
+    const renderWidget = () => {
+      if (!window.turnstile || !captchaContainerRef.current || captchaWidgetIdRef.current) return;
+      widgetId = window.turnstile.render(captchaContainerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: "dark",
+        callback: (token) => setCaptchaToken(token),
+        "expired-callback": () => setCaptchaToken(""),
+        "error-callback": () => setCaptchaToken(""),
+      });
+      captchaWidgetIdRef.current = widgetId;
+    };
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const existing = document.querySelector("script[data-turnstile]");
+      if (!existing) {
+        const s = document.createElement("script");
+        s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        s.async = true; s.defer = true;
+        s.dataset.turnstile = "1";
+        s.onload = renderWidget;
+        document.head.appendChild(s);
+      } else {
+        existing.addEventListener("load", renderWidget);
+      }
+    }
+    return () => {
+      if (window.turnstile && widgetId) {
+        try { window.turnstile.remove(widgetId); } catch { /* ignore */ }
+      }
+    };
+  }, []);
 
   const strength = getStrength(form.password);
 
@@ -238,6 +282,11 @@ export default function Signup() {
     }
     if (!agreedToTerms) {
       setError("You must agree to the Terms of Service and Privacy Policy.");
+      return;
+    }
+    // CAPTCHA gate — only enforced when site key configured
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Please complete the CAPTCHA to verify you're human.");
       return;
     }
 
@@ -517,15 +566,22 @@ export default function Signup() {
             </label>
           </div>
 
+          {/* Cloudflare Turnstile CAPTCHA — only renders when site key is configured */}
+          {TURNSTILE_SITE_KEY && (
+            <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+              <div ref={captchaContainerRef} />
+            </div>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"
             style={{
               ...styles.btn,
-              opacity: loading ? 0.7 : 1,
+              opacity: loading || (TURNSTILE_SITE_KEY && !captchaToken) ? 0.7 : 1,
               cursor: loading ? "not-allowed" : "pointer",
             }}
-            disabled={loading}
+            disabled={loading || (TURNSTILE_SITE_KEY && !captchaToken)}
           >
             {loading ? "Creating Account..." : "Create Account"}
           </button>

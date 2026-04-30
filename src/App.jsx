@@ -10,6 +10,7 @@ import JungleLoader from "./components/JungleLoader.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import CookieConsent from "./components/CookieConsent.jsx";
 import PWAInstallPrompt from "./components/PWAInstallPrompt.jsx";
+import CommandPalette from "./components/CommandPalette.jsx";
 
 /* ── Skeleton Loader ── */
 const T = { bg: "#030712", card: "rgba(17,24,39,0.6)", border: "rgba(148,163,184,0.08)", accent: "#6366f1", cyan: "#14e3c5" };
@@ -255,6 +256,7 @@ function App() {
     <AuthProvider>
       <Router>
         <AppRoutes />
+        <CommandPalette />
         <CookieConsent />
         <PWAInstallPrompt />
       </Router>
