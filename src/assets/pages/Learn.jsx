@@ -215,7 +215,7 @@ const kbModules = [
 ];
 
 // ─── Helpers ───
-const STORAGE_KEY = "secuvion_learn_progress";
+const STORAGE_KEY = "vrikaan_learn_progress";
 
 function getProgress() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -226,14 +226,14 @@ function saveProgress(data) {
 }
 
 function getCertificates() {
-  try { return JSON.parse(localStorage.getItem("secuvion_certificates")) || []; } catch { return []; }
+  try { return JSON.parse(localStorage.getItem("vrikaan_certificates")) || []; } catch { return []; }
 }
 
 function saveCertificate(cert) {
   const certs = getCertificates();
   if (!certs.find(c => c.courseId === cert.courseId)) {
     certs.push(cert);
-    localStorage.setItem("secuvion_certificates", JSON.stringify(certs));
+    localStorage.setItem("vrikaan_certificates", JSON.stringify(certs));
   }
 }
 

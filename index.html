@@ -55,8 +55,8 @@
         });
 
         function loadAnalytics() {
-          if (window.__secuvionAnalyticsLoaded) return;
-          window.__secuvionAnalyticsLoaded = true;
+          if (window.__vrikaanAnalyticsLoaded) return;
+          window.__vrikaanAnalyticsLoaded = true;
 
           // GA4
           var ga = document.createElement('script');
@@ -75,12 +75,12 @@
         }
 
         try {
-          var consent = JSON.parse(localStorage.getItem('secuvion_consent_v2') || 'null');
+          var consent = JSON.parse(localStorage.getItem('vrikaan_consent_v2') || 'null');
           if (consent && consent.analytics) loadAnalytics();
         } catch (e) { /* ignore */ }
 
         // React CookieConsent fires this event after user decision
-        window.addEventListener('secuvion:consent-updated', function (e) {
+        window.addEventListener('vrikaan:consent-updated', function (e) {
           if (e && e.detail && e.detail.analytics) loadAnalytics();
         });
       })();

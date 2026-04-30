@@ -12,7 +12,7 @@ const sty = {
   input: { width: "100%", padding: "10px 14px", background: "rgba(15,23,42,0.6)", border: `1px solid ${T.border}`, borderRadius: 8, color: T.white, fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "'Plus Jakarta Sans'" },
 };
 
-const STORAGE_KEY = "secuvion_vault";
+const STORAGE_KEY = "vrikaan_vault";
 
 const CATEGORIES = ["All", "Social", "Finance", "Work", "Entertainment", "Other"];
 const SORT_OPTIONS = ["Name", "Date Added", "Strength"];

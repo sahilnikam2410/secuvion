@@ -7,7 +7,7 @@
  *   { id, msg, time, color, icon, read, toast?: boolean }
  */
 
-const STORAGE_KEY = (uid) => `secuvion_notifications_${uid || "guest"}`;
+const STORAGE_KEY = (uid) => `vrikaan_notifications_${uid || "guest"}`;
 const MAX_STORED = 50;
 const listeners = new Set();
 

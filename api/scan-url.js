@@ -54,7 +54,7 @@ export default async function handler(req, res) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              client: { clientId: "secuvion", clientVersion: "1.0" },
+              client: { clientId: "vrikaan", clientVersion: "1.0" },
               threatInfo: {
                 threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
                 platformTypes: ["ANY_PLATFORM"],

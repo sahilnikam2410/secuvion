@@ -9,13 +9,13 @@ export function useTheme() {
 export function ThemeProvider({ children }) {
   const [mode, setMode] = useState(() => {
     try {
-      return localStorage.getItem("secuvion_theme") || "dark";
+      return localStorage.getItem("vrikaan_theme") || "dark";
     } catch { return "dark"; }
   });
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", mode);
-    localStorage.setItem("secuvion_theme", mode);
+    localStorage.setItem("vrikaan_theme", mode);
   }, [mode]);
 
   const toggleTheme = () => setMode(m => m === "dark" ? "light" : "dark");

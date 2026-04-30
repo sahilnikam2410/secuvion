@@ -219,7 +219,7 @@ export default function IPLookup() {
   // Load history from localStorage
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("secuvion_ip_history") || "[]");
+      const saved = JSON.parse(localStorage.getItem("vrikaan_ip_history") || "[]");
       setHistory(saved);
     } catch { /* ignore */ }
   }, []);
@@ -227,7 +227,7 @@ export default function IPLookup() {
   const saveHistory = (entry) => {
     const updated = [entry, ...history.filter(h => h.query !== entry.query)].slice(0, 10);
     setHistory(updated);
-    try { localStorage.setItem("secuvion_ip_history", JSON.stringify(updated)); } catch { /* ignore */ }
+    try { localStorage.setItem("vrikaan_ip_history", JSON.stringify(updated)); } catch { /* ignore */ }
   };
 
   const performLookup = async (target) => {
@@ -300,7 +300,7 @@ export default function IPLookup() {
 
   const clearHistory = () => {
     setHistory([]);
-    try { localStorage.removeItem("secuvion_ip_history"); } catch { /* ignore */ }
+    try { localStorage.removeItem("vrikaan_ip_history"); } catch { /* ignore */ }
   };
 
   const dots = ".".repeat(dotCount);

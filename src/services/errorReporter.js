@@ -116,7 +116,7 @@ async function flush() {
   const envelopeHeader = {
     event_id: event.event_id,
     sent_at: new Date().toISOString(),
-    sdk: { name: "secuvion.errorReporter", version: "1.0.0" },
+    sdk: { name: "vrikaan.errorReporter", version: "1.0.0" },
   };
   const itemHeader = { type: "event" };
   const body = [
@@ -130,7 +130,7 @@ async function flush() {
       method: "POST",
       headers: {
         "Content-Type": "application/x-sentry-envelope",
-        "X-Sentry-Auth": `Sentry sentry_version=7, sentry_key=${parsed.publicKey}, sentry_client=secuvion.errorReporter/1.0`,
+        "X-Sentry-Auth": `Sentry sentry_version=7, sentry_key=${parsed.publicKey}, sentry_client=vrikaan.errorReporter/1.0`,
       },
       body,
       keepalive: true,

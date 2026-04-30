@@ -29,7 +29,7 @@ function getUserPlan() {
 function getCredits() {
   const loggedIn = isUserLoggedIn();
   const userPlan = getUserPlan();
-  const data = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "null");
+  const data = JSON.parse(localStorage.getItem("vrikaan_ai_credits") || "null");
   const today = new Date().toDateString();
   // Use actual subscription plan for logged-in users
   const basePlan = loggedIn ? userPlan : "guest";
@@ -38,7 +38,7 @@ function getCredits() {
   // No data exists — create fresh
   if (!data) {
     const d = { plan: basePlan, credits: baseCredits, used: 0, resetDate: today, totalUsed: 0 };
-    localStorage.setItem("secuvion_ai_credits", JSON.stringify(d));
+    localStorage.setItem("vrikaan_ai_credits", JSON.stringify(d));
     return d;
   }
 
@@ -46,20 +46,20 @@ function getCredits() {
   if (!loggedIn && data.plan !== "guest") {
     data.plan = "guest";
     data.used = Math.min(data.used, PLANS.guest.credits);
-    localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
+    localStorage.setItem("vrikaan_ai_credits", JSON.stringify(data));
   }
 
   // Logged in — sync plan from Firestore subscription
   if (loggedIn && data.plan !== basePlan) {
     data.plan = basePlan;
-    localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
+    localStorage.setItem("vrikaan_ai_credits", JSON.stringify(data));
   }
 
   // Daily reset for guest/free plans
   if ((data.plan === "free" || data.plan === "guest") && data.resetDate !== today) {
     data.used = 0;
     data.resetDate = today;
-    localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
+    localStorage.setItem("vrikaan_ai_credits", JSON.stringify(data));
   }
 
   return data;
@@ -72,7 +72,7 @@ function useCredit() {
   if (remaining <= 0 && data.plan !== "unlimited") return false;
   data.used += 1;
   data.totalUsed = (data.totalUsed || 0) + 1;
-  localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
+  localStorage.setItem("vrikaan_ai_credits", JSON.stringify(data));
   return true;
 }
 
@@ -88,7 +88,7 @@ function upgradePlan(planKey) {
   data.plan = planKey;
   data.used = 0;
   data.resetDate = new Date().toDateString();
-  localStorage.setItem("secuvion_ai_credits", JSON.stringify(data));
+  localStorage.setItem("vrikaan_ai_credits", JSON.stringify(data));
 }
 
 // ─── AI Engine — calls server-side /api/chat (key stays server-side) ───

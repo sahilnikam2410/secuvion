@@ -163,9 +163,9 @@ export default function Checkout() {
   const [cryptoTxHash, setCryptoTxHash] = useState("");
   // Admin config state
   const [adminConfig, setAdminConfig] = useState({
-    upiId: localStorage.getItem("secuvion_upi_id") || "secuvion@ptyes",
-    btcAddress: localStorage.getItem("secuvion_btc_address") || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    ethAddress: localStorage.getItem("secuvion_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    upiId: localStorage.getItem("vrikaan_upi_id") || "vrikaan@upi",
+    btcAddress: localStorage.getItem("vrikaan_btc_address") || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    ethAddress: localStorage.getItem("vrikaan_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
   });
 
   const EDU_RE = /\.(edu|ac\.in|edu\.in|ac\.uk|edu\.au|edu\.ng)$/i;
@@ -176,9 +176,9 @@ export default function Checkout() {
   const price = studentDiscount ? Math.round(basePrice * 0.5) : basePrice;
   const savings = billing === "annual" ? (plan.price * 12 - plan.annual) : 0;
 
-  const merchantUpiId = localStorage.getItem("secuvion_upi_id") || "secuvion@ptyes";
-  const btcAddress = localStorage.getItem("secuvion_btc_address") || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
-  const ethAddress = localStorage.getItem("secuvion_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
+  const merchantUpiId = localStorage.getItem("vrikaan_upi_id") || "vrikaan@upi";
+  const btcAddress = localStorage.getItem("vrikaan_btc_address") || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
+  const ethAddress = localStorage.getItem("vrikaan_eth_address") || "0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
 
   // Check if user already has this plan active
   useEffect(() => {
@@ -193,10 +193,10 @@ export default function Checkout() {
 
   const handlePaymentSuccess = useCallback((verifiedPlan, amount) => {
     updatePlan(verifiedPlan || planKey);
-    const creditData = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "{}");
+    const creditData = JSON.parse(localStorage.getItem("vrikaan_ai_credits") || "{}");
     creditData.plan = verifiedPlan === "pro" ? "pro" : verifiedPlan === "enterprise" ? "unlimited" : "starter";
     creditData.used = 0;
-    localStorage.setItem("secuvion_ai_credits", JSON.stringify(creditData));
+    localStorage.setItem("vrikaan_ai_credits", JSON.stringify(creditData));
     // Send payment confirmation email
     const name = user?.displayName || user?.name || "User";
     const email = user?.email;
@@ -275,8 +275,9 @@ export default function Checkout() {
     })();
   }, [params, user, success, handlePaymentSuccess]);
 
-  // Cashfree Checkout handler
-  const handleCashfreeCheckout = async () => {
+  // Cashfree Checkout handler — accepts optional method filter to pre-select payment type
+  // method: "upi" | "card" | "nb" | "wallet" | undefined (all)
+  const handleCashfreeCheckout = async (filterMethod) => {
     setProcessing(true);
     setErrors({});
     try {
@@ -301,10 +302,13 @@ export default function Checkout() {
       }
 
       const cashfree = CashfreeSDK({ mode: data.mode || "sandbox" });
-      cashfree.checkout({
+      const checkoutOpts = {
         paymentSessionId: data.paymentSessionId,
         redirectTarget: "_self",
-      });
+      };
+      // Pre-filter to specific payment method when user clicked a tile
+      if (filterMethod) checkoutOpts.paymentMethods = filterMethod;
+      cashfree.checkout(checkoutOpts);
     } catch (err) {
       setErrors({ cashfree: err.message });
       setProcessing(false);
@@ -337,9 +341,9 @@ export default function Checkout() {
 
   // Admin config save
   const saveAdminConfig = () => {
-    if (adminConfig.upiId) localStorage.setItem("secuvion_upi_id", adminConfig.upiId);
-    if (adminConfig.btcAddress) localStorage.setItem("secuvion_btc_address", adminConfig.btcAddress);
-    if (adminConfig.ethAddress) localStorage.setItem("secuvion_eth_address", adminConfig.ethAddress);
+    if (adminConfig.upiId) localStorage.setItem("vrikaan_upi_id", adminConfig.upiId);
+    if (adminConfig.btcAddress) localStorage.setItem("vrikaan_btc_address", adminConfig.btcAddress);
+    if (adminConfig.ethAddress) localStorage.setItem("vrikaan_eth_address", adminConfig.ethAddress);
     setErrors({ adminSaved: true });
     setTimeout(() => setErrors({}), 2000);
   };
@@ -515,14 +519,19 @@ export default function Checkout() {
             {/* Payment Method Tabs */}
             <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
               {paymentMethods.map((m) => (
-                <button key={m.id} onClick={() => { setMethod(m.id); setErrors({}); }} style={{
-                  padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  background: method === m.id ? "rgba(99,102,241,0.15)" : "rgba(15,23,42,0.4)",
-                  border: method === m.id ? `1.5px solid ${T.accent}` : `1px solid ${T.border}`,
-                  color: method === m.id ? T.white : T.muted,
-                  fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s",
-                  display: "flex", alignItems: "center", gap: 8,
-                }}>
+                <button
+                  type="button"
+                  key={m.id}
+                  onClick={(e) => { e.preventDefault(); setMethod(m.id); setErrors({}); }}
+                  style={{
+                    padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    background: method === m.id ? "rgba(99,102,241,0.15)" : "rgba(15,23,42,0.4)",
+                    border: method === m.id ? `1.5px solid ${T.accent}` : `1px solid ${T.border}`,
+                    color: method === m.id ? T.white : T.muted,
+                    fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s",
+                    display: "flex", alignItems: "center", gap: 8, position: "relative", zIndex: 2,
+                  }}
+                >
                   <span style={{ fontSize: 16 }}>{m.icon}</span> {m.label}
                 </button>
               ))}
@@ -548,18 +557,39 @@ export default function Checkout() {
                   display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24,
                 }}>
                   {[
-                    { label: "UPI", desc: "GPay, PhonePe, Paytm" },
-                    { label: "Cards", desc: "Visa, Mastercard, Rupay" },
-                    { label: "Net Banking", desc: "All major banks" },
-                    { label: "Wallets", desc: "Paytm, Amazon Pay" },
+                    { label: "UPI", desc: "GPay, PhonePe, Paytm", cf: "upi" },
+                    { label: "Cards", desc: "Visa, Mastercard, Rupay", cf: "card" },
+                    { label: "Net Banking", desc: "All major banks", cf: "nb" },
+                    { label: "Wallets", desc: "Paytm, Amazon Pay", cf: "wallet" },
                   ].map((item) => (
-                    <div key={item.label} style={{
-                      padding: "14px 12px", borderRadius: 10, background: "rgba(15,23,42,0.6)",
-                      border: `1px solid ${T.border}`, textAlign: "center",
-                    }}>
+                    <button
+                      type="button"
+                      key={item.label}
+                      onClick={() => { if (!processing && !hasActivePlan) handleCashfreeCheckout(item.cf); }}
+                      disabled={processing || hasActivePlan}
+                      title={`Pay via ${item.label} on Cashfree`}
+                      style={{
+                        padding: "14px 12px", borderRadius: 10, background: "rgba(15,23,42,0.6)",
+                        border: `1px solid ${T.border}`, textAlign: "center",
+                        cursor: processing || hasActivePlan ? "not-allowed" : "pointer",
+                        opacity: processing || hasActivePlan ? 0.5 : 1,
+                        transition: "all 0.2s", fontFamily: "inherit", color: "inherit",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (processing || hasActivePlan) return;
+                        e.currentTarget.style.background = "rgba(99,102,241,0.12)";
+                        e.currentTarget.style.borderColor = T.accent;
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(15,23,42,0.6)";
+                        e.currentTarget.style.borderColor = T.border;
+                        e.currentTarget.style.transform = "translateY(0)";
+                      }}
+                    >
                       <div style={{ fontSize: 13, fontWeight: 600, color: T.white, marginBottom: 4 }}>{item.label}</div>
                       <div style={{ fontSize: 11, color: T.muted }}>{item.desc}</div>
-                    </div>
+                    </button>
                   ))}
                 </div>
 

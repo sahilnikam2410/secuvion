@@ -44,7 +44,7 @@ const STEPS = [
   },
 ];
 
-const STORAGE_KEY = "secuvion_onboarding_done";
+const STORAGE_KEY = "vrikaan_onboarding_done";
 
 export default function OnboardingTour({ uid, forceShow = false, onClose }) {
   const [open, setOpen] = useState(false);

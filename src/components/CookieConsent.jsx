@@ -6,12 +6,12 @@ const T = {
   cardBg: "rgba(148,163,184,0.03)",
 };
 
-const STORAGE_KEY = "secuvion_consent_v2";
+const STORAGE_KEY = "vrikaan_consent_v2";
 
 // Dispatch to the inline loader in index.html so it can fire GA + Clarity
 function broadcast(consent) {
   try {
-    window.dispatchEvent(new CustomEvent("secuvion:consent-updated", { detail: consent }));
+    window.dispatchEvent(new CustomEvent("vrikaan:consent-updated", { detail: consent }));
   } catch (e) { /* ignore */ }
 }
 
@@ -50,8 +50,8 @@ export default function CookieConsent() {
       <style>{`
         @keyframes cookieSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .secuvion-cc-toggle { position: relative; width: 36px; height: 20px; border-radius: 20px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; padding: 0; }
-        .secuvion-cc-toggle::after { content: ''; position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+        .vrikaan-cc-toggle { position: relative; width: 36px; height: 20px; border-radius: 20px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; padding: 0; }
+        .vrikaan-cc-toggle::after { content: ''; position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }
       `}</style>
       <div
         role="dialog"
@@ -104,7 +104,7 @@ export default function CookieConsent() {
                     type="button"
                     disabled
                     aria-label="Essential cookies always on"
-                    className="secuvion-cc-toggle"
+                    className="vrikaan-cc-toggle"
                     style={{ background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, opacity: 0.6, cursor: "not-allowed" }}
                   >
                     <span style={{ position: "absolute", top: 2, left: 18, width: 16, height: 16, borderRadius: "50%", background: "#fff" }} />
@@ -131,7 +131,7 @@ export default function CookieConsent() {
                     aria-checked={prefs.analytics}
                     aria-label="Toggle analytics cookies"
                     onClick={() => setPrefs(p => ({ ...p, analytics: !p.analytics }))}
-                    className="secuvion-cc-toggle"
+                    className="vrikaan-cc-toggle"
                     style={{ background: prefs.analytics ? `linear-gradient(135deg, ${T.accent}, ${T.cyan})` : "rgba(148,163,184,0.2)" }}
                   >
                     <span style={{ position: "absolute", top: 2, left: prefs.analytics ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />

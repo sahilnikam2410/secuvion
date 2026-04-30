@@ -7,7 +7,7 @@ export default function PWAInstallPrompt() {
 
   useEffect(() => {
     // Don't show if already dismissed or installed
-    if (localStorage.getItem("secuvion_pwa_dismissed")) return;
+    if (localStorage.getItem("vrikaan_pwa_dismissed")) return;
 
     const handler = (e) => {
       e.preventDefault();
@@ -38,7 +38,7 @@ export default function PWAInstallPrompt() {
 
   const dismiss = () => {
     setShow(false);
-    localStorage.setItem("secuvion_pwa_dismissed", "1");
+    localStorage.setItem("vrikaan_pwa_dismissed", "1");
   };
 
   if (!show || installed) return null;

@@ -2222,9 +2222,9 @@ export default function VrikaanApp() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pageReady, setPageReady] = useState(false);
-  const [splashDone, setSplashDone] = useState(() => sessionStorage.getItem("secuvion_splash") === "done");
+  const [splashDone, setSplashDone] = useState(() => sessionStorage.getItem("vrikaan_splash") === "done");
 
-  const handleSplashDone = useCallback(() => { setSplashDone(true); sessionStorage.setItem("secuvion_splash", "done"); }, []);
+  const handleSplashDone = useCallback(() => { setSplashDone(true); sessionStorage.setItem("vrikaan_splash", "done"); }, []);
 
   useEffect(() => { window.scrollTo(0, 0); const t = setTimeout(() => setPageReady(true), splashDone ? 150 : 2500); return () => clearTimeout(t); }, []);
   useEffect(() => { const h = () => setScrolled(window.scrollY > 60); window.addEventListener("scroll", h); return () => window.removeEventListener("scroll", h); }, []);

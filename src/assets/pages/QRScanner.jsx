@@ -324,7 +324,7 @@ export default function QRScanner() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("secuvion_qr_history") || "[]");
+      const saved = JSON.parse(localStorage.getItem("vrikaan_qr_history") || "[]");
       setHistory(saved);
     } catch { /* ignore */ }
   }, []);
@@ -421,7 +421,7 @@ export default function QRScanner() {
         const entry = { url: r.url, hostname: r.hostname, date: r.timestamp, threatLabel: r.threatLabel, threatColor: r.threatColor, riskScore: r.riskScore };
         const newHist = [entry, ...history.filter(h => h.hostname !== r.hostname)].slice(0, 20);
         setHistory(newHist);
-        try { localStorage.setItem("secuvion_qr_history", JSON.stringify(newHist)); } catch { /* ignore */ }
+        try { localStorage.setItem("vrikaan_qr_history", JSON.stringify(newHist)); } catch { /* ignore */ }
         return;
       }
 
@@ -455,7 +455,7 @@ export default function QRScanner() {
 
   const clearHistory = () => {
     setHistory([]);
-    try { localStorage.removeItem("secuvion_qr_history"); } catch { /* ignore */ }
+    try { localStorage.removeItem("vrikaan_qr_history"); } catch { /* ignore */ }
   };
 
   const handleGenerateQR = () => {

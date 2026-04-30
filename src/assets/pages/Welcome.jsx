@@ -327,10 +327,10 @@ export default function Welcome() {
     const img = await generateMemberCertificate(user?.name || "Member", user?.email || "", memberId);
     setCertImage(img);
     // Save to localStorage
-    const certs = JSON.parse(localStorage.getItem("secuvion_member_certs") || "[]");
+    const certs = JSON.parse(localStorage.getItem("vrikaan_member_certs") || "[]");
     if (!certs.find(c => c.email === user?.email)) {
       certs.push({ name: user?.name, email: user?.email, memberId, date: new Date().toISOString() });
-      localStorage.setItem("secuvion_member_certs", JSON.stringify(certs));
+      localStorage.setItem("vrikaan_member_certs", JSON.stringify(certs));
     }
   };
 

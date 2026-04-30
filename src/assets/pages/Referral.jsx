@@ -44,9 +44,9 @@ export default function Referral() {
       } catch (err) {
         console.warn("Referral load error:", err);
         // Fallback to localStorage
-        const stored = localStorage.getItem(`secuvion_referral_${user.uid}`);
+        const stored = localStorage.getItem(`vrikaan_referral_${user.uid}`);
         if (stored) setCode(stored);
-        else { const c = generateCode(user.uid); setCode(c); localStorage.setItem(`secuvion_referral_${user.uid}`, c); }
+        else { const c = generateCode(user.uid); setCode(c); localStorage.setItem(`vrikaan_referral_${user.uid}`, c); }
       }
       setLoading(false);
     })();

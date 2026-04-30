@@ -216,7 +216,7 @@ export default function UserDashboard() {
   const [editingAvatar, setEditingAvatar] = useState(false);
   /* Notification prefs */
   const [notifPrefs, setNotifPrefs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("secuvion_notif_prefs") || "null") || { security: true, updates: true, marketing: false, weekly: true }; }
+    try { return JSON.parse(localStorage.getItem("vrikaan_notif_prefs") || "null") || { security: true, updates: true, marketing: false, weekly: true }; }
     catch { return { security: true, updates: true, marketing: false, weekly: true }; }
   });
   /* Tool history */
@@ -406,7 +406,7 @@ export default function UserDashboard() {
   const saveNotifPrefs = (key) => {
     const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
     setNotifPrefs(updated);
-    localStorage.setItem("secuvion_notif_prefs", JSON.stringify(updated));
+    localStorage.setItem("vrikaan_notif_prefs", JSON.stringify(updated));
     toast("Notification preference updated", "success");
   };
 
@@ -474,7 +474,7 @@ export default function UserDashboard() {
         {[
           { label: "Security Score", value: `${secScore}/100`, color: secScore >= 80 ? T.green : secScore >= 50 ? T.orange : T.red, gradient: `linear-gradient(90deg, ${T.green}, ${T.cyan})` },
           { label: "Plan Status", value: planLabels[userPlan], color: planColors[userPlan], gradient: `linear-gradient(90deg, ${T.accent}, ${T.cyan})` },
-          { label: "AI Credits", value: (() => { const d = JSON.parse(localStorage.getItem("secuvion_ai_credits") || "null"); const plans = { guest: 25, free: 50, starter: 200, pro: 1000, unlimited: Infinity }; const max = plans[userPlan] || plans.free; const used = d?.used || 0; return max === Infinity ? "∞" : `${Math.max(0, max - used)}/${max}`; })(), color: T.accent, gradient: `linear-gradient(90deg, ${T.accent}, #ec4899)` },
+          { label: "AI Credits", value: (() => { const d = JSON.parse(localStorage.getItem("vrikaan_ai_credits") || "null"); const plans = { guest: 25, free: 50, starter: 200, pro: 1000, unlimited: Infinity }; const max = plans[userPlan] || plans.free; const used = d?.used || 0; return max === Infinity ? "∞" : `${Math.max(0, max - used)}/${max}`; })(), color: T.accent, gradient: `linear-gradient(90deg, ${T.accent}, #ec4899)` },
           { label: "Active Devices", value: `${devices.length}/${deviceLimit === Infinity ? "∞" : deviceLimit}`, color: T.cyan, gradient: `linear-gradient(90deg, ${T.cyan}, ${T.green})` },
           { label: "Account Age", value: calcAccountAge(user?.createdAt), color: T.accent, gradient: `linear-gradient(90deg, ${T.orange}, ${T.accent})` },
         ].map((s, i) => (

@@ -1,5 +1,5 @@
-const CACHE_NAME = "vrikaan-v5";
-const STATIC_CACHE = "vrikaan-static-v5";
+const CACHE_NAME = "vrikaan-v6";
+const STATIC_CACHE = "vrikaan-static-v6";
 const PRECACHE_URLS = ["/", "/index.html", "/favicon.svg", "/manifest.json", "/offline.html", "/wolf-mark.png", "/wolf-icon.png"];
 
 // Install: precache essential files
