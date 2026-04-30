@@ -9,6 +9,25 @@ import "./styles/global.css";
 import "./styles/animations.css";
 import "./styles/responsive.css";
 
+// One-time migration: secuvion_* → vrikaan_* (post-rebrand, runs once per browser)
+(function migrateLocalStorage() {
+  try {
+    if (localStorage.getItem("vrikaan_migrated_v1")) return;
+    const oldKeys = Object.keys(localStorage).filter((k) => k.startsWith("secuvion_") || k.startsWith("secuvion:"));
+    oldKeys.forEach((oldKey) => {
+      const newKey = oldKey.startsWith("secuvion:")
+        ? oldKey.replace(/^secuvion:/, "vrikaan:")
+        : oldKey.replace(/^secuvion_/, "vrikaan_");
+      const value = localStorage.getItem(oldKey);
+      if (value !== null && localStorage.getItem(newKey) === null) {
+        localStorage.setItem(newKey, value);
+      }
+      localStorage.removeItem(oldKey);
+    });
+    localStorage.setItem("vrikaan_migrated_v1", "1");
+  } catch (e) { /* noop */ }
+})();
+
 inject();
 injectSpeedInsights();
 installGlobalHandlers();
