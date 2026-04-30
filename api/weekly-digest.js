@@ -138,6 +138,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Firebase env vars missing" });
   }
 
+  // Hobby plan caps cron to daily, so we run daily but only execute on Monday.
+  // Pass ?force=1 to bypass for manual testing.
+  const isMonday = new Date().getUTCDay() === 1;
+  const force = String(req.query?.force || "") === "1";
+  if (!isMonday && !force) {
+    return res.status(200).json({ skipped: true, reason: "not Monday UTC" });
+  }
+
   try {
     const users = await fetchOptedInUsers(projectId, apiKey);
     const weekIdx = weekOfYear(new Date());
