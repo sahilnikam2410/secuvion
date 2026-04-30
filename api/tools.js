@@ -479,6 +479,154 @@ async function handleBreachCheck(req, res) {
   }
 }
 
+// ─── PASSWORD CHECK (HIBP k-anonymity range) ───────────────────────
+
+async function handlePasswordCheck(req, res) {
+  res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate");
+  const { hash } = req.body || {};
+  if (!hash || typeof hash !== "string" || !/^[a-fA-F0-9]{5}$/.test(hash)) {
+    return res.status(400).json({ error: "Invalid hash prefix. Send exactly 5 hex characters." });
+  }
+  try {
+    const response = await fetch(
+      `https://api.pwnedpasswords.com/range/${hash.toUpperCase()}`,
+      { headers: { "User-Agent": "VRIKAAN/1.0" } }
+    );
+    if (!response.ok) throw new Error(`HIBP API returned ${response.status}`);
+    const text = await response.text();
+    return res.status(200).send(text);
+  } catch {
+    return res.status(502).json({ error: "Password check service temporarily unavailable" });
+  }
+}
+
+// ─── IP LOOKUP ──────────────────────────────────────────────────────
+
+async function handleIpLookup(req, res) {
+  const fields = "status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,query,reverse,proxy,hosting";
+  const q = req.query?.q || req.body?.q;
+  const clientIP = q || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || "";
+  const endpoint = clientIP
+    ? `http://ip-api.com/json/${encodeURIComponent(clientIP)}?fields=${fields}`
+    : `http://ip-api.com/json/?fields=${fields}`;
+  try {
+    const response = await fetch(endpoint);
+    const data = await response.json();
+    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
+    return res.status(200).json(data);
+  } catch {
+    return res.status(502).json({ status: "fail", message: "IP lookup service unavailable" });
+  }
+}
+
+// ─── WEEKLY DIGEST CRON ─────────────────────────────────────────────
+
+const DIGEST_TIPS = [
+  "Rotate any password you reused on a service that's been in the news for a breach in the last 30 days.",
+  "Run a Dark Web check on your two most-used email addresses; treat hits as homework.",
+  "Review your phone's installed apps — uninstall anything you haven't opened in 90 days.",
+  "Confirm 2FA is on for email, banking, primary social account, and any account holding payment info.",
+  "Audit browser extensions; remove anything with broad permissions you don't recognize.",
+];
+const DIGEST_TOOLS = [
+  { name: "Phishing Trainer", desc: "5 min quiz, real-world examples" },
+  { name: "Security Audit", desc: "Personal score with action items" },
+  { name: "Vulnerability Scanner", desc: "Spot risky open ports and outdated services" },
+];
+
+function digestWeekIdx(d) {
+  const start = new Date(d.getFullYear(), 0, 0);
+  const diff = (d - start) + ((start.getTimezoneOffset() - d.getTimezoneOffset()) * 60 * 1000);
+  return Math.floor(diff / 86400000 / 7);
+}
+
+function buildDigestMsg(name, weekIdx) {
+  const tip = DIGEST_TIPS[weekIdx % DIGEST_TIPS.length];
+  const tool = DIGEST_TOOLS[weekIdx % DIGEST_TOOLS.length];
+  return `Hi ${name || "there"},
+
+Your weekly security digest from VRIKAAN.
+
+🎯 This week's action item:
+${tip}
+
+🛠 Tool highlight: ${tool.name}
+${tool.desc}
+Try it: https://vrikaan.com/dashboard
+
+📊 Quick health checks (2 min each):
+- Have any accounts been breached? https://vrikaan.com/dark-web-monitor
+- Is your DNS leaking? https://vrikaan.com/dns-leak-test
+- Has your security headers grade slipped? https://vrikaan.com/security-headers
+
+Stay safe,
+The VRIKAAN Team`;
+}
+
+async function handleWeeklyDigest(req, res) {
+  // Cron auth
+  const expected = process.env.CRON_SECRET;
+  const got = (req.headers["authorization"] || "").replace(/^Bearer\s+/i, "");
+  if (!expected || got !== expected) return res.status(401).json({ error: "Unauthorized" });
+
+  const isMonday = new Date().getUTCDay() === 1;
+  const force = String(req.query?.force || "") === "1";
+  if (!isMonday && !force) return res.status(200).json({ skipped: true, reason: "not Monday UTC" });
+
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+  if (!projectId || !apiKey) return res.status(500).json({ error: "Firebase env vars missing" });
+
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=300&key=${apiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`Firestore ${r.status}`);
+    const data = await r.json();
+    const users = (data.documents || [])
+      .map((d) => {
+        const f = d.fields || {};
+        return {
+          email: f.email?.stringValue || "",
+          name: f.name?.stringValue || "",
+          weeklyDigest: f.weeklyDigest?.booleanValue !== false,
+        };
+      })
+      .filter((u) => u.email && u.weeklyDigest);
+
+    const weekIdx = digestWeekIdx(new Date());
+    const subject = `Your VRIKAAN weekly digest — wk ${weekIdx}`;
+    let ok = 0, fail = 0;
+    for (const u of users) {
+      try {
+        const payload = {
+          service_id: process.env.VITE_EMAILJS_SERVICE_ID,
+          template_id: process.env.VITE_EMAILJS_NOTIFY_TEMPLATE,
+          user_id: process.env.VITE_EMAILJS_PUBLIC_KEY,
+          template_params: {
+            to_name: u.name || "User",
+            to_email: u.email,
+            from_name: "VRIKAAN",
+            subject,
+            message: buildDigestMsg(u.name, weekIdx),
+          },
+        };
+        const er = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (er.ok) ok++; else fail++;
+      } catch { fail++; }
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    console.log(`weekly-digest: ok=${ok} fail=${fail} total=${users.length}`);
+    return res.status(200).json({ sent: ok, failed: fail, total: users.length });
+  } catch (err) {
+    console.error("weekly-digest error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+}
+
 // ─── ROUTER ─────────────────────────────────────────────────────────
 
 const HANDLERS = {
@@ -487,25 +635,34 @@ const HANDLERS = {
   "file-hash-check": handleFileHashCheck,
   "ai-explain": handleGeminiExplain,
   "breach-check": handleBreachCheck,
+  "password-check": handlePasswordCheck,
+  ip: handleIpLookup,
+  "weekly-digest": handleWeeklyDigest,
 };
 
+// Some tools accept GET (ip lookup, cron pings); others require POST.
+const GET_ALLOWED = new Set(["ip", "weekly-digest"]);
+// Tools that bypass shared rate-limit (cron uses its own auth)
+const RL_EXEMPT = new Set(["weekly-digest"]);
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
+  const tool = req.query.tool;
+  if (!tool || !HANDLERS[tool]) {
+    return res.status(400).json({ error: `Unknown tool: ${tool || "(missing)"}. Valid: ${Object.keys(HANDLERS).join(", ")}` });
+  }
+
+  const allowGet = GET_ALLOWED.has(tool);
+  if (req.method !== "POST" && !(allowGet && req.method === "GET")) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const rl = applyRateLimit(req, { ipLimit: 20, userLimit: 60, windowMs: 60000 });
-  if (!rl.allowed) {
-    res.setHeader("Retry-After", rl.retryAfter);
-    return res.status(429).json({ error: "Too many requests", retryAfter: rl.retryAfter });
+  if (!RL_EXEMPT.has(tool)) {
+    const rl = applyRateLimit(req, { ipLimit: 20, userLimit: 60, windowMs: 60000 });
+    if (!rl.allowed) {
+      res.setHeader("Retry-After", rl.retryAfter);
+      return res.status(429).json({ error: "Too many requests", retryAfter: rl.retryAfter });
+    }
   }
 
-  const tool = req.query.tool;
-  const fn = HANDLERS[tool];
-
-  if (!fn) {
-    return res.status(400).json({ error: `Unknown tool: ${tool}. Valid: ${Object.keys(HANDLERS).join(", ")}` });
-  }
-
-  return fn(req, res);
+  return HANDLERS[tool](req, res);
 }

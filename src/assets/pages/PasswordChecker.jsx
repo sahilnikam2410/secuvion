@@ -74,7 +74,7 @@ export default function PasswordChecker() {
       const prefix = hash.slice(0, 5);
       const suffix = hash.slice(5);
 
-      const res = await fetch("/api/password-check", {
+      const res = await fetch("/api/tools?tool=password-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prefix }),

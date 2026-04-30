@@ -243,7 +243,7 @@ export default function IPLookup() {
     setLoading(true);
 
     try {
-      const endpoint = trimmed ? `/api/ip?q=${encodeURIComponent(trimmed)}` : `/api/ip`;
+      const endpoint = trimmed ? `/api/tools?tool=ip&q=${encodeURIComponent(trimmed)}` : `/api/tools?tool=ip`;
 
       const res = await fetch(endpoint);
       const data = await res.json();
