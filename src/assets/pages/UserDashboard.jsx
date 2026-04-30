@@ -168,6 +168,36 @@ const navItems = [
   { icon: HiOutlineUser, label: "Account" },
 ];
 
+// Bottom-nav for mobile — 4 main destinations visible always
+const mobileBottomNav = [
+  { icon: HiOutlineViewGrid, label: "Overview" },
+  { icon: HiOutlineShieldCheck, label: "Security" },
+  { icon: HiOutlineClock, label: "Tool History" },
+  { icon: HiOutlineUser, label: "Account" },
+];
+
+// Daily security tips — rotates by day-of-year so everyone sees same tip on same day
+const SECURITY_TIPS = [
+  { icon: "🔐", title: "Use a Password Manager", body: "Generate unique 16+ char passwords for every account. Reused passwords are the #1 breach vector." },
+  { icon: "🛡", title: "Enable 2FA Everywhere", body: "Add a second factor to email, banking, and crypto. SMS works but TOTP apps are stronger." },
+  { icon: "🎣", title: "Inspect Every Link", body: "Hover before you click. Phishing sites mimic real URLs with one swapped character." },
+  { icon: "📲", title: "Update Your Phone OS", body: "Patches close the same zero-days hackers are actively exploiting in the wild." },
+  { icon: "💾", title: "Backup the 3-2-1 Way", body: "Three copies, two media types, one offsite. Ransomware can't encrypt what it can't reach." },
+  { icon: "🌐", title: "Check Your DNS", body: "Use 1.1.1.1 or 9.9.9.9. Default ISP DNS leaks browsing data and can be hijacked." },
+  { icon: "📧", title: "Hide Your Email", body: "Use forward-aliases when signing up to new services. Limits your blast radius if breached." },
+  { icon: "🔍", title: "Audit App Permissions", body: "Most apps don't need camera, mic, or location. Revoke whatever you can't justify." },
+  { icon: "🚫", title: "Skip Public Wi-Fi", body: "Open networks let anyone snoop your traffic. Use mobile hotspot or a VPN you trust." },
+  { icon: "🧹", title: "Clean Up Old Accounts", body: "Closed accounts you forgot about are still in breach databases. Delete what you don't use." },
+  { icon: "🪪", title: "Check HaveIBeenPwned", body: "Once a quarter, check if your email surfaced in a new breach. Rotate any reused passwords." },
+  { icon: "💳", title: "Use Virtual Cards", body: "Most banks offer single-use card numbers for online purchases. Limits fraud exposure." },
+];
+
+function getTodaysTip() {
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  return SECURITY_TIPS[dayOfYear % SECURITY_TIPS.length];
+}
+
 const toolLinks = [
   { icon: HiOutlineMap, label: "Threat Map", path: "/threat-map" },
   { icon: HiOutlineSearchCircle, label: "Fraud Analyzer", path: "/fraud-analyzer" },
@@ -519,6 +549,29 @@ export default function UserDashboard() {
           </div>
         ))}
       </div>
+      {/* Daily Security Tip */}
+      {(() => { const tip = getTodaysTip(); return (
+        <AniCard delay={0.15}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{
+              flexShrink: 0, width: 48, height: 48, borderRadius: 14,
+              background: "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(20,227,197,0.12))",
+              border: `1px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 24,
+            }}>{tip.icon}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: T.cyan, textTransform: "uppercase", letterSpacing: 1 }}>Tip of the Day</span>
+                <span style={{ fontSize: 10, color: T.muted }}>•</span>
+                <span style={{ fontSize: 10, color: T.muted }}>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+              </div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: T.white, margin: "0 0 4px", fontFamily: "'Space Grotesk'" }}>{tip.title}</h3>
+              <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>{tip.body}</p>
+            </div>
+          </div>
+        </AniCard>
+      ); })()}
       {/* Onboarding Checklist */}
       <AniCard delay={0.2}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -1364,13 +1417,46 @@ export default function UserDashboard() {
         <main style={{
           flex: 1,
           marginLeft: isMobile ? 0 : 240,
-          padding: isMobile ? "64px 14px 48px" : isTablet ? "28px 24px 48px" : "32px 32px 48px",
+          padding: isMobile ? "64px 14px 96px" : isTablet ? "28px 24px 48px" : "32px 32px 48px",
           maxWidth: isMobile ? "100%" : 1100,
           width: "100%",
           minWidth: 0,
         }}>
           {loading ? <Spinner /> : tabs[tab] ? tabs[tab]() : renderOverview()}
         </main>
+        {/* Mobile Bottom Nav — sticky, always visible on phones */}
+        {isMobile && (
+          <nav style={{
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 95,
+            background: "rgba(10,15,30,0.92)", backdropFilter: "blur(14px)",
+            borderTop: `1px solid ${T.border}`,
+            display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
+            padding: "6px 4px env(safe-area-inset-bottom)",
+            boxShadow: "0 -4px 16px rgba(0,0,0,0.4)",
+          }}>
+            {mobileBottomNav.map((n) => {
+              const isActive = tab === n.label;
+              return (
+                <button
+                  key={n.label}
+                  type="button"
+                  onClick={() => { setTab(n.label); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  style={{
+                    background: "transparent", border: "none", padding: "10px 4px 8px",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                    color: isActive ? T.cyan : T.muted,
+                    cursor: "pointer", fontFamily: "'Plus Jakarta Sans'",
+                    transition: "color 0.2s",
+                  }}
+                >
+                  <n.icon size={22} />
+                  <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 500 }}>{n.label}</span>
+                  {isActive && <span style={{ position: "absolute", top: 0, width: 28, height: 3, borderRadius: "0 0 3px 3px", background: T.cyan }} />}
+                </button>
+              );
+            })}
+          </nav>
+        )}
         {/* Cancel Subscription Modal */}
         {showCancelModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "fadeIn 0.2s ease" }}>
