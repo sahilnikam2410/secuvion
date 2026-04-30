@@ -39,7 +39,7 @@
     { "source": "/((?!api|assets|favicon|manifest|sitemap|robots|sw|og-|google).*)", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/tools?tool=weekly-digest", "schedule": "30 3 * * *" }
+    { "path": "/api/cron-digest", "schedule": "30 3 * * *" }
   ],
   "trailingSlash": false
 }
