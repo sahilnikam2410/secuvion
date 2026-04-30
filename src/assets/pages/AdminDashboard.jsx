@@ -114,6 +114,8 @@ export default function AdminDashboard() {
   const [planFilter, setPlanFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateRange, setDateRange] = useState("all"); // all | 7d | 30d | 90d
 
   // Settings
   const [settings, setSettings] = useState({
@@ -212,7 +214,41 @@ export default function AdminDashboard() {
   });
 
   // Filtered payments
-  const filteredPayments = payments.filter(p => methodFilter === "all" || (p.method || "").toLowerCase() === methodFilter);
+  const filteredPayments = payments.filter(p => {
+    if (methodFilter !== "all" && (p.method || "").toLowerCase() !== methodFilter) return false;
+    if (statusFilter !== "all" && (p.status || "").toLowerCase() !== statusFilter) return false;
+    if (dateRange !== "all") {
+      const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+      const cutoff = Date.now() - days * 86400000;
+      const ts = p.date?.toDate ? p.date.toDate().getTime() : new Date(p.date || 0).getTime();
+      if (!ts || ts < cutoff) return false;
+    }
+    return true;
+  });
+
+  const exportPaymentsCSV = () => {
+    const rows = [
+      ["Order ID", "User", "Email", "Plan", "Amount", "Method", "Status", "Date"],
+      ...filteredPayments.map(p => [
+        p.id || p.docId || "",
+        p.userName || "",
+        p.userEmail || "",
+        p.plan || "",
+        p.amount || 0,
+        p.method || "",
+        p.status || "",
+        p.date?.toDate ? p.date.toDate().toISOString() : (p.date || ""),
+      ]),
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `vrikaan-payments-${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleUpdateUser = async (uid, field, value) => {
     try {
@@ -441,9 +477,21 @@ export default function AdminDashboard() {
             <HiOutlineCurrencyRupee size={20} color={T.gold} />
             <div><div style={{ fontSize: 11, color: T.muted }}>Filtered Revenue</div><div style={{ fontSize: 20, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk', sans-serif" }}>{formatINR(payRev)}</div></div>
           </div>
-          <select value={methodFilter} onChange={e => setMethodFilter(e.target.value)} style={{ ...sty.input, width: "auto", minWidth: 140 }}>
-            {["all", "razorpay", "upi", "crypto", "card"].map(v => <option key={v} value={v} style={{ background: T.surface }}>{v === "all" ? "All Methods" : v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
+          <select value={methodFilter} onChange={e => setMethodFilter(e.target.value)} style={{ ...sty.input, width: "auto", minWidth: 130 }}>
+            {["all", "cashfree", "razorpay", "upi", "crypto", "card"].map(v => <option key={v} value={v} style={{ background: T.surface }}>{v === "all" ? "All Methods" : v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
           </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...sty.input, width: "auto", minWidth: 120 }}>
+            {["all", "completed", "success", "pending", "failed"].map(v => <option key={v} value={v} style={{ background: T.surface }}>{v === "all" ? "All Status" : v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
+          </select>
+          <select value={dateRange} onChange={e => setDateRange(e.target.value)} style={{ ...sty.input, width: "auto", minWidth: 120 }}>
+            <option value="all" style={{ background: T.surface }}>All time</option>
+            <option value="7d" style={{ background: T.surface }}>Last 7 days</option>
+            <option value="30d" style={{ background: T.surface }}>Last 30 days</option>
+            <option value="90d" style={{ background: T.surface }}>Last 90 days</option>
+          </select>
+          <button onClick={exportPaymentsCSV} className="adm-btn" style={{ ...sty.btn(T.green + "18", T.green), marginLeft: "auto" }}>
+            <HiOutlineDownload size={16} /> Export CSV
+          </button>
         </div>
 
         <div style={{ ...sty.card, padding: 0, overflow: "hidden" }}>
