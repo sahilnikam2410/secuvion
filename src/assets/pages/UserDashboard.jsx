@@ -200,6 +200,15 @@ export default function UserDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  // Responsive viewport tracking — updates on resize so the layout reacts without reload
+  const [viewport, setViewport] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setViewport(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const isMobile = viewport < 768;
+  const isTablet = viewport >= 768 && viewport < 1024;
   const [urlInput, setUrlInput] = useState("");
   const [urlResult, setUrlResult] = useState(null);
   const [pwInput, setPwInput] = useState("");
@@ -490,7 +499,12 @@ export default function UserDashboard() {
           <div style={{ marginTop: 4 }}><Badge color={planColors[userPlan]}>{planLabels[userPlan]} Plan</Badge></div>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 28 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fit, minmax(170px, 1fr))",
+        gap: isMobile ? 10 : 16,
+        marginBottom: 28,
+      }}>
         {[
           { label: "Security Score", value: `${secScore}/100`, color: secScore >= 80 ? T.green : secScore >= 50 ? T.orange : T.red, gradient: `linear-gradient(90deg, ${T.green}, ${T.cyan})` },
           { label: "Plan Status", value: planLabels[userPlan], color: planColors[userPlan], gradient: `linear-gradient(90deg, ${T.accent}, ${T.cyan})` },
@@ -1259,25 +1273,37 @@ export default function UserDashboard() {
       <OnboardingTour uid={user?.uid} />
       <div style={{ minHeight: "100vh", background: T.bg, display: "flex", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
         {/* Mobile hamburger */}
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
-          position: "fixed", top: 16, left: 16, zIndex: 100, background: T.sidebar, border: `1px solid ${T.border}`,
-          borderRadius: 8, padding: 8, color: T.white, cursor: "pointer", display: "none",
-          ...(typeof window !== "undefined" && window.innerWidth < 768 ? { display: "flex" } : {}),
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Open menu" style={{
+          position: "fixed", top: 16, left: 16, zIndex: 100,
+          background: "rgba(10,15,30,0.85)", backdropFilter: "blur(8px)",
+          border: `1px solid ${T.border}`, borderRadius: 10, padding: 10,
+          color: T.white, cursor: "pointer",
+          display: isMobile ? "flex" : "none",
+          alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
         }}>
           <HiOutlineMenuAlt2 size={20} />
         </button>
         {/* Sidebar */}
         <aside style={{
-          width: 240, height: "100vh", background: "linear-gradient(180deg, #0a0f1e 0%, #070b14 100%)", borderRight: `1px solid ${T.border}`,
-          padding: "24px 12px", display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0,
-          zIndex: 90, transition: "transform 0.3s", overflowX: "hidden",
-          ...(typeof window !== "undefined" && window.innerWidth < 768 ? { transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)" } : {}),
+          width: isMobile ? 280 : 240, height: "100vh",
+          background: "linear-gradient(180deg, #0a0f1e 0%, #070b14 100%)",
+          borderRight: `1px solid ${T.border}`,
+          padding: "24px 12px", display: "flex", flexDirection: "column",
+          position: "fixed", left: 0, top: 0,
+          zIndex: 90, transition: "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)",
+          overflowX: "hidden",
+          transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "translateX(0)",
+          boxShadow: isMobile && sidebarOpen ? "8px 0 32px rgba(0,0,0,0.5)" : "none",
         }}>
-          <div style={{ padding: "0 8px", marginBottom: 20 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, fontFamily: "'Space Grotesk'" }}>
-              <span style={{ color: T.cyan }}>SECU</span><span style={{ color: T.white }}>VION</span>
-            </h1>
-            <p style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>Security Dashboard</p>
+          <div style={{ padding: "0 8px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+            <img src="/wolf-compact.png" alt="VRIKAAN" width={36} height={36} style={{ flexShrink: 0, filter: "drop-shadow(0 0 8px rgba(20,227,197,0.4))" }} />
+            <div>
+              <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "'Space Grotesk'", letterSpacing: 1 }}>
+                <span style={{ color: T.cyan }}>VRI</span><span style={{ color: T.white }}>KAAN</span>
+              </h1>
+              <p style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>Security Dashboard</p>
+            </div>
           </div>
           {/* Home Button */}
           <button onClick={() => navigate("/")} style={{
@@ -1335,8 +1361,13 @@ export default function UserDashboard() {
         {/* Overlay for mobile */}
         {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 80 }} />}
         {/* Main */}
-        <main style={{ flex: 1, marginLeft: 240, padding: "32px 32px 48px", maxWidth: 960, width: "100%",
-          ...(typeof window !== "undefined" && window.innerWidth < 768 ? { marginLeft: 0, padding: "64px 16px 48px" } : {}),
+        <main style={{
+          flex: 1,
+          marginLeft: isMobile ? 0 : 240,
+          padding: isMobile ? "64px 14px 48px" : isTablet ? "28px 24px 48px" : "32px 32px 48px",
+          maxWidth: isMobile ? "100%" : 1100,
+          width: "100%",
+          minWidth: 0,
         }}>
           {loading ? <Spinner /> : tabs[tab] ? tabs[tab]() : renderOverview()}
         </main>
@@ -1402,10 +1433,22 @@ export default function UserDashboard() {
         .dash-row { transition:all 0.2s ease }
         .dash-row:hover { background:rgba(99,102,241,0.05) !important }
         @media (max-width: 768px) {
-          aside { transform: ${sidebarOpen ? "translateX(0)" : "translateX(-100%)"} !important; }
-          main { margin-left: 0 !important; padding: 64px 16px 48px !important; }
-          button[style*="display: none"] { display: flex !important; }
+          /* Cards reflow tighter on mobile */
+          .dash-card { padding: 16px !important; border-radius: 14px !important; }
+          /* Larger tap targets */
+          .dash-btn { min-height: 40px !important; }
+          /* Hide section padding bleed */
+          h2 { font-size: 22px !important; }
+          h3 { font-size: 14px !important; }
         }
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .dash-card { padding: 18px !important; }
+        }
+        /* Smooth scrolling */
+        main { scroll-behavior: smooth; }
+        /* Prevent horizontal overflow on small screens */
+        main, .dash-card { max-width: 100%; box-sizing: border-box; }
+        table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .usr-side-nav::-webkit-scrollbar { width: 4px }
         .usr-side-nav::-webkit-scrollbar-track { background: transparent }
         .usr-side-nav::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.15); border-radius: 4px }
