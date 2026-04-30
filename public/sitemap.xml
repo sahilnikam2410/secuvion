@@ -7,6 +7,7 @@
   <url><loc>https://vrikaan.com/pricing</loc><priority>0.9</priority><changefreq>weekly</changefreq></url>
   <url><loc>https://vrikaan.com/contact</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
   <url><loc>https://vrikaan.com/founder</loc><priority>0.6</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://vrikaan.com/press</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
   <url><loc>https://vrikaan.com/protection</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
 
   <!-- Auth -->

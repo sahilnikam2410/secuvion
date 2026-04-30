@@ -148,6 +148,7 @@ const Referral = lazy(() => import("./assets/pages/Referral.jsx"));
 const SecurityAudit = lazy(() => import("./assets/pages/SecurityAudit.jsx"));
 const ThreatDirectory = lazy(() => import("./assets/pages/ThreatDirectory.jsx"));
 const ThreatDetail = lazy(() => import("./assets/pages/ThreatDetail.jsx"));
+const Press = lazy(() => import("./assets/pages/Press.jsx"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -178,6 +179,7 @@ function AppRoutes() {
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/about" element={<About />} />
+            <Route path="/press" element={<Press />} />
             <Route path="/features" element={<FeaturesPage />} />
             <Route path="/emergency-help" element={<EmergencyHelp />} />
             <Route path="/identity-xray" element={<IdentityXray />} />
