@@ -33,6 +33,11 @@ const ADMIN_EMAILS = ["sahilnikam133@gmail.com", "sahilnikam1212@gmail.com", "ad
  * Merge Firebase Auth user object with Firestore profile data.
  */
 function mergeUserData(firebaseUser, profile) {
+  // Trial → expired? auto-downgrade local view (Firestore reconciles on next write)
+  let plan = profile?.plan || "free";
+  const trialExpires = profile?.trialExpiresAt?.toDate ? profile.trialExpiresAt.toDate() : (profile?.trialExpiresAt ? new Date(profile.trialExpiresAt) : null);
+  const trialActive = !!(trialExpires && trialExpires.getTime() > Date.now());
+  if (profile?.onTrial && !trialActive) plan = "free"; // expired
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email || profile?.email || "",
@@ -41,11 +46,14 @@ function mergeUserData(firebaseUser, profile) {
     photoURL: firebaseUser.photoURL || profile?.avatar || null,
     phoneNumber: firebaseUser.phoneNumber || profile?.phoneNumber || null,
     role: profile?.role || "user",
-    plan: profile?.plan || "free",
+    plan,
     avatar: profile?.avatar || firebaseUser.photoURL || null,
     provider: profile?.provider || firebaseUser.providerData?.[0]?.providerId || "email",
     createdAt: profile?.createdAt || null,
     updatedAt: profile?.updatedAt || null,
+    onTrial: !!profile?.onTrial && trialActive,
+    trialExpiresAt: trialExpires,
+    trialPlan: profile?.trialPlan || null,
   };
 }
 
@@ -250,6 +258,39 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Start a 7-day trial of the requested plan. No card needed. Firestore tracks
+  // onTrial=true + trialExpiresAt so the next login auto-reverts when the
+  // window closes.
+  const startTrial = useCallback(async (trialPlan = "pro") => {
+    if (!user || !user.uid) return { success: false, error: "Not signed in" };
+    if (user.onTrial || (user.plan && user.plan !== "free")) {
+      return { success: false, error: "Trial already used or paid plan active" };
+    }
+    if (String(user.uid).startsWith("demo_")) {
+      const expires = new Date(Date.now() + 7 * 86400000);
+      setUser((prev) => ({ ...prev, plan: trialPlan, onTrial: true, trialExpiresAt: expires, trialPlan }));
+      return { success: true };
+    }
+    try {
+      const expires = new Date(Date.now() + 7 * 86400000);
+      const { Timestamp } = await import("firebase/firestore");
+      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+      const { db } = await import("../firebase/config");
+      await updateDoc(doc(db, "users", user.uid), {
+        plan: trialPlan,
+        onTrial: true,
+        trialPlan,
+        trialStartedAt: serverTimestamp(),
+        trialExpiresAt: Timestamp.fromDate(expires),
+        updatedAt: serverTimestamp(),
+      });
+      setUser((prev) => ({ ...prev, plan: trialPlan, onTrial: true, trialExpiresAt: expires, trialPlan }));
+      return { success: true, expiresAt: expires };
+    } catch (error) {
+      return { success: false, error: error.message || "Could not start trial" };
+    }
+  }, [user]);
+
   const updatePlan = useCallback(async (plan) => {
     if (!user || !user.uid) return;
 
@@ -305,6 +346,7 @@ export function AuthProvider({ children }) {
     verifyPhoneCode,
     resetPassword,
     updatePlan,
+    startTrial,
     updateProfile,
     isAdmin: user?.role === "admin",
   };

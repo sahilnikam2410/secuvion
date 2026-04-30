@@ -144,8 +144,23 @@ const EDU_DOMAINS = /\.(edu|ac\.in|edu\.in|ac\.uk|edu\.au|edu\.ng)$/i;
 const STUDENT_DISCOUNT = 0.5; // 50% off
 
 export default function Pricing() {
-  const { user } = useAuth();
+  const { user, startTrial } = useAuth();
   const [annual, setAnnual] = useState(false);
+  const [trialBusy, setTrialBusy] = useState(false);
+  const [trialMsg, setTrialMsg] = useState("");
+  const eligibleForTrial = !!user && !user.onTrial && (user.plan === "free" || !user.plan);
+
+  const handleStartTrial = async () => {
+    setTrialBusy(true); setTrialMsg("");
+    const r = await startTrial("pro");
+    setTrialBusy(false);
+    if (r.success) {
+      setTrialMsg("✓ 7-day Advanced trial activated! Redirecting to dashboard...");
+      setTimeout(() => { window.location.href = "/dashboard"; }, 1500);
+    } else {
+      setTrialMsg(r.error || "Could not start trial");
+    }
+  };
   const [hoveredPlan, setHoveredPlan] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
 
@@ -284,6 +299,39 @@ export default function Pricing() {
             </p>
           )}
         </div>
+
+        {/* 7-day Trial banner */}
+        {eligibleForTrial && (
+          <div style={{
+            maxWidth: 760, margin: "0 auto 28px",
+            padding: "20px 24px",
+            background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(20,227,197,0.08))",
+            border: `1px solid ${T.accent}40`,
+            borderRadius: 16,
+            display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+          }}>
+            <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 14, background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎁</div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: T.white, fontFamily: "'Space Grotesk', sans-serif" }}>Try Advanced free for 7 days</div>
+              <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>No credit card. No auto-charge. Auto-reverts to Free after 7 days.</div>
+              {trialMsg && <div style={{ fontSize: 12, color: trialMsg.startsWith("✓") ? T.green : "#ef4444", marginTop: 6 }}>{trialMsg}</div>}
+            </div>
+            <button
+              onClick={handleStartTrial}
+              disabled={trialBusy}
+              style={{
+                padding: "12px 24px", borderRadius: 10, border: "none",
+                background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`,
+                color: "#fff", fontSize: 14, fontWeight: 700, cursor: trialBusy ? "wait" : "pointer",
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: "nowrap", opacity: trialBusy ? 0.6 : 1,
+                boxShadow: "0 4px 16px rgba(99,102,241,0.25)",
+              }}
+            >
+              {trialBusy ? "Activating..." : "Start Free Trial"}
+            </button>
+          </div>
+        )}
 
         {/* Pricing Cards */}
         <div

@@ -549,6 +549,34 @@ export default function UserDashboard() {
           </div>
         ))}
       </div>
+      {/* Trial banner */}
+      {user?.onTrial && user?.trialExpiresAt && (() => {
+        const ms = user.trialExpiresAt.getTime() - Date.now();
+        const days = Math.max(0, Math.ceil(ms / 86400000));
+        const isUrgent = days <= 2;
+        return (
+          <div style={{
+            marginBottom: 16, padding: "14px 18px", borderRadius: 14,
+            background: isUrgent
+              ? "linear-gradient(135deg, rgba(249,115,22,0.15), rgba(239,68,68,0.08))"
+              : "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(20,227,197,0.08))",
+            border: `1px solid ${isUrgent ? "rgba(249,115,22,0.35)" : "rgba(99,102,241,0.3)"}`,
+            display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
+            animation: "fadeInUp 0.4s ease both",
+          }}>
+            <div style={{ fontSize: 22 }}>{isUrgent ? "⏰" : "🎁"}</div>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.white }}>
+                {days > 0 ? `${days} day${days > 1 ? "s" : ""} left in your Advanced trial` : "Your trial ends today"}
+              </div>
+              <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
+                After expiry, your account reverts to Free. Upgrade now to keep all features.
+              </div>
+            </div>
+            <button onClick={() => navigate("/pricing")} className="dash-btn" style={sty.btn(isUrgent ? T.orange : `linear-gradient(135deg, ${T.accent}, ${T.cyan})`)}>Upgrade Now <HiOutlineChevronRight size={14} /></button>
+          </div>
+        );
+      })()}
       {/* Daily Security Tip */}
       {(() => { const tip = getTodaysTip(); return (
         <AniCard delay={0.15}>
