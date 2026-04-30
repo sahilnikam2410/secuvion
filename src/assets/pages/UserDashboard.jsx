@@ -7,7 +7,7 @@ import PlanGate, { isPlanAllowed } from "../../components/PlanGate";
 import OnboardingTour from "../../components/OnboardingTour";
 import { db } from "../../firebase/config";
 import { auth as firebaseAuth } from "../../firebase/config";
-import { collection, getDocs, doc, addDoc, deleteDoc, setDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, doc, addDoc, deleteDoc, setDoc, updateDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 import { deleteUser as firebaseDeleteUser, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import {
   HiOutlineViewGrid, HiOutlineShieldCheck, HiOutlineDesktopComputer, HiOutlineUser,
@@ -198,6 +198,8 @@ export default function UserDashboard() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlResult, setUrlResult] = useState(null);
   const [pwInput, setPwInput] = useState("");
@@ -287,6 +289,24 @@ export default function UserDashboard() {
   useEffect(() => { if (user) { setEditName(user.name || ""); setEditPhone(user.phoneNumber || ""); } }, [user]);
 
   const handleLogout = async () => { await logout(); navigate("/login"); };
+
+  const handleCancelSubscription = async () => {
+    if (!user?.uid) return;
+    setCancelling(true);
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        subscriptionAutoRenew: false,
+        subscriptionCancelledAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast("Auto-renewal cancelled. Your plan stays active until expiry.", "success");
+      setShowCancelModal(false);
+    } catch (e) {
+      toast("Could not cancel — try again or contact support.", "error");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const addDevice = async () => {
     if (devices.length >= deviceLimit) {
@@ -1163,9 +1183,14 @@ export default function UserDashboard() {
             <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: T.muted }}><HiOutlineCheck size={12} color={T.green} /> {f}</span>
           ))}
         </div>
-        {userPlan !== "enterprise" && (
-          <button onClick={() => navigate("/pricing")} className="dash-btn" style={sty.btn("linear-gradient(135deg, #6366f1, #14e3c5)")}>Upgrade Plan <HiOutlineChevronRight size={14} /></button>
-        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {userPlan !== "enterprise" && (
+            <button onClick={() => navigate("/pricing")} className="dash-btn" style={sty.btn("linear-gradient(135deg, #6366f1, #14e3c5)")}>Upgrade Plan <HiOutlineChevronRight size={14} /></button>
+          )}
+          {userPlan !== "free" && (
+            <button onClick={() => setShowCancelModal(true)} className="dash-btn" style={sty.btn("rgba(239,68,68,0.1)", T.red)}>Cancel Plan</button>
+          )}
+        </div>
       </AniCard>
       {/* Payments */}
       <AniCard delay={isEmailProvider ? 0.5 : 0.4}>
@@ -1315,6 +1340,24 @@ export default function UserDashboard() {
         }}>
           {loading ? <Spinner /> : tabs[tab] ? tabs[tab]() : renderOverview()}
         </main>
+        {/* Cancel Subscription Modal */}
+        {showCancelModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "fadeIn 0.2s ease" }}>
+            <div style={{ ...sty.card, maxWidth: 420, width: "90%", textAlign: "center", animation: "scaleIn 0.3s ease both" }}>
+              <HiOutlineExclamation size={40} color={T.orange} />
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: T.white, marginTop: 12, fontFamily: "'Space Grotesk'" }}>Cancel {planLabels[userPlan]} Plan?</h3>
+              <p style={{ fontSize: 13, color: T.muted, marginTop: 8, lineHeight: 1.6 }}>
+                Your plan stays active until the current billing period ends. After that, your account reverts to the free plan. You can re-subscribe anytime.
+              </p>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 20 }}>
+                <button onClick={() => setShowCancelModal(false)} disabled={cancelling} style={sty.btn("rgba(148,163,184,0.12)", T.muted)}>Keep Plan</button>
+                <button onClick={handleCancelSubscription} disabled={cancelling} style={sty.btn(T.orange)}>
+                  {cancelling ? "Cancelling..." : "Confirm Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Delete Modal */}
         {showDeleteModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "fadeIn 0.2s ease" }}>
