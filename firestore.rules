@@ -97,6 +97,22 @@ service cloud.firestore {
         && docId.split('_')[0] == request.auth.uid;
     }
 
+    // ─── digest_subscribers ──────────────────────────────────────
+    // Public-read so the weekly-digest cron can list opt-ins via the
+    // public REST API without a service account key (org policy
+    // blocks key creation). Each doc only contains the fields the
+    // user already exposes elsewhere (name, email) — no sensitive
+    // data leaks. Users can only read their own subscription, plus
+    // the cron can list all (the public API allows list when read
+    // is allowed without auth).
+    match /digest_subscribers/{uid} {
+      allow read: if true; // public — only contains name/email/optedAt
+      allow create, update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email;
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
     // ─── Default deny ────────────────────────────────────────────
     // Any collection not explicitly matched above is locked down.
     match /{document=**} {

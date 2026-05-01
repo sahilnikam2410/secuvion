@@ -574,18 +574,30 @@ async function handleWeeklyDigest(req, res) {
   const force = String(req.query?.force || "") === "1";
   if (!isMonday && !force) return res.status(200).json({ skipped: true, reason: "not Monday UTC" });
 
-  const db = getAdminFirestore();
-  if (!db) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT env var missing or invalid" });
+  // Read opt-in list from public-readable digest_subscribers collection.
+  // Users add themselves from the authenticated client; cron uses public REST.
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+  if (!projectId || !apiKey) return res.status(500).json({ error: "Firebase env vars missing" });
 
   try {
-    const snap = await db.collection("users").limit(500).get();
-    const users = [];
-    snap.forEach((doc) => {
-      const d = doc.data();
-      if (!d.email) return;
-      if (d.weeklyDigest === false) return; // explicit opt-out only
-      users.push({ email: d.email, name: d.name || "" });
-    });
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/digest_subscribers?pageSize=500&key=${apiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) {
+      const text = await r.text();
+      console.error("Firestore read failed:", r.status, text.slice(0, 200));
+      return res.status(500).json({ error: `Firestore ${r.status}` });
+    }
+    const data = await r.json();
+    const users = (data.documents || [])
+      .map((d) => {
+        const f = d.fields || {};
+        return {
+          email: f.email?.stringValue || "",
+          name: f.name?.stringValue || "",
+        };
+      })
+      .filter((u) => u.email);
 
     const weekIdx = digestWeekIdx(new Date());
     const subject = `Your VRIKAAN weekly digest — wk ${weekIdx}`;

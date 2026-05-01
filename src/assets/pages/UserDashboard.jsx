@@ -462,10 +462,23 @@ export default function UserDashboard() {
   };
 
   /* ─── Notification Prefs ─── */
-  const saveNotifPrefs = (key) => {
+  const saveNotifPrefs = async (key) => {
     const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
     setNotifPrefs(updated);
     localStorage.setItem("vrikaan_notif_prefs", JSON.stringify(updated));
+    // Wire the "weekly" toggle to the digest_subscribers Firestore collection
+    if (key === "weekly" && user?.uid) {
+      try {
+        const { subscribeToDigest, unsubscribeFromDigest } = await import("../../services/digestService");
+        if (updated.weekly) await subscribeToDigest(user);
+        else await unsubscribeFromDigest(user.uid);
+        toast(updated.weekly ? "Subscribed to weekly digest" : "Unsubscribed from weekly digest", "success");
+        return;
+      } catch (e) {
+        toast("Could not update digest subscription: " + e.message, "error");
+        return;
+      }
+    }
     toast("Notification preference updated", "success");
   };
 
