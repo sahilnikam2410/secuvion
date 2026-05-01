@@ -8,6 +8,11 @@
   <url><loc>https://vrikaan.com/contact</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
   <url><loc>https://vrikaan.com/founder</loc><priority>0.6</priority><changefreq>monthly</changefreq></url>
   <url><loc>https://vrikaan.com/press</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://vrikaan.com/status</loc><priority>0.5</priority><changefreq>daily</changefreq></url>
+  <url><loc>https://vrikaan.com/vs/norton</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://vrikaan.com/vs/lastpass</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://vrikaan.com/vs/bitdefender</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://vrikaan.com/bulk-scanner</loc><priority>0.6</priority><changefreq>monthly</changefreq></url>
   <url><loc>https://vrikaan.com/protection</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
 
   <!-- Auth -->

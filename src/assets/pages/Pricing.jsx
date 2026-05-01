@@ -4,6 +4,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO, { faqSchema, productSchema } from "../../components/SEO";
 import { useAuth } from "../../context/AuthContext";
+import { getVariant, trackConversion } from "../../services/abTestService";
 
 const T = {
   bg: "#030712", card: "rgba(15,23,42,0.5)", white: "#f1f5f9",
@@ -150,11 +151,18 @@ export default function Pricing() {
   const [trialMsg, setTrialMsg] = useState("");
   const eligibleForTrial = !!user && !user.onTrial && (user.plan === "free" || !user.plan);
 
+  // A/B test the trial CTA copy
+  const trialCtaVariant = getVariant("trial_cta");
+  const trialCtaText = trialCtaVariant === "B"
+    ? "Try VRIKAAN — no card needed"
+    : "Start Free Trial";
+
   const handleStartTrial = async () => {
     setTrialBusy(true); setTrialMsg("");
     const r = await startTrial("pro");
     setTrialBusy(false);
     if (r.success) {
+      trackConversion("trial_cta", 1);
       setTrialMsg("✓ 7-day Advanced trial activated! Redirecting to dashboard...");
       setTimeout(() => { window.location.href = "/dashboard"; }, 1500);
     } else {
@@ -337,7 +345,7 @@ export default function Pricing() {
                 boxShadow: "0 4px 16px rgba(99,102,241,0.25)",
               }}
             >
-              {trialBusy ? "Activating..." : "Start Free Trial"}
+              {trialBusy ? "Activating..." : trialCtaText}
             </button>
           </div>
         )}
