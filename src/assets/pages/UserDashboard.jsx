@@ -22,6 +22,7 @@ import {
 } from "react-icons/hi";
 import { useTheme } from "../../context/ThemeContext";
 import { getAllBadgesWithState, getStreak } from "../../services/gamificationService";
+import { getPermissionState, requestPermission, isEnabled as isPushEnabled, setEnabled as setPushEnabled } from "../../services/pushService";
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const T = {
@@ -481,6 +482,27 @@ export default function UserDashboard() {
 
   /* ─── Notification Prefs ─── */
   const saveNotifPrefs = async (key) => {
+    // Browser push permission gate
+    if (key === "browser_push") {
+      const wasOn = isPushEnabled();
+      if (!wasOn) {
+        const result = await requestPermission();
+        if (result !== "granted") {
+          toast(result === "unsupported" ? "Browser doesn't support notifications" : "Permission denied — enable in browser settings", "error");
+          return;
+        }
+        setPushEnabled(true);
+        toast("Browser notifications enabled", "success");
+      } else {
+        setPushEnabled(false);
+        toast("Browser notifications disabled", "success");
+      }
+      const updated = { ...notifPrefs, browser_push: !wasOn };
+      setNotifPrefs(updated);
+      localStorage.setItem("vrikaan_notif_prefs", JSON.stringify(updated));
+      return;
+    }
+
     const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
     setNotifPrefs(updated);
     localStorage.setItem("vrikaan_notif_prefs", JSON.stringify(updated));
@@ -1348,6 +1370,7 @@ export default function UserDashboard() {
             { key: "security", label: "Security Alerts", desc: "Get notified about threats and breaches", icon: HiOutlineShieldCheck },
             { key: "updates", label: "Product Updates", desc: "New features and improvements", icon: HiOutlineBell },
             { key: "weekly", label: "Weekly Report", desc: "Receive weekly security summary", icon: HiOutlineDocumentReport },
+            { key: "browser_push", label: "Browser Notifications", desc: "Real-time alerts in your browser", icon: HiOutlineBell, isPush: true },
             { key: "marketing", label: "Marketing", desc: "Tips, offers, and promotions", icon: HiOutlineMail },
           ].map((n) => (
             <div key={n.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, background: "rgba(148,163,184,0.04)", border: `1px solid ${T.border}` }}>
@@ -1358,8 +1381,8 @@ export default function UserDashboard() {
                   <p style={{ fontSize: 11, color: T.muted, margin: "1px 0 0" }}>{n.desc}</p>
                 </div>
               </div>
-              <button onClick={() => saveNotifPrefs(n.key)} style={{ width: 44, height: 24, borderRadius: 12, background: notifPrefs[n.key] ? T.cyan : "rgba(148,163,184,0.2)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notifPrefs[n.key] ? 23 : 3, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+              <button onClick={() => saveNotifPrefs(n.key)} style={{ width: 44, height: 24, borderRadius: 12, background: (n.isPush ? isPushEnabled() : notifPrefs[n.key]) ? T.cyan : "rgba(148,163,184,0.2)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: (n.isPush ? isPushEnabled() : notifPrefs[n.key]) ? 23 : 3, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
               </button>
             </div>
           ))}

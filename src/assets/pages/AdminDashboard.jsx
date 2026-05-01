@@ -355,8 +355,23 @@ export default function AdminDashboard() {
     }
   };
 
+  // Step-up auth for destructive admin operations.
+  // Requires the admin to type their own email back as a second-factor
+  // confirmation. This is "2FA-lite" — simpler than TOTP/Identity
+  // Platform but blocks accidental clicks and shoulder-surfing.
+  const requireStepUp = (action) => {
+    const expected = user?.email?.toLowerCase() || "";
+    const got = (window.prompt(`Type your admin email to confirm: ${action}`) || "").trim().toLowerCase();
+    if (got !== expected) {
+      toast?.error?.("Confirmation failed — operation cancelled");
+      return false;
+    }
+    return true;
+  };
+
   const handleDeleteUser = async (uid) => {
     if (!window.confirm("Delete this user? This cannot be undone.")) return;
+    if (!requireStepUp(`delete user ${uid}`)) return;
     try {
       await deleteDoc(doc(db, "users", uid));
       setUsers(prev => prev.filter(u => u.uid !== uid));
@@ -371,6 +386,10 @@ export default function AdminDashboard() {
   // Bulk plan change
   const handleBulkPlan = async () => {
     if (selectedUserIds.length === 0) { setShowBulkPlanModal(false); return; }
+    if (!requireStepUp(`change plan for ${selectedUserIds.length} users → ${bulkNewPlan}`)) {
+      setShowBulkPlanModal(false);
+      return;
+    }
     let ok = 0, fail = 0;
     for (const uid of selectedUserIds) {
       try {
