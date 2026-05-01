@@ -97,6 +97,19 @@ service cloud.firestore {
         && docId.split('_')[0] == request.auth.uid;
     }
 
+    // ─── api_tokens ──────────────────────────────────────────────
+    // Public-by-id-only mirror of /users/{uid}/apikeys/{id} so Vercel
+    // serverless functions can validate Bearer tokens by GETting the
+    // exact doc id (the token itself). Listing is blocked because the
+    // doc ID *is* the secret. Only the owner uid can write.
+    match /api_tokens/{token} {
+      allow get: if true;        // single-doc read by exact token id
+      allow list: if false;      // never list — would leak all tokens
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // ─── digest_subscribers ──────────────────────────────────────
     // Public-read so the weekly-digest cron can list opt-ins via the
     // public REST API without a service account key (org policy

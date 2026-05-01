@@ -416,15 +416,32 @@ export default function UserDashboard() {
   };
 
   const generateApiKey = async () => {
-    const key = Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
+    // New token format: vrk_<48 hex>. Mirrored to /api_tokens for
+    // server-side validation in api/tools.js.
+    const buf = crypto.getRandomValues(new Uint8Array(24));
+    const hex = Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const key = `vrk_${hex}`;
     try {
       const snap = await getDocs(fsCol("apikeys"));
-      if (snap.empty) await addDoc(fsCol("apikeys"), { key, createdAt: serverTimestamp() });
-      else await setDoc(doc(db, "users", uid, "apikeys", snap.docs[0].id), { key, createdAt: serverTimestamp() });
+      // Replace any existing single key for this user
+      if (!snap.empty) {
+        for (const d of snap.docs) {
+          const old = d.data();
+          if (old.key) { try { await deleteDoc(doc(db, "api_tokens", old.key)); } catch {} }
+          await deleteDoc(doc(db, "users", uid, "apikeys", d.id));
+        }
+      }
+      await addDoc(fsCol("apikeys"), { key, label: "Primary", active: true, createdAt: serverTimestamp(), callCount: 0 });
+      // Public-by-id mirror for serverless validation
+      await setDoc(doc(db, "api_tokens", key), {
+        uid, plan: userPlan || "starter", active: true, createdAt: serverTimestamp(),
+      });
       setApiKey(key);
       await logActivity("api_key_generated", "API key generated");
       toast("API key generated", "success");
-    } catch { toast("Failed to generate API key", "error"); }
+    } catch (err) {
+      toast("Failed to generate API key: " + err.message, "error");
+    }
   };
 
   const copyApiKey = () => { if (apiKey) { navigator.clipboard.writeText(apiKey); toast("API key copied", "success"); } };

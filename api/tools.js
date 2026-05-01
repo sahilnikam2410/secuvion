@@ -679,6 +679,31 @@ const GET_ALLOWED = new Set(["ip", "weekly-digest"]);
 // Tools that bypass shared rate-limit (cron uses its own auth)
 const RL_EXEMPT = new Set(["weekly-digest"]);
 
+/**
+ * Validate an incoming Bearer token against /api_tokens/{token} in
+ * Firestore using the public REST API. Returns { valid, uid, plan }.
+ */
+async function validateApiToken(authHeader) {
+  if (!authHeader) return { valid: false };
+  const m = /^Bearer\s+(vrk_[a-f0-9]{48})\s*$/i.exec(authHeader);
+  if (!m) return { valid: false };
+  const token = m[1];
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+  if (!projectId || !apiKey) return { valid: false };
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/api_tokens/${encodeURIComponent(token)}?key=${apiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) return { valid: false };
+    const doc = await r.json();
+    const f = doc.fields || {};
+    if (f.active?.booleanValue !== true) return { valid: false };
+    return { valid: true, uid: f.uid?.stringValue, plan: f.plan?.stringValue || "starter" };
+  } catch {
+    return { valid: false };
+  }
+}
+
 export default async function handler(req, res) {
   const tool = req.query.tool;
   if (!tool || !HANDLERS[tool]) {
@@ -690,8 +715,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // API token auth — Pro+ users get higher rate limits and can call
+  // from external clients without the browser-origin check.
+  const tokenAuth = await validateApiToken(req.headers["authorization"]);
+  req.apiClient = tokenAuth; // { valid, uid, plan }
+
   if (!RL_EXEMPT.has(tool)) {
-    const rl = applyRateLimit(req, { ipLimit: 20, userLimit: 60, windowMs: 60000 });
+    const rateLimits = tokenAuth.valid
+      ? { ipLimit: 200, userLimit: 600, windowMs: 60000 }   // Pro+
+      : { ipLimit: 20, userLimit: 60, windowMs: 60000 };    // Anonymous / free
+    const rl = applyRateLimit(req, rateLimits);
     if (!rl.allowed) {
       res.setHeader("Retry-After", rl.retryAfter);
       return res.status(429).json({ error: "Too many requests", retryAfter: rl.retryAfter });
