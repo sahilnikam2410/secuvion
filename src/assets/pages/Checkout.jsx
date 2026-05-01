@@ -142,7 +142,10 @@ function ConfettiOverlay() {
 }
 
 export default function Checkout() {
-  const { user, updatePlan } = useAuth();
+  const { user, updatePlan, sendVerifyEmail } = useAuth();
+  const [verifySent, setVerifySent] = useState(false);
+  const isPasswordProvider = user?.providerData?.[0]?.providerId === "password";
+  const needsEmailVerify = isPasswordProvider && user?.emailVerified === false;
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const planKey = params.get("plan") || "pro";
@@ -294,6 +297,12 @@ export default function Checkout() {
   // Cashfree Checkout handler — accepts optional method filter to pre-select payment type
   // method: "upi" | "card" | "nb" | "wallet" | undefined (all)
   const handleCashfreeCheckout = async (filterMethod) => {
+    // Email-verify gate: don't let unverified users start a payment to
+    // prevent fraud, chargebacks, and stuck Firestore writes.
+    if (user && user.providerData?.[0]?.providerId === "password" && user.emailVerified === false) {
+      setErrors({ cashfree: "Please verify your email before paying. Check your inbox for the verification link or request a new one from your dashboard." });
+      return;
+    }
     setProcessing(true);
     setErrors({});
     try {
@@ -505,6 +514,43 @@ export default function Checkout() {
       <Navbar />
 
       <div style={{ paddingTop: 100 }}>
+        {/* Email verification gate banner */}
+        {needsEmailVerify && (
+          <div style={{ maxWidth: 1060, margin: "0 auto", padding: "16px 20px 0" }}>
+            <div style={{
+              padding: "14px 18px", borderRadius: 12,
+              background: "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(234,179,8,0.08))",
+              border: "1px solid rgba(249,115,22,0.3)",
+              display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: 22 }}>⚠</span>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.white }}>Verify your email before paying</div>
+                <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
+                  We sent a verification link to <b style={{ color: T.white }}>{user?.email}</b>. Verifying prevents fraudulent charges and chargeback issues.
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  const r = await sendVerifyEmail();
+                  if (r.success) setVerifySent(true);
+                }}
+                disabled={verifySent}
+                style={{
+                  padding: "10px 18px", borderRadius: 8,
+                  background: verifySent ? "rgba(34,197,94,0.15)" : "rgba(249,115,22,0.15)",
+                  border: `1px solid ${verifySent ? T.green : T.orange}40`,
+                  color: verifySent ? T.green : T.orange,
+                  fontSize: 13, fontWeight: 600, cursor: verifySent ? "default" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {verifySent ? "✓ Sent — check inbox" : "Resend Email"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Back link */}
         <div style={{ maxWidth: 1060, margin: "0 auto", padding: "16px 20px 0" }}>
           <Link to="/pricing" style={{

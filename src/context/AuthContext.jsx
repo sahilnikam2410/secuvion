@@ -7,6 +7,7 @@ import {
   signInWithPopup,
   signInWithPhoneNumber,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile as firebaseUpdateProfile,
 } from "firebase/auth";
 import { auth, googleProvider, githubProvider, facebookProvider } from "../firebase/config";
@@ -54,6 +55,8 @@ function mergeUserData(firebaseUser, profile) {
     onTrial: !!profile?.onTrial && trialActive,
     trialExpiresAt: trialExpires,
     trialPlan: profile?.trialPlan || null,
+    emailVerified: !!firebaseUser.emailVerified,
+    providerData: firebaseUser.providerData || [],
   };
 }
 
@@ -135,24 +138,71 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
+  // Client-side login rate limit — 5 fails per 15 min per browser per email.
+  // Server-side equivalent on Firebase Auth would require Cloud Functions.
+  const RL_KEY = (email) => `vrikaan_login_rl_${(email || "").toLowerCase()}`;
+  const RL_MAX = 5;
+  const RL_WINDOW_MS = 15 * 60 * 1000;
+
+  const checkLoginRateLimit = (email) => {
+    try {
+      const raw = localStorage.getItem(RL_KEY(email));
+      const list = raw ? JSON.parse(raw) : [];
+      const now = Date.now();
+      const recent = list.filter((t) => now - t < RL_WINDOW_MS);
+      if (recent.length >= RL_MAX) {
+        const wait = Math.ceil((RL_WINDOW_MS - (now - recent[0])) / 60000);
+        return { ok: false, wait };
+      }
+      return { ok: true, recent };
+    } catch {
+      return { ok: true, recent: [] };
+    }
+  };
+
+  const recordLoginFail = (email) => {
+    try {
+      const raw = localStorage.getItem(RL_KEY(email));
+      const list = raw ? JSON.parse(raw) : [];
+      const now = Date.now();
+      const recent = list.filter((t) => now - t < RL_WINDOW_MS);
+      recent.push(now);
+      localStorage.setItem(RL_KEY(email), JSON.stringify(recent));
+    } catch { /* storage full */ }
+  };
+
+  const clearLoginFails = (email) => {
+    try { localStorage.removeItem(RL_KEY(email)); } catch { /* noop */ }
+  };
+
   const login = useCallback(async (email, password) => {
+    // Rate-limit gate
+    const gate = checkLoginRateLimit(email);
+    if (!gate.ok) {
+      return { success: false, error: `Too many failed attempts. Try again in ${gate.wait} minutes.` };
+    }
+
     const demoUser = DEMO_USERS.find((u) => u.email === email && u.password === password);
     if (demoUser) {
       try {
         const credential = await signInWithEmailAndPassword(auth, email, password);
+        clearLoginFails(email);
         return { success: true, user: credential.user };
       } catch (_firebaseError) {
         const session = { ...demoUser, uid: "demo_" + demoUser.id };
         delete session.password;
         setUser(session);
+        clearLoginFails(email);
         return { success: true, user: session };
       }
     }
 
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
+      clearLoginFails(email);
       return { success: true, user: credential.user };
     } catch (error) {
+      recordLoginFail(email);
       return { success: false, error: error.message || "Invalid email or password" };
     }
   }, []);
@@ -246,6 +296,16 @@ export function AuthProvider({ children }) {
       return { success: true, user: result.user };
     } catch (error) {
       return { success: false, error: error.message || "Invalid verification code" };
+    }
+  }, []);
+
+  const sendVerifyEmail = useCallback(async () => {
+    if (!auth.currentUser) return { success: false, error: "Not signed in" };
+    try {
+      await sendEmailVerification(auth.currentUser, { url: window.location.origin + "/dashboard" });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || "Could not send verification email" };
     }
   }, []);
 
@@ -345,6 +405,7 @@ export function AuthProvider({ children }) {
     loginWithPhone,
     verifyPhoneCode,
     resetPassword,
+    sendVerifyEmail,
     updatePlan,
     startTrial,
     updateProfile,

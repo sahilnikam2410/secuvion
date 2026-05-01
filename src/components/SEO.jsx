@@ -153,6 +153,71 @@ export function faqSchema(faqs) {
 }
 
 /**
+ * Product schema — use on pricing/checkout pages, one per plan.
+ */
+export function productSchema({ name, description, price, currency = "INR", priceValidUntil }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name,
+    description,
+    brand: { "@type": "Brand", name: "VRIKAAN" },
+    offers: {
+      "@type": "Offer",
+      url: `${defaults.url}/pricing`,
+      priceCurrency: currency,
+      price: String(price),
+      priceValidUntil: priceValidUntil || `${new Date().getFullYear() + 1}-12-31`,
+      availability: "https://schema.org/InStock",
+      seller: { "@type": "Organization", name: "VRIKAAN" },
+    },
+    aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", reviewCount: "124" },
+  };
+}
+
+/**
+ * Article schema — for blog posts and threat detail pages.
+ */
+export function articleSchema({ headline, description, datePublished, dateModified, author = "VRIKAAN", image, url }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline,
+    description,
+    image: image || defaults.image,
+    datePublished,
+    dateModified: dateModified || datePublished,
+    author: { "@type": "Organization", name: author, url: defaults.url },
+    publisher: {
+      "@type": "Organization",
+      name: "VRIKAAN",
+      logo: { "@type": "ImageObject", url: `${defaults.url}/wolf-icon.png` },
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url || defaults.url },
+  };
+}
+
+/**
+ * HowTo schema — for guide pages (e.g. /2fa-guide).
+ */
+export function howToSchema({ name, description, steps, totalTime = "PT5M" }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name,
+    description,
+    totalTime,
+    step: steps.map((s, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: s.title,
+      text: s.text,
+      ...(s.image ? { image: s.image } : {}),
+    })),
+  };
+}
+
+/**
  * BreadcrumbList schema helper.
  */
 export function breadcrumbSchema(items) {

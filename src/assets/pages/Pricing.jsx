@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
-import SEO, { faqSchema } from "../../components/SEO";
+import SEO, { faqSchema, productSchema } from "../../components/SEO";
 import { useAuth } from "../../context/AuthContext";
 
 const T = {
@@ -185,7 +185,16 @@ export default function Pricing() {
         description="VRIKAAN pricing: Free plan with daily usage limits, Standard (₹49/mo), Advanced (₹99/mo), Enterprise (₹199/mo). 30-day money-back guarantee. UPI/cards accepted."
         path="/pricing"
         keywords="cybersecurity pricing India, affordable security software, UPI security tools, VRIKAAN plans"
-        jsonLd={faqSchema(faqs)}
+        jsonLd={[
+          faqSchema(faqs),
+          ...plans.filter(p => p.monthlyPrice > 0).map(p =>
+            productSchema({
+              name: `VRIKAAN ${p.name}`,
+              description: p.desc,
+              price: p.monthlyPrice,
+            })
+          ),
+        ]}
       />
       <Navbar />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
