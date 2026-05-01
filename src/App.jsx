@@ -10,6 +10,7 @@ import JungleLoader from "./components/JungleLoader.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import CookieConsent from "./components/CookieConsent.jsx";
 import PWAInstallPrompt from "./components/PWAInstallPrompt.jsx";
+import ExitIntent from "./components/ExitIntent.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
 
 /* ── Skeleton Loader ── */
@@ -259,6 +260,7 @@ function App() {
         <CommandPalette />
         <CookieConsent />
         <PWAInstallPrompt />
+        <ExitIntent />
       </Router>
     </AuthProvider>
     </ToastProvider>

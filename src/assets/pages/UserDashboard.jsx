@@ -21,6 +21,7 @@ import {
   HiOutlineClock, HiOutlinePhotograph, HiOutlineCog, HiOutlineMoon, HiOutlineSun,
 } from "react-icons/hi";
 import { useTheme } from "../../context/ThemeContext";
+import { getAllBadgesWithState, getStreak } from "../../services/gamificationService";
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const T = {
@@ -588,6 +589,73 @@ export default function UserDashboard() {
             </div>
             <button onClick={() => navigate("/pricing")} className="dash-btn" style={sty.btn(isUrgent ? T.orange : `linear-gradient(135deg, ${T.accent}, ${T.cyan})`)}>Upgrade Now <HiOutlineChevronRight size={14} /></button>
           </div>
+        );
+      })()}
+      {/* Streak + Achievements */}
+      {(() => {
+        const streak = getStreak();
+        const badges = getAllBadgesWithState({
+          emailVerified: !!user?.emailVerified,
+          profileComplete: !!(user?.name && user?.phoneNumber),
+          paidPlan: userPlan !== "free",
+        });
+        const earned = badges.filter((b) => b.unlocked);
+        return (
+          <AniCard delay={0.1}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: streak.current > 0 ? "linear-gradient(135deg, #f97316, #eab308)" : "rgba(148,163,184,0.08)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 26, position: "relative",
+                  boxShadow: streak.current >= 3 ? "0 0 20px rgba(249,115,22,0.35)" : "none",
+                }}>🔥</div>
+                <div>
+                  <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>Daily Streak</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: T.white, fontFamily: "'Space Grotesk'" }}>
+                    {streak.current} day{streak.current !== 1 ? "s" : ""}
+                  </div>
+                  {streak.longest > streak.current && (
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Longest: {streak.longest}</div>
+                  )}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>Badges</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: T.cyan, fontFamily: "'Space Grotesk'" }}>
+                  {earned.length}<span style={{ fontSize: 14, color: T.muted, fontWeight: 400 }}>/{badges.length}</span>
+                </div>
+              </div>
+            </div>
+            {/* Badge grid */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "repeat(5, 1fr)" : "repeat(auto-fit, minmax(72px, 1fr))",
+              gap: 8,
+            }}>
+              {badges.map((b) => (
+                <div
+                  key={b.id}
+                  title={`${b.title} — ${b.desc}${b.unlocked ? " ✓" : " (locked)"}`}
+                  style={{
+                    aspectRatio: "1 / 1",
+                    borderRadius: 12,
+                    background: b.unlocked
+                      ? "linear-gradient(135deg, rgba(99,102,241,0.18), rgba(20,227,197,0.12))"
+                      : "rgba(148,163,184,0.05)",
+                    border: `1px solid ${b.unlocked ? "rgba(99,102,241,0.3)" : T.border}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 22, opacity: b.unlocked ? 1 : 0.35,
+                    filter: b.unlocked ? "none" : "grayscale(80%)",
+                    cursor: "help", transition: "all 0.2s",
+                  }}
+                >
+                  {b.icon}
+                </div>
+              ))}
+            </div>
+          </AniCard>
         );
       })()}
       {/* Daily Security Tip */}

@@ -28,6 +28,11 @@ import "./styles/responsive.css";
   } catch (e) { /* noop */ }
 })();
 
+// Ping streak counter on every app boot — only counts once per day
+import("./services/gamificationService").then(({ pingActivity }) => {
+  try { pingActivity(); } catch { /* noop */ }
+}).catch(() => {});
+
 inject();
 injectSpeedInsights();
 installGlobalHandlers();
