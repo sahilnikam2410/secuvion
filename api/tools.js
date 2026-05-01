@@ -599,15 +599,32 @@ async function handleWeeklyDigest(req, res) {
       })
       .filter((u) => u.email);
 
+    // Sanity-check EmailJS env vars early so the failure mode is visible.
+    const sid = process.env.VITE_EMAILJS_SERVICE_ID;
+    const tpl = process.env.VITE_EMAILJS_NOTIFY_TEMPLATE;
+    const pub = process.env.VITE_EMAILJS_PUBLIC_KEY;
+    const priv = process.env.EMAILJS_PRIVATE_KEY; // server-side only, optional
+    if (!sid || !tpl || !pub) {
+      const missing = [
+        !sid && "VITE_EMAILJS_SERVICE_ID",
+        !tpl && "VITE_EMAILJS_NOTIFY_TEMPLATE",
+        !pub && "VITE_EMAILJS_PUBLIC_KEY",
+      ].filter(Boolean).join(", ");
+      console.error("weekly-digest: missing EmailJS env vars:", missing);
+      return res.status(500).json({ error: `Missing env: ${missing}` });
+    }
+
     const weekIdx = digestWeekIdx(new Date());
     const subject = `Your VRIKAAN weekly digest — wk ${weekIdx}`;
+    const lastErrors = [];
     let ok = 0, fail = 0;
     for (const u of users) {
       try {
         const payload = {
-          service_id: process.env.VITE_EMAILJS_SERVICE_ID,
-          template_id: process.env.VITE_EMAILJS_NOTIFY_TEMPLATE,
-          user_id: process.env.VITE_EMAILJS_PUBLIC_KEY,
+          service_id: sid,
+          template_id: tpl,
+          user_id: pub,
+          ...(priv ? { accessToken: priv } : {}),
           template_params: {
             to_name: u.name || "User",
             to_email: u.email,
@@ -618,15 +635,26 @@ async function handleWeeklyDigest(req, res) {
         };
         const er = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", origin: "https://www.vrikaan.com" },
           body: JSON.stringify(payload),
         });
-        if (er.ok) ok++; else fail++;
-      } catch { fail++; }
+        if (er.ok) {
+          ok++;
+        } else {
+          const body = await er.text();
+          console.warn(`EmailJS ${er.status} for ${u.email}:`, body.slice(0, 300));
+          if (lastErrors.length < 3) lastErrors.push({ status: er.status, body: body.slice(0, 200) });
+          fail++;
+        }
+      } catch (e) {
+        console.warn(`EmailJS exception for ${u.email}:`, e.message);
+        if (lastErrors.length < 3) lastErrors.push({ exception: e.message });
+        fail++;
+      }
       await new Promise((r) => setTimeout(r, 350));
     }
     console.log(`weekly-digest: ok=${ok} fail=${fail} total=${users.length}`);
-    return res.status(200).json({ sent: ok, failed: fail, total: users.length });
+    return res.status(200).json({ sent: ok, failed: fail, total: users.length, errors: lastErrors });
   } catch (err) {
     console.error("weekly-digest error:", err.message);
     return res.status(500).json({ error: err.message });
