@@ -56,9 +56,10 @@ const styles = {
   },
   btn: {
     width: "100%", padding: "14px", background: "linear-gradient(135deg, #14e3c5, #0ea5e9)",
-    border: "none", borderRadius: 10, color: "#030712", fontSize: 15, fontWeight: 700,
+    border: "none", borderRadius: 10, color: "#ffffff", fontSize: 15, fontWeight: 700,
     cursor: "pointer", marginTop: 4, fontFamily: "'Space Grotesk', sans-serif",
     letterSpacing: 0.5, transition: "opacity 0.2s, transform 0.2s",
+    textShadow: "0 1px 2px rgba(0,0,0,0.35)",
   },
   error: {
     background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
