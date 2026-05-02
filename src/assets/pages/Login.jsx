@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import { RecaptchaVerifier } from "firebase/auth";
 import { auth } from "../../firebase/config";
@@ -282,6 +283,7 @@ function injectKeyframes() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const isSwitchAccount = searchParams.get("switch") === "1";
   const {
@@ -614,12 +616,12 @@ export default function Login() {
         {/* Header */}
         <div style={{ textAlign: "center" }}>
           <img src="/wolf-mark.png?v=2" alt="VRIKAAN" style={{ width: 72, height: 72, margin: "0 auto 12px", display: "block" }} />
-          <div style={S.title}>{user?.mfaEnabled && !mfaPassed ? "Two-Factor Auth" : isSwitchAccount ? "Switch Account" : "Welcome Back"}</div>
+          <div style={S.title}>{user?.mfaEnabled && !mfaPassed ? "Two-Factor Auth" : isSwitchAccount ? "Switch Account" : t("login.title")}</div>
         </div>
         <p style={S.subtitle}>
           {user?.mfaEnabled && !mfaPassed
             ? "Enter the 6-digit code from your authenticator app (or a backup code)"
-            : isSwitchAccount ? "Sign in with a different account" : "Sign in to access your cybersecurity dashboard"}
+            : isSwitchAccount ? "Sign in with a different account" : t("login.subtitle")}
         </p>
 
         {/* Messages */}

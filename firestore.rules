@@ -126,6 +126,27 @@ service cloud.firestore {
       allow delete: if isOwner(uid) || isAdmin();
     }
 
+    // ─── teams ───────────────────────────────────────────────────
+    // A user can READ a team if they're listed in its members map.
+    // All WRITES go through the server (api/tools.js team-* handlers)
+    // which run as the Admin SDK and bypass these rules; client writes
+    // are blocked so members can't escalate themselves.
+    match /teams/{teamId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.members;
+      allow create, update, delete: if false;
+    }
+
+    // ─── teamInvites ─────────────────────────────────────────────
+    // Read by the invitee (matched by their auth email) so the dashboard
+    // can show pending invites. All writes server-side via team-invite.
+    match /teamInvites/{inviteId} {
+      allow get, list: if isSignedIn() && (
+        resource.data.email == request.auth.token.email ||
+        resource.data.invitedBy == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // ─── coupons ─────────────────────────────────────────────────
     // Promo codes the Checkout page validates client-side.
     // Public single-doc read (by exact code) so checkout can lookup;

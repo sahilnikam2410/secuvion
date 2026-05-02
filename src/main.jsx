@@ -4,6 +4,7 @@ import { inject } from "@vercel/analytics";
 import { injectSpeedInsights } from "@vercel/speed-insights";
 import App from "./App.jsx";
 import { installGlobalHandlers } from "./services/errorReporter";
+import "./i18n.js"; // initialize i18next before any component renders
 import "./index.css";
 import "./styles/global.css";
 import "./styles/animations.css";

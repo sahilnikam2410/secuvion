@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { subscribe as subNotif, listNotifications, markAllRead as notifMarkAll, dismissNotification, markRead, seedWelcome } from "../services/notificationService";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const TD = { bg: "#030712", white: "#f1f5f9", muted: "#94a3b8", accent: "#6366f1", cyan: "#14e3c5", border: "rgba(148,163,184,0.08)" };
 const TL = { bg: "#f8fafc", white: "#0f172a", muted: "#475569", accent: "#6366f1", cyan: "#0d9488", border: "rgba(15,23,42,0.08)" };
@@ -445,6 +446,7 @@ const Navbar = () => {
             </>
           ) : (
             <>
+              <LanguageSwitcher compact />
               <Link to="/login" style={{
                 padding: "8px 18px", border: "1px solid rgba(148,163,184,0.15)",
                 borderRadius: 8, color: T.white, textDecoration: "none", fontSize: 13, fontWeight: 500, background: "transparent",

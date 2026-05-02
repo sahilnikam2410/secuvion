@@ -750,6 +750,118 @@ async function handleLeakCheck(req, res) {
   return res.status(200).json(out);
 }
 
+// ─── TEAMS / ORG ACCOUNTS ───────────────────────────────────────────
+
+// Create a team. Caller becomes owner + admin member.
+async function handleTeamCreate(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { name } = req.body || {};
+  if (!name || name.trim().length < 2) return res.status(400).json({ error: "Team name required" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+  const teamRef = await fs.collection("teams").add({
+    name: name.trim().slice(0, 60),
+    ownerUid: me.uid,
+    ownerEmail: me.email,
+    members: { [me.uid]: "admin" },
+    memberEmails: [me.email],
+    createdAt: new Date(),
+  });
+  // Stamp current team on user
+  await fs.collection("users").doc(me.uid).set({ currentTeamId: teamRef.id }, { merge: true });
+  return res.status(200).json({ success: true, teamId: teamRef.id });
+}
+
+// Invite a member by email. Creates a pending invite the invitee accepts on
+// next sign-in (handled by team-accept-invite called from the client).
+async function handleTeamInvite(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { teamId, email } = req.body || {};
+  if (!teamId || !email) return res.status(400).json({ error: "teamId and email required" });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: "Invalid email" });
+
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+
+  const teamSnap = await fs.collection("teams").doc(teamId).get();
+  if (!teamSnap.exists) return res.status(404).json({ error: "Team not found" });
+  const team = teamSnap.data();
+  if (team.members?.[me.uid] !== "admin") return res.status(403).json({ error: "Only team admins can invite" });
+  if (team.memberEmails?.includes(email)) return res.status(400).json({ error: "Already a member" });
+
+  // Idempotent — if a pending invite exists, return it
+  const existing = await fs.collection("teamInvites")
+    .where("teamId", "==", teamId).where("email", "==", email).where("status", "==", "pending").limit(1).get();
+  if (!existing.empty) {
+    return res.status(200).json({ success: true, inviteId: existing.docs[0].id, alreadyInvited: true });
+  }
+  const inv = await fs.collection("teamInvites").add({
+    teamId, email, invitedBy: me.uid, invitedByEmail: me.email,
+    teamName: team.name, status: "pending", createdAt: new Date(),
+  });
+  return res.status(200).json({ success: true, inviteId: inv.id });
+}
+
+// Accept a pending invite (caller must match invite.email).
+async function handleTeamAcceptInvite(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { inviteId } = req.body || {};
+  if (!inviteId) return res.status(400).json({ error: "inviteId required" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+
+  const invSnap = await fs.collection("teamInvites").doc(inviteId).get();
+  if (!invSnap.exists) return res.status(404).json({ error: "Invite not found" });
+  const inv = invSnap.data();
+  if (inv.status !== "pending") return res.status(400).json({ error: "Invite already used" });
+  if ((inv.email || "").toLowerCase() !== (me.email || "").toLowerCase()) {
+    return res.status(403).json({ error: "Invite is for a different email" });
+  }
+
+  const FieldValue = (await import("firebase-admin/firestore")).FieldValue;
+  await fs.collection("teams").doc(inv.teamId).update({
+    [`members.${me.uid}`]: "member",
+    memberEmails: FieldValue.arrayUnion(me.email),
+  });
+  await invSnap.ref.update({ status: "accepted", acceptedAt: new Date(), acceptedBy: me.uid });
+  await fs.collection("users").doc(me.uid).set({ currentTeamId: inv.teamId }, { merge: true });
+  return res.status(200).json({ success: true, teamId: inv.teamId });
+}
+
+// Remove a member. Owner only. Cannot remove yourself if owner (use delete-team flow instead — out of MVP scope).
+async function handleTeamRemoveMember(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { teamId, uid } = req.body || {};
+  if (!teamId || !uid) return res.status(400).json({ error: "teamId and uid required" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+  const teamSnap = await fs.collection("teams").doc(teamId).get();
+  if (!teamSnap.exists) return res.status(404).json({ error: "Team not found" });
+  const team = teamSnap.data();
+  if (team.ownerUid !== me.uid) return res.status(403).json({ error: "Only the owner can remove members" });
+  if (uid === team.ownerUid) return res.status(400).json({ error: "Cannot remove owner" });
+  const memberSnap = await fs.collection("users").doc(uid).get();
+  const memberEmail = memberSnap.data()?.email;
+  const FieldValue = (await import("firebase-admin/firestore")).FieldValue;
+  await teamSnap.ref.update({
+    [`members.${uid}`]: FieldValue.delete(),
+    memberEmails: FieldValue.arrayRemove(memberEmail),
+  });
+  // Clear team pointer on removed user if it pointed to this team
+  if (memberSnap.data()?.currentTeamId === teamId) {
+    await fs.collection("users").doc(uid).update({ currentTeamId: null });
+  }
+  return res.status(200).json({ success: true });
+}
+
 // ─── OUTBOUND WEBHOOKS ──────────────────────────────────────────────
 
 import crypto from "node:crypto";
@@ -1049,6 +1161,10 @@ const HANDLERS = {
   "webhook-set": handleWebhookSet,
   "webhook-clear": handleWebhookClear,
   "webhook-test": handleWebhookTest,
+  "team-create": handleTeamCreate,
+  "team-invite": handleTeamInvite,
+  "team-accept-invite": handleTeamAcceptInvite,
+  "team-remove-member": handleTeamRemoveMember,
 };
 
 // Some tools accept GET (ip lookup, cron pings); others require POST.

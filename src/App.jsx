@@ -112,6 +112,7 @@ const EmergencyHelp = lazy(() => import("./assets/pages/EmergencyHelp.jsx"));
 const Learn = lazy(() => import("./assets/pages/Learn.jsx"));
 const Founder = lazy(() => import("./assets/pages/Founder.jsx"));
 const Pricing = lazy(() => import("./assets/pages/Pricing.jsx"));
+const Team = lazy(() => import("./assets/pages/Team.jsx"));
 const Login = lazy(() => import("./assets/pages/Login.jsx"));
 const Signup = lazy(() => import("./assets/pages/Signup.jsx"));
 const AdminDashboard = lazy(() => import("./assets/pages/AdminDashboard.jsx"));
@@ -175,6 +176,7 @@ function AppRoutes() {
             <Route path="/home" element={<Home />} />
             <Route path="/founder" element={<Founder />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
