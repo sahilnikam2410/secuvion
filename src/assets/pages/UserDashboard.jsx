@@ -55,7 +55,38 @@ const Spinner = () => (
   </div>
 );
 
-function detectDevice() {
+// Android model-code → human name. Add more as needed; falls back to raw code.
+const ANDROID_MODEL_LOOKUP = {
+  "SM-G998B": "Galaxy S21 Ultra", "SM-G998U": "Galaxy S21 Ultra",
+  "SM-G991B": "Galaxy S21", "SM-G996B": "Galaxy S21+",
+  "SM-S901B": "Galaxy S22", "SM-S906B": "Galaxy S22+", "SM-S908B": "Galaxy S22 Ultra",
+  "SM-S911B": "Galaxy S23", "SM-S916B": "Galaxy S23+", "SM-S918B": "Galaxy S23 Ultra",
+  "SM-S921B": "Galaxy S24", "SM-S926B": "Galaxy S24+", "SM-S928B": "Galaxy S24 Ultra",
+  "SM-A536B": "Galaxy A53", "SM-A546B": "Galaxy A54", "SM-A556B": "Galaxy A55",
+  "SM-A346B": "Galaxy A34", "SM-A356B": "Galaxy A35",
+  "SM-F946B": "Galaxy Z Fold5", "SM-F731B": "Galaxy Z Flip5",
+  "Pixel 6": "Pixel 6", "Pixel 6 Pro": "Pixel 6 Pro", "Pixel 6a": "Pixel 6a",
+  "Pixel 7": "Pixel 7", "Pixel 7 Pro": "Pixel 7 Pro", "Pixel 7a": "Pixel 7a",
+  "Pixel 8": "Pixel 8", "Pixel 8 Pro": "Pixel 8 Pro", "Pixel 8a": "Pixel 8a",
+  "Pixel 9": "Pixel 9", "Pixel 9 Pro": "Pixel 9 Pro",
+  "CPH2417": "OnePlus 10 Pro", "CPH2581": "OnePlus 11", "CPH2583": "OnePlus 12",
+  "M2102K1G": "Mi 11", "2201123G": "Xiaomi 12", "2210132G": "Xiaomi 13",
+};
+
+function shortGpu(s) {
+  // Strip ANGLE wrapper + driver/vendor noise; keep brand+model
+  return s
+    .replace(/^ANGLE\s*\(/, "")
+    .replace(/\)$/, "")
+    .replace(/Direct3D11.*$/, "")
+    .replace(/Vulkan.*$/, "")
+    .replace(/OpenGL.*$/, "")
+    .replace(/\([^)]*\)/g, "")
+    .trim()
+    .slice(0, 40);
+}
+
+function detectDeviceSync() {
   const ua = navigator.userAgent;
   let browser = "Unknown", os = "Unknown", type = "Desktop";
   if (ua.includes("Edg/")) browser = "Edge";
@@ -69,7 +100,67 @@ function detectDevice() {
   else if (ua.includes("Linux")) os = "Linux";
   if (/Mobi|Android/i.test(ua)) type = "Mobile";
   else if (/iPad|Tablet/i.test(ua)) type = "Tablet";
-  return { browser, os, type, screenRes: `${screen.width}x${screen.height}`, name: `${browser} on ${os}` };
+  return {
+    browser, os, type,
+    osVersion: "", model: "", gpu: "", ram: 0, cpu: 0,
+    screenRes: `${screen.width}x${screen.height}`,
+    name: `${browser} on ${os}`,
+  };
+}
+
+async function enrichDevice(base) {
+  const out = { ...base };
+  try {
+    if (navigator.userAgentData?.getHighEntropyValues) {
+      const hi = await navigator.userAgentData.getHighEntropyValues([
+        "model", "platformVersion", "architecture", "bitness",
+      ]);
+      if (hi.model) out.model = ANDROID_MODEL_LOOKUP[hi.model] || hi.model;
+      if (hi.platformVersion) {
+        const major = parseInt(hi.platformVersion.split(".")[0], 10);
+        // UA-CH Windows quirk: Win10 reports < 13, Win11 reports >= 13
+        if (out.os === "Windows") out.osVersion = major >= 13 ? "11" : "10";
+        else out.osVersion = String(major);
+      }
+    }
+  } catch { /* UA-CH not available (Firefox/Safari) */ }
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
+    if (dbg) out.gpu = shortGpu(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "");
+  } catch { /* WebGL blocked */ }
+  out.ram = navigator.deviceMemory || 0;
+  out.cpu = navigator.hardwareConcurrency || 0;
+
+  // Build a richer human-readable name
+  if (out.model) {
+    out.name = `${out.model} (${out.os}${out.osVersion ? " " + out.osVersion : ""})`;
+  } else {
+    const specs = [
+      out.cpu ? `${out.cpu}C` : "",
+      out.ram ? `${out.ram}GB` : "",
+      out.gpu || "",
+    ].filter(Boolean);
+    const osLabel = `${out.os}${out.osVersion ? " " + out.osVersion : ""}`;
+    const formFactor = out.type === "Mobile" ? "Phone" : out.type === "Tablet" ? "Tablet" : "PC";
+    out.name = specs.length ? `${osLabel} ${formFactor} (${specs.join(" · ")})` : `${osLabel} ${formFactor}`;
+  }
+  return out;
+}
+
+function useDeviceInfo() {
+  const [device, setDevice] = useState(detectDeviceSync);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    enrichDevice(device).then((enriched) => {
+      if (!cancelled) { setDevice(enriched); setReady(true); }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return [device, ready];
 }
 
 function calcSecurityScore(user, deviceCount) {
@@ -271,7 +362,7 @@ export default function UserDashboard() {
   const uid = user?.uid;
   const userPlan = user?.plan || "free";
   const deviceLimit = planDeviceLimit[userPlan] || 1;
-  const currentDevice = detectDevice();
+  const [currentDevice, deviceReady] = useDeviceInfo();
   const { score: secScore, factors: secFactors } = calcSecurityScore(user, devices.length);
 
   const fsCol = useCallback((sub) => uid ? collection(db, "users", uid, sub) : null, [uid]);
@@ -321,11 +412,17 @@ export default function UserDashboard() {
 
   useEffect(() => {
     if (!uid) { navigate("/login"); return; }
-    loadData().then(() => {
-      autoRegisterDevice();
-      logActivity("login", "Dashboard accessed");
-    });
+    loadData();
   }, [uid]);
+
+  // Auto-register the device only after async enrichment finishes,
+  // so the stored name reflects the real model/specs (not the sync UA stub).
+  useEffect(() => {
+    if (!uid || !deviceReady) return;
+    autoRegisterDevice();
+    logActivity("login", "Dashboard accessed");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, deviceReady]);
 
   useEffect(() => { if (user) { setEditName(user.name || ""); setEditPhone(user.phoneNumber || ""); } }, [user]);
 
@@ -759,7 +856,16 @@ export default function UserDashboard() {
       <AniCard delay={0.3}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: T.white, marginBottom: 12, fontFamily: "'Space Grotesk'" }}>Current Device</h3>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-          {[["Browser", currentDevice.browser], ["OS", currentDevice.os], ["Type", currentDevice.type], ["Screen", currentDevice.screenRes]].map(([l, v]) => (
+          {[
+            ["Device", currentDevice.name],
+            ["Browser", currentDevice.browser],
+            ["OS", `${currentDevice.os}${currentDevice.osVersion ? " " + currentDevice.osVersion : ""}`],
+            ["Type", currentDevice.type],
+            ["Screen", currentDevice.screenRes],
+            currentDevice.cpu && ["CPU", `${currentDevice.cpu} cores`],
+            currentDevice.ram && ["RAM", `${currentDevice.ram} GB`],
+            currentDevice.gpu && ["GPU", currentDevice.gpu],
+          ].filter(Boolean).map(([l, v]) => (
             <span key={l} style={{ padding: "4px 12px", background: "rgba(99,102,241,0.1)", borderRadius: 6, fontSize: 12, color: T.muted }}>
               <span style={{ color: T.cyan }}>{l}:</span> {v}
             </span>
@@ -1440,11 +1546,15 @@ export default function UserDashboard() {
         <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 14, fontFamily: "'Space Grotesk'" }}>Active Session</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
           {[
+            { label: "Device", value: currentDevice.name, icon: HiOutlineDesktopComputer },
             { label: "Browser", value: currentDevice.browser, icon: HiOutlineGlobe },
-            { label: "OS", value: currentDevice.os, icon: HiOutlineDesktopComputer },
-            { label: "Device Type", value: currentDevice.type, icon: HiOutlineFingerPrint },
+            { label: "OS", value: `${currentDevice.os}${currentDevice.osVersion ? " " + currentDevice.osVersion : ""}`, icon: HiOutlineDesktopComputer },
+            { label: "Type", value: currentDevice.type, icon: HiOutlineFingerPrint },
             { label: "Screen", value: currentDevice.screenRes, icon: HiOutlineDesktopComputer },
-          ].map((s) => (
+            currentDevice.cpu && { label: "CPU", value: `${currentDevice.cpu} cores`, icon: HiOutlineDesktopComputer },
+            currentDevice.ram && { label: "RAM", value: `${currentDevice.ram} GB`, icon: HiOutlineDesktopComputer },
+            currentDevice.gpu && { label: "GPU", value: currentDevice.gpu, icon: HiOutlineDesktopComputer },
+          ].filter(Boolean).map((s) => (
             <div key={s.label} style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(148,163,184,0.04)", border: `1px solid ${T.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <s.icon size={14} style={{ color: T.cyan }} />
