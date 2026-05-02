@@ -25,8 +25,8 @@ export default function DnsLeakTest() {
         ipData.ip = altData.ip;
       }
 
-      // Check DNS resolver via Cloudflare's DNS trace
-      const dnsRes = await fetch("https://1.1.1.1/cdn-cgi/trace");
+      // Check DNS resolver via Cloudflare's DNS trace (proxied to avoid CORS)
+      const dnsRes = await fetch("/api/dns-trace");
       const dnsText = await dnsRes.text();
       const dnsInfo = {};
       dnsText.split("\n").forEach(line => { const [k, v] = line.split("="); if (k && v) dnsInfo[k.trim()] = v.trim(); });
