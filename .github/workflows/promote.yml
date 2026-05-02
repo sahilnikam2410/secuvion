@@ -36,6 +36,7 @@ jobs:
           # Vercel needs ~40-60s to build after a git push lands.
           # Poll for up to 5 min for a Ready Production deploy newer than this commit.
           deadline=$((SECONDS + 300))
+          FOUND_URL=""
           while [ $SECONDS -lt $deadline ]; do
             # vercel ls writes the table to stderr, URLs to stdout — merge with 2>&1.
             # Strip ANSI colour codes; match rows that contain Ready + Production +
@@ -45,16 +46,19 @@ jobs:
               | grep -F "Ready" | grep -F "Production" | grep -oE "https://\S+" | head -1 || true)
             if [ -n "$line" ]; then
               echo "Found ready deploy: $line"
-              echo "DEPLOY_URL=$line" >> $GITHUB_ENV
+              FOUND_URL="$line"
               break
             fi
             echo "Waiting for Ready deploy..."
             sleep 15
           done
-          if [ -z "$DEPLOY_URL" ]; then
+          # GITHUB_ENV only takes effect for SUBSEQUENT steps, so use a local var
+          # for the same-step check then export for the promote step.
+          if [ -z "$FOUND_URL" ]; then
             echo "::error::No Ready Production deploy found within 5 minutes"
             exit 1
           fi
+          echo "DEPLOY_URL=$FOUND_URL" >> $GITHUB_ENV
 
       - name: Promote
         env:
