@@ -564,15 +564,66 @@ Stay safe,
 The VRIKAAN Team`;
 }
 
+// Delete activity-log + tool-history entries older than RETENTION_DAYS across
+// all users. Uses Admin SDK (FIREBASE_SERVICE_ACCOUNT). Returns counts.
+// Designed to be called from the weekly cron piggy-back so we don't burn a
+// dedicated function slot.
+async function runActivityCleanup({ retentionDays = 90, batchLimit = 500 } = {}) {
+  let admin;
+  try {
+    admin = await import("./_firebaseAdmin.js");
+  } catch (e) {
+    return { error: "admin import failed: " + e.message };
+  }
+  const fs = admin.getAdminFirestore();
+  if (!fs) return { error: "FIREBASE_SERVICE_ACCOUNT not set" };
+
+  const cutoffMs = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  const cutoffTs = admin.getAdminFirestore && fs ? new Date(cutoffMs) : null;
+
+  let activityDeleted = 0, historyDeleted = 0, usersScanned = 0;
+  try {
+    const usersSnap = await fs.collection("users").select().limit(2000).get();
+    for (const userDoc of usersSnap.docs) {
+      usersScanned++;
+      // activity
+      const aSnap = await fs.collection("users").doc(userDoc.id).collection("activity")
+        .where("timestamp", "<", cutoffTs).limit(batchLimit).get();
+      if (!aSnap.empty) {
+        const batch = fs.batch();
+        aSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        activityDeleted += aSnap.size;
+      }
+      // toolHistory
+      const tSnap = await fs.collection("users").doc(userDoc.id).collection("toolHistory")
+        .where("timestamp", "<", cutoffTs).limit(batchLimit).get();
+      if (!tSnap.empty) {
+        const batch = fs.batch();
+        tSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        historyDeleted += tSnap.size;
+      }
+    }
+    return { usersScanned, activityDeleted, historyDeleted, retentionDays };
+  } catch (e) {
+    return { error: e.message, usersScanned, activityDeleted, historyDeleted };
+  }
+}
+
 async function handleWeeklyDigest(req, res) {
   // Cron auth
   const expected = process.env.CRON_SECRET;
   const got = (req.headers["authorization"] || "").replace(/^Bearer\s+/i, "");
   if (!expected || got !== expected) return res.status(401).json({ error: "Unauthorized" });
 
+  // Always run activity-log cleanup (cheap; piggy-backs on the weekly slot)
+  const cleanup = await runActivityCleanup();
+  console.log("weekly-digest: cleanup result:", JSON.stringify(cleanup));
+
   const isMonday = new Date().getUTCDay() === 1;
   const force = String(req.query?.force || "") === "1";
-  if (!isMonday && !force) return res.status(200).json({ skipped: true, reason: "not Monday UTC" });
+  if (!isMonday && !force) return res.status(200).json({ skipped: true, reason: "not Monday UTC", cleanup });
 
   // Read opt-in list from public-readable digest_subscribers collection.
   // Users add themselves from the authenticated client; cron uses public REST.
@@ -654,7 +705,7 @@ async function handleWeeklyDigest(req, res) {
       await new Promise((r) => setTimeout(r, 350));
     }
     console.log(`weekly-digest: ok=${ok} fail=${fail} total=${users.length}`);
-    return res.status(200).json({ sent: ok, failed: fail, total: users.length, errors: lastErrors });
+    return res.status(200).json({ sent: ok, failed: fail, total: users.length, errors: lastErrors, cleanup });
   } catch (err) {
     console.error("weekly-digest error:", err.message);
     return res.status(500).json({ error: err.message });
@@ -697,6 +748,201 @@ async function handleLeakCheck(req, res) {
     out.traceError = e.message;
   }
   return res.status(200).json(out);
+}
+
+// ─── OUTBOUND WEBHOOKS ──────────────────────────────────────────────
+
+import crypto from "node:crypto";
+
+// Persist a webhook URL + auto-generated HMAC secret on the user doc.
+async function handleWebhookSet(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { url } = req.body || {};
+  if (!url || !/^https:\/\//.test(url)) return res.status(400).json({ error: "url must start with https://" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+  const secret = "whk_" + crypto.randomBytes(24).toString("hex");
+  await fs.collection("users").doc(me.uid).set({
+    webhook: { url, secret, createdAt: new Date(), enabled: true },
+  }, { merge: true });
+  return res.status(200).json({ success: true, secret });
+}
+
+async function handleWebhookClear(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+  await fs.collection("users").doc(me.uid).update({
+    webhook: { url: null, secret: null, enabled: false, removedAt: new Date() },
+  });
+  return res.status(200).json({ success: true });
+}
+
+// Fire a webhook event to the user's registered URL. Used by the test button
+// and by other handlers that want to notify on events. Returns the receiver's
+// status code so we can surface delivery failures.
+async function fireWebhook({ uid, event, data }) {
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return { ok: false, error: "no admin" };
+  const snap = await fs.collection("users").doc(uid).get();
+  const wh = snap.data()?.webhook;
+  if (!wh?.url || !wh?.enabled) return { ok: false, error: "no webhook" };
+  const body = JSON.stringify({ event, ts: new Date().toISOString(), data });
+  const sig = crypto.createHmac("sha256", wh.secret).update(body).digest("hex");
+  try {
+    const r = await fetch(wh.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Vrikaan-Webhook/1.0",
+        "X-Vrikaan-Event": event,
+        "X-Vrikaan-Signature": "sha256=" + sig,
+      },
+      body,
+      // Limit how long a slow receiver can stall the function
+      signal: AbortSignal.timeout(8000),
+    });
+    return { ok: r.ok, status: r.status };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function handleWebhookTest(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const result = await fireWebhook({
+    uid: me.uid,
+    event: "test.ping",
+    data: { message: "Hello from VRIKAAN — your webhook is wired up.", at: new Date().toISOString() },
+  });
+  return res.status(200).json(result);
+}
+
+// ─── 2FA / TOTP ─────────────────────────────────────────────────────
+
+// Verify a Bearer Firebase ID token and return { uid, email } or null.
+async function verifyIdTokenFromHeader(req) {
+  const authHeader = req.headers.authorization || "";
+  const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!idToken) return null;
+  try {
+    const adminMod = await import("./_firebaseAdmin.js");
+    const auth = adminMod.getAdminAuth();
+    if (!auth) return null;
+    const decoded = await auth.verifyIdToken(idToken);
+    return { uid: decoded.uid, email: decoded.email };
+  } catch {
+    return null;
+  }
+}
+
+// Generate a new TOTP secret + otpauth:// URL + QR data URI for enrollment.
+// Does NOT yet enroll the user — the client must call totp-confirm with a valid
+// 6-digit code before the secret is persisted (proves the user typed it correctly).
+async function handleTotpSetup(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const otpauth = await import("otpauth");
+  const QR = (await import("qrcode")).default;
+  const secret = new otpauth.Secret({ size: 20 }); // 160-bit
+  const totp = new otpauth.TOTP({
+    issuer: "VRIKAAN",
+    label: me.email || me.uid,
+    algorithm: "SHA1",
+    digits: 6,
+    period: 30,
+    secret,
+  });
+  const url = totp.toString();
+  const qrDataUri = await QR.toDataURL(url, { margin: 1, width: 220 });
+  // Return secret base32 so client can pass it back in the confirm step.
+  // (Server is stateless — we don't keep it until confirmed.)
+  return res.status(200).json({ secret: secret.base32, otpauthUrl: url, qrDataUri });
+}
+
+// Verify a 6-digit code against the supplied secret. On success, persists the
+// secret + a set of one-time backup codes to /users/{uid}.mfa.
+async function handleTotpConfirm(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { secret, code } = req.body || {};
+  if (!secret || !code) return res.status(400).json({ error: "secret and code required" });
+  const otpauth = await import("otpauth");
+  try {
+    const totp = new otpauth.TOTP({ issuer: "VRIKAAN", secret: otpauth.Secret.fromBase32(secret), digits: 6, period: 30 });
+    // window: 1 = accept previous and next 30s as well (clock skew tolerance)
+    const delta = totp.validate({ token: String(code).trim(), window: 1 });
+    if (delta === null) return res.status(400).json({ error: "Invalid code" });
+
+    // Generate 10 backup codes (8 chars each, base32-ish)
+    const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const backupCodes = Array.from({ length: 10 }, () =>
+      Array.from({ length: 8 }, () => ALPH[Math.floor(Math.random() * ALPH.length)]).join("")
+    );
+
+    const adminMod = await import("./_firebaseAdmin.js");
+    const fs = adminMod.getAdminFirestore();
+    if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+    await fs.collection("users").doc(me.uid).set({
+      mfa: {
+        enabled: true,
+        secret, // base32; server-side only, never sent to client after this
+        backupCodes,
+        enrolledAt: new Date(),
+      },
+    }, { merge: true });
+    return res.status(200).json({ success: true, backupCodes });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+// Verify a TOTP / backup code on login (called AFTER password sign-in).
+// Returns { ok: true } if valid; consumes a backup code on use.
+async function handleTotpVerify(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: "code required" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+  const snap = await fs.collection("users").doc(me.uid).get();
+  const mfa = snap.data()?.mfa;
+  if (!mfa?.enabled || !mfa.secret) return res.status(400).json({ error: "MFA not enrolled" });
+
+  const trimmed = String(code).trim().toUpperCase();
+  // Backup code path
+  if (mfa.backupCodes && mfa.backupCodes.includes(trimmed)) {
+    const remaining = mfa.backupCodes.filter((c) => c !== trimmed);
+    await fs.collection("users").doc(me.uid).update({ "mfa.backupCodes": remaining });
+    return res.status(200).json({ ok: true, used: "backup", remaining: remaining.length });
+  }
+
+  const otpauth = await import("otpauth");
+  const totp = new otpauth.TOTP({ issuer: "VRIKAAN", secret: otpauth.Secret.fromBase32(mfa.secret), digits: 6, period: 30 });
+  const delta = totp.validate({ token: trimmed, window: 1 });
+  if (delta === null) return res.status(400).json({ error: "Invalid code" });
+  return res.status(200).json({ ok: true, used: "totp" });
+}
+
+// Disable MFA. Requires fresh sign-in (verified by ID token age check).
+async function handleTotpDisable(req, res) {
+  const me = await verifyIdTokenFromHeader(req);
+  if (!me) return res.status(401).json({ error: "Sign-in required" });
+  const adminMod = await import("./_firebaseAdmin.js");
+  const fs = adminMod.getAdminFirestore();
+  if (!fs) return res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
+  await fs.collection("users").doc(me.uid).update({
+    mfa: { enabled: false, secret: null, backupCodes: [], disabledAt: new Date() },
+  });
+  return res.status(200).json({ success: true });
 }
 
 // ─── REFUND ─────────────────────────────────────────────────────────
@@ -766,6 +1012,13 @@ async function handleRefund(req, res) {
     });
     await fs.collection("users").doc(uid).update({ plan: "free" });
 
+    // Best-effort outbound webhook (don't fail the refund if delivery fails)
+    fireWebhook({
+      uid,
+      event: "payment.refunded",
+      data: { orderId, amount: pay.amount, refundId: refundData.refund_id, reason: reason || "" },
+    }).catch(() => {});
+
     return res.status(200).json({ success: true, refundId: refundData.refund_id, status: refundData.refund_status });
   } catch (e) {
     if (e.code === "auth/id-token-expired" || e.code === "auth/argument-error") {
@@ -789,6 +1042,13 @@ const HANDLERS = {
   "weekly-digest": handleWeeklyDigest,
   "leak-check": handleLeakCheck,
   refund: handleRefund,
+  "totp-setup": handleTotpSetup,
+  "totp-confirm": handleTotpConfirm,
+  "totp-verify": handleTotpVerify,
+  "totp-disable": handleTotpDisable,
+  "webhook-set": handleWebhookSet,
+  "webhook-clear": handleWebhookClear,
+  "webhook-test": handleWebhookTest,
 };
 
 // Some tools accept GET (ip lookup, cron pings); others require POST.

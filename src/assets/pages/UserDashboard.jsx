@@ -7,7 +7,7 @@ import PlanGate, { isPlanAllowed } from "../../components/PlanGate";
 import OnboardingTour from "../../components/OnboardingTour";
 import { db } from "../../firebase/config";
 import { auth as firebaseAuth } from "../../firebase/config";
-import { collection, getDocs, doc, addDoc, deleteDoc, setDoc, updateDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, addDoc, deleteDoc, setDoc, updateDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 import { deleteUser as firebaseDeleteUser, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import {
   HiOutlineViewGrid, HiOutlineShieldCheck, HiOutlineDesktopComputer, HiOutlineUser,
@@ -323,6 +323,17 @@ export default function UserDashboard() {
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  // 2FA / TOTP enrollment state
+  const [mfaEnrolled, setMfaEnrolled] = useState(false);
+  const [totpSetup, setTotpSetup] = useState(null); // { secret, qrDataUri }
+  const [totpCode, setTotpCode] = useState("");
+  const [totpBusy, setTotpBusy] = useState(false);
+  const [backupCodes, setBackupCodes] = useState(null);
+  // Webhook state
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookEnabled, setWebhookEnabled] = useState(false);
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [webhookBusy, setWebhookBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   // Responsive viewport tracking — updates on resize so the layout reacts without reload
   const [viewport, setViewport] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
@@ -642,6 +653,101 @@ export default function UserDashboard() {
       setToolHistory([]);
       toast("Tool history cleared", "success");
     } catch { toast("Failed to clear history", "error"); }
+  };
+
+  // ── 2FA / TOTP handlers ───────────────────────────────────────────────
+  const apiCall = useCallback(async (tool, body) => {
+    const idToken = await firebaseAuth.currentUser?.getIdToken();
+    if (!idToken) throw new Error("Sign-in required");
+    const r = await fetch(`/api/tools?tool=${tool}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Request failed");
+    return data;
+  }, []);
+
+  // Read mfa + webhook state from /users/{uid} on load
+  useEffect(() => {
+    if (!uid) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "users", uid));
+        const d = snap.data() || {};
+        setMfaEnrolled(!!d.mfa?.enabled);
+        setWebhookEnabled(!!d.webhook?.enabled);
+        setWebhookUrl(d.webhook?.url || "");
+        setWebhookSecret(d.webhook?.secret || "");
+      } catch { /* silent */ }
+    })();
+  }, [uid]);
+
+  const saveWebhook = async () => {
+    if (!webhookUrl.startsWith("https://")) { toast("URL must start with https://", "error"); return; }
+    setWebhookBusy(true);
+    try {
+      const r = await apiCall("webhook-set", { url: webhookUrl });
+      setWebhookSecret(r.secret);
+      setWebhookEnabled(true);
+      toast("Webhook saved — copy the secret", "success");
+    } catch (e) { toast(e.message, "error"); }
+    finally { setWebhookBusy(false); }
+  };
+  const clearWebhook = async () => {
+    if (!window.confirm("Remove webhook?")) return;
+    setWebhookBusy(true);
+    try {
+      await apiCall("webhook-clear");
+      setWebhookEnabled(false);
+      setWebhookSecret("");
+      setWebhookUrl("");
+      toast("Webhook removed", "success");
+    } catch (e) { toast(e.message, "error"); }
+    finally { setWebhookBusy(false); }
+  };
+  const testWebhook = async () => {
+    setWebhookBusy(true);
+    try {
+      const r = await apiCall("webhook-test");
+      if (r.ok) toast(`Test fired — receiver returned ${r.status}`, "success");
+      else toast(`Receiver responded ${r.status || "?"}: ${r.error || "failed"}`, "error");
+    } catch (e) { toast(e.message, "error"); }
+    finally { setWebhookBusy(false); }
+  };
+
+  const startTotpEnroll = async () => {
+    setTotpBusy(true);
+    try { setTotpSetup(await apiCall("totp-setup")); }
+    catch (e) { toast(e.message, "error"); }
+    finally { setTotpBusy(false); }
+  };
+
+  const confirmTotp = async () => {
+    if (!totpSetup || !totpCode) return;
+    setTotpBusy(true);
+    try {
+      const r = await apiCall("totp-confirm", { secret: totpSetup.secret, code: totpCode });
+      setBackupCodes(r.backupCodes);
+      setMfaEnrolled(true);
+      setTotpSetup(null);
+      setTotpCode("");
+      toast("2FA enabled — save your backup codes!", "success");
+    } catch (e) { toast(e.message, "error"); }
+    finally { setTotpBusy(false); }
+  };
+
+  const disableTotp = async () => {
+    if (!window.confirm("Disable 2FA? This reduces your account security.")) return;
+    setTotpBusy(true);
+    try {
+      await apiCall("totp-disable");
+      setMfaEnrolled(false);
+      setBackupCodes(null);
+      toast("2FA disabled", "success");
+    } catch (e) { toast(e.message, "error"); }
+    finally { setTotpBusy(false); }
   };
 
   // Self-serve refund. Calls /api/tools?tool=refund with the user's Firebase
@@ -1610,6 +1716,102 @@ export default function UserDashboard() {
           </div>
         )}
       </AniCard>
+      {/* Two-Factor Authentication */}
+      <AniCard delay={isEmailProvider ? 0.55 : 0.45}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 6, fontFamily: "'Space Grotesk'" }}>
+          Two-Factor Authentication
+          {mfaEnrolled && <span style={{ marginLeft: 10, fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "rgba(34,197,94,0.15)", color: T.green, fontWeight: 600 }}>ACTIVE</span>}
+        </h3>
+        <p style={{ fontSize: 12, color: T.muted, marginBottom: 14 }}>
+          Add a second login factor using any authenticator app (Google Authenticator, Authy, 1Password, etc).
+        </p>
+
+        {!mfaEnrolled && !totpSetup && (
+          <button onClick={startTotpEnroll} disabled={totpBusy} style={sty.btn("rgba(99,102,241,0.12)", T.cyan)}>
+            {totpBusy ? "Loading..." : "Enable 2FA"}
+          </button>
+        )}
+
+        {!mfaEnrolled && totpSetup && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <p style={{ fontSize: 13, color: T.white, margin: 0 }}>1. Scan this QR with your authenticator app:</p>
+            <img src={totpSetup.qrDataUri} alt="Scan with authenticator" style={{ width: 220, height: 220, borderRadius: 8, alignSelf: "flex-start", background: "#fff", padding: 6 }} />
+            <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>Or manually enter this secret: <code style={{ color: T.cyan, fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{totpSetup.secret}</code></p>
+            <p style={{ fontSize: 13, color: T.white, margin: 0 }}>2. Enter the 6-digit code from your app:</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text" inputMode="numeric" maxLength={6}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="123456"
+                style={{ width: 140, padding: "10px 14px", borderRadius: 8, fontSize: 16, background: "rgba(15,23,42,0.5)", border: `1px solid ${T.border}`, color: T.white, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 4 }}
+              />
+              <button onClick={confirmTotp} disabled={totpBusy || totpCode.length !== 6} style={{ ...sty.btn(`linear-gradient(135deg,${T.accent},${T.cyan})`, "#fff"), opacity: totpBusy || totpCode.length !== 6 ? 0.6 : 1 }}>
+                {totpBusy ? "Verifying..." : "Confirm"}
+              </button>
+              <button onClick={() => { setTotpSetup(null); setTotpCode(""); }} style={sty.btn("rgba(148,163,184,0.12)", T.muted)}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {backupCodes && (
+          <div style={{ marginTop: 14, padding: 14, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8 }}>
+            <p style={{ fontSize: 13, color: T.yellow, margin: "0 0 8px", fontWeight: 600 }}>⚠ Save these backup codes — shown only once</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 6 }}>
+              {backupCodes.map((c) => (
+                <code key={c} style={{ padding: "6px 10px", background: "rgba(15,23,42,0.6)", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: T.white, textAlign: "center" }}>{c}</code>
+              ))}
+            </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(backupCodes.join("\n")); toast("Backup codes copied", "success"); }}
+              style={{ ...sty.btn("rgba(99,102,241,0.12)", T.cyan), marginTop: 10 }}
+            >Copy all</button>
+          </div>
+        )}
+
+        {mfaEnrolled && !totpSetup && (
+          <button onClick={disableTotp} disabled={totpBusy} style={sty.btn("rgba(239,68,68,0.12)", T.red)}>
+            {totpBusy ? "..." : "Disable 2FA"}
+          </button>
+        )}
+      </AniCard>
+
+      {/* Outbound Webhooks */}
+      <AniCard delay={isEmailProvider ? 0.58 : 0.48}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 6, fontFamily: "'Space Grotesk'" }}>
+          Outbound Webhook
+          {webhookEnabled && <span style={{ marginLeft: 10, fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "rgba(34,197,94,0.15)", color: T.green, fontWeight: 600 }}>ACTIVE</span>}
+        </h3>
+        <p style={{ fontSize: 12, color: T.muted, marginBottom: 14 }}>
+          Receive real-time notifications (refunds, threats, scans) at your own HTTPS endpoint. Each request is signed with HMAC-SHA256 in the <code style={{ color: T.cyan }}>X-Vrikaan-Signature</code> header.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input
+            type="url"
+            value={webhookUrl}
+            onChange={(e) => setWebhookUrl(e.target.value)}
+            placeholder="https://your-server.com/webhook"
+            style={{ flex: 1, padding: "10px 14px", borderRadius: 8, fontSize: 13, background: "rgba(15,23,42,0.5)", border: `1px solid ${T.border}`, color: T.white }}
+            disabled={webhookBusy}
+          />
+          <button onClick={saveWebhook} disabled={webhookBusy || !webhookUrl} style={sty.btn("rgba(99,102,241,0.12)", T.cyan)}>
+            {webhookBusy ? "..." : webhookEnabled ? "Update" : "Save"}
+          </button>
+        </div>
+        {webhookEnabled && (
+          <>
+            <div style={{ padding: 10, background: "rgba(15,23,42,0.5)", borderRadius: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: 11, color: T.muted }}>Signing secret (verify HMAC on your server):</span>
+              <code style={{ display: "block", marginTop: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: T.cyan, wordBreak: "break-all" }}>{webhookSecret}</code>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={testWebhook} disabled={webhookBusy} style={sty.btn("rgba(34,197,94,0.12)", T.green)}>Send test ping</button>
+              <button onClick={clearWebhook} disabled={webhookBusy} style={sty.btn("rgba(239,68,68,0.12)", T.red)}>Remove</button>
+            </div>
+          </>
+        )}
+      </AniCard>
+
       {/* Session Info */}
       <AniCard delay={isEmailProvider ? 0.6 : 0.5}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: T.white, marginBottom: 14, fontFamily: "'Space Grotesk'" }}>Active Session</h3>

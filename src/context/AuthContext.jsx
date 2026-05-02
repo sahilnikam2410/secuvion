@@ -60,6 +60,7 @@ function mergeUserData(firebaseUser, profile) {
     trialPlan: profile?.trialPlan || null,
     emailVerified: !!firebaseUser.emailVerified,
     providerData: firebaseUser.providerData || [],
+    mfaEnabled: !!profile?.mfa?.enabled,
   };
 }
 

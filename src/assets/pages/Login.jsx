@@ -298,10 +298,36 @@ export default function Login() {
   const [magicSent, setMagicSent] = useState(false);
   const [magicSending, setMagicSending] = useState(false);
 
-  // Redirect if already logged in (handles social login race condition)
+  // Redirect if already logged in — but pause for the TOTP step when MFA is on.
   useEffect(() => {
-    if (user) navigate("/home", { replace: true });
-  }, [user, navigate]);
+    if (!user) return;
+    if (user.mfaEnabled && !mfaPassed) return; // wait for TOTP gate below
+    navigate("/home", { replace: true });
+  }, [user, mfaPassed, navigate]);
+
+  // 2FA TOTP gate state
+  const [mfaPassed, setMfaPassed] = useState(false);
+  const [totpInput, setTotpInput] = useState("");
+  const [totpVerifying, setTotpVerifying] = useState(false);
+  const [totpError, setTotpError] = useState("");
+  const verifyTotpAtLogin = async () => {
+    if (!totpInput) return;
+    setTotpVerifying(true); setTotpError("");
+    try {
+      // Need a fresh ID token from Firebase
+      const auth = (await import("../../firebase/config")).auth;
+      const idToken = await auth.currentUser?.getIdToken();
+      const r = await fetch("/api/tools?tool=totp-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ code: totpInput }),
+      });
+      const data = await r.json();
+      if (!r.ok) { setTotpError(data.error || "Invalid code"); return; }
+      setMfaPassed(true);
+    } catch (e) { setTotpError(e.message); }
+    finally { setTotpVerifying(false); }
+  };
 
   // If returning from a magic link (?magic=1 + Firebase code in hash/query),
   // complete the sign-in automatically.
@@ -588,16 +614,48 @@ export default function Login() {
         {/* Header */}
         <div style={{ textAlign: "center" }}>
           <img src="/wolf-mark.png?v=2" alt="VRIKAAN" style={{ width: 72, height: 72, margin: "0 auto 12px", display: "block" }} />
-          <div style={S.title}>{isSwitchAccount ? "Switch Account" : "Welcome Back"}</div>
+          <div style={S.title}>{user?.mfaEnabled && !mfaPassed ? "Two-Factor Auth" : isSwitchAccount ? "Switch Account" : "Welcome Back"}</div>
         </div>
-        <p style={S.subtitle}>{isSwitchAccount ? "Sign in with a different account" : "Sign in to access your cybersecurity dashboard"}</p>
+        <p style={S.subtitle}>
+          {user?.mfaEnabled && !mfaPassed
+            ? "Enter the 6-digit code from your authenticator app (or a backup code)"
+            : isSwitchAccount ? "Sign in with a different account" : "Sign in to access your cybersecurity dashboard"}
+        </p>
 
         {/* Messages */}
         {error && <div style={S.error}><ErrorIcon />{error}</div>}
         {successMsg && <div style={S.success}><SuccessIcon />{successMsg}</div>}
 
+        {/* TOTP gate — replaces the rest of the form when MFA is required */}
+        {user?.mfaEnabled && !mfaPassed && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
+            {totpError && <div style={S.error}><ErrorIcon />{totpError}</div>}
+            <input
+              type="text" inputMode="text" maxLength={8} autoFocus
+              value={totpInput}
+              onChange={(e) => setTotpInput(e.target.value.toUpperCase().replace(/\s/g, ""))}
+              placeholder="123 456"
+              style={{ padding: "14px 18px", borderRadius: 10, fontSize: 20, textAlign: "center", letterSpacing: 6, background: "rgba(15,23,42,0.5)", border: "1px solid rgba(99,102,241,0.4)", color: "#fff", fontFamily: "'JetBrains Mono', monospace" }}
+            />
+            <button
+              type="button"
+              onClick={verifyTotpAtLogin}
+              disabled={totpVerifying || !totpInput}
+              style={{
+                padding: "12px 18px", borderRadius: 10, border: "none", fontSize: 15, fontWeight: 700, cursor: totpVerifying ? "wait" : "pointer",
+                background: "linear-gradient(135deg,#6366f1,#14e3c5)", color: "#fff", opacity: totpVerifying || !totpInput ? 0.6 : 1,
+              }}
+            >{totpVerifying ? "Verifying..." : "Verify & Continue"}</button>
+            <button
+              type="button"
+              onClick={async () => { const auth = (await import("../../firebase/config")).auth; await auth.signOut(); }}
+              style={{ padding: "8px", border: "none", background: "transparent", color: "#94a3b8", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
+            >Cancel and sign out</button>
+          </div>
+        )}
+
         {/* ═══════ EMAIL FORM ═══════ */}
-        {(
+        {!(user?.mfaEnabled && !mfaPassed) && (
           <form onSubmit={handleEmailLogin} autoComplete="on">
             <label style={S.label}>Email Address</label>
             <input
@@ -670,13 +728,17 @@ export default function Login() {
         )}
 
         {/* ═══════ SOCIAL DIVIDER ═══════ */}
+        {!(user?.mfaEnabled && !mfaPassed) && (
         <div style={S.divider}>
           <div style={S.dividerLine} />
           <span>or continue with</span>
           <div style={S.dividerLine} />
         </div>
+        )}
 
         {/* ═══════ SOCIAL BUTTONS ═══════ */}
+        {!(user?.mfaEnabled && !mfaPassed) && (
+        <>
         <div style={S.socialGrid}>
           <button
             type="button"
@@ -714,12 +776,16 @@ export default function Login() {
           {socialLoading === "facebook" ? <SpinnerIcon /> : <FacebookIcon />}
           Continue with Facebook
         </button>
+        </>
+        )}
 
         {/* ═══════ FOOTER ═══════ */}
+        {!(user?.mfaEnabled && !mfaPassed) && (
         <div style={S.footer}>
           Don't have an account?{" "}
           <Link to="/signup" style={S.link}>Sign Up</Link>
         </div>
+        )}
       </div>
     </div>
   );

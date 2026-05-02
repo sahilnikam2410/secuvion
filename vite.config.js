@@ -1,9 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
+// Set ANALYZE=1 before `npm run build` to generate dist/bundle-stats.html
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    process.env.ANALYZE === '1' && visualizer({
+      filename: 'dist/bundle-stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+      template: 'treemap',
+    }),
+  ].filter(Boolean),
   build: {
     // Production optimizations
     target: 'es2020',
