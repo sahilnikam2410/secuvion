@@ -102,7 +102,7 @@ export default function Referral() {
               <div className="ref-share-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 <button onClick={share} style={{ padding: "10px", borderRadius: 8, border: `1px solid ${T.border}`, background: "rgba(15,23,42,0.6)", color: T.white, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>&#x1F4E4; Share</button>
                 <button onClick={() => { const url = `https://wa.me/?text=${encodeURIComponent(`Check out VRIKAAN! ${referralLink}`)}`; window.open(url, "_blank"); }} style={{ padding: "10px", borderRadius: 8, border: "1px solid rgba(34,197,94,0.2)", background: "rgba(34,197,94,0.06)", color: T.green, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>WhatsApp</button>
-                <button onClick={() => { const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out VRIKAAN — free AI cybersecurity tools! ${referralLink}`)}`; window.open(url, "_blank"); }} style={{ padding: "10px", borderRadius: 8, border: "1px solid rgba(29,161,242,0.2)", background: "rgba(29,161,242,0.06)", color: "#1DA1F2", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Twitter</button>
+                <button onClick={() => { const url = `https://x.com/intent/post?text=${encodeURIComponent(`Check out VRIKAAN — free AI cybersecurity tools! ${referralLink}`)}`; window.open(url, "_blank"); }} style={{ padding: "10px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.4)", background: "rgba(15,23,42,0.6)", color: T.white, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>X</button>
               </div>
             </div>
 

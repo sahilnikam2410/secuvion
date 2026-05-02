@@ -110,7 +110,12 @@ export const organizationSchema = {
   name: "VRIKAAN",
   url: defaults.url,
   logo: `${defaults.url}/favicon.svg`,
-  sameAs: [],
+  sameAs: [
+    "https://x.com/vrikaan",
+    "https://www.linkedin.com/company/vrikaan-ai-cybersecurity",
+    "https://www.instagram.com/vrikaan_official/",
+    "https://github.com/sahilnikam2410/vrikaan",
+  ],
   contactPoint: {
     "@type": "ContactPoint",
     email: "hello@vrikaan.com",
