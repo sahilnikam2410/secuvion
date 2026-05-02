@@ -300,18 +300,20 @@ export default function Login() {
   const [magicSent, setMagicSent] = useState(false);
   const [magicSending, setMagicSending] = useState(false);
 
+  // 2FA TOTP gate state — MUST be declared BEFORE the redirect useEffect below
+  // because that effect reads `mfaPassed`. Declaring it after caused a TDZ
+  // ReferenceError ("Cannot access 'l' before initialization") in production.
+  const [mfaPassed, setMfaPassed] = useState(false);
+  const [totpInput, setTotpInput] = useState("");
+  const [totpVerifying, setTotpVerifying] = useState(false);
+  const [totpError, setTotpError] = useState("");
+
   // Redirect if already logged in — but pause for the TOTP step when MFA is on.
   useEffect(() => {
     if (!user) return;
     if (user.mfaEnabled && !mfaPassed) return; // wait for TOTP gate below
     navigate("/home", { replace: true });
   }, [user, mfaPassed, navigate]);
-
-  // 2FA TOTP gate state
-  const [mfaPassed, setMfaPassed] = useState(false);
-  const [totpInput, setTotpInput] = useState("");
-  const [totpVerifying, setTotpVerifying] = useState(false);
-  const [totpError, setTotpError] = useState("");
   const verifyTotpAtLogin = async () => {
     if (!totpInput) return;
     setTotpVerifying(true); setTotpError("");
