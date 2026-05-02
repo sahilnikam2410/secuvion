@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "promote": "node scripts/promote.mjs"
+    "promote": "node scripts/promote.mjs",
+    "seed:coupons": "node scripts/seed-coupons.mjs",
+    "deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

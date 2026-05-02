@@ -1,0 +1,60 @@
+name: Promote to vrikaan.com
+
+# Promotes the latest "Ready" Production deployment to vrikaan.com
+# after each push to master. Replaces the manual `npm run promote`
+# step. Required secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN     — Account → Settings → Tokens → Create
+#   VERCEL_ORG_ID    — Project Settings → General → Project ID's parent
+#   VERCEL_PROJECT_ID — Project Settings → General → Project ID
+
+on:
+  push:
+    branches: [master]
+  # Allow manual run from the Actions tab
+  workflow_dispatch: {}
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Wait for Vercel build to finish
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # Vercel needs ~40-60s to build after a git push lands.
+          # Poll for up to 5 min for a Ready Production deploy newer than this commit.
+          deadline=$((SECONDS + 300))
+          while [ $SECONDS -lt $deadline ]; do
+            line=$(vercel ls --token "$VERCEL_TOKEN" 2>&1 | grep -E "Ready.*Production.*https" | head -1 || true)
+            if [ -n "$line" ]; then
+              url=$(echo "$line" | grep -oE "https://\S+" | head -1)
+              echo "Found ready deploy: $url"
+              echo "DEPLOY_URL=$url" >> $GITHUB_ENV
+              break
+            fi
+            echo "Waiting for Ready deploy..."
+            sleep 15
+          done
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::error::No Ready Production deploy found within 5 minutes"
+            exit 1
+          fi
+
+      - name: Promote
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" 2>&1 | tail -3 || \
+            { echo "Promote may have failed (could already be current)"; }
