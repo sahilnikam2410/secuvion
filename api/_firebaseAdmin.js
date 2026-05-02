@@ -9,13 +9,15 @@
  */
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
-let cached = null;
+let cachedFs = null;
+let cachedAuth = null;
 
-export function getAdminFirestore() {
-  if (cached) return cached;
+function ensureInit() {
+  if (getApps().length) return true;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+  if (!raw) return false;
   let creds;
   try {
     // Allow either raw JSON or base64-encoded JSON
@@ -27,11 +29,22 @@ export function getAdminFirestore() {
     }
   } catch (e) {
     console.error("FIREBASE_SERVICE_ACCOUNT parse failed:", e.message);
-    return null;
+    return false;
   }
-  if (!getApps().length) {
-    initializeApp({ credential: cert(creds) });
-  }
-  cached = getFirestore();
-  return cached;
+  initializeApp({ credential: cert(creds) });
+  return true;
+}
+
+export function getAdminFirestore() {
+  if (cachedFs) return cachedFs;
+  if (!ensureInit()) return null;
+  cachedFs = getFirestore();
+  return cachedFs;
+}
+
+export function getAdminAuth() {
+  if (cachedAuth) return cachedAuth;
+  if (!ensureInit()) return null;
+  cachedAuth = getAuth();
+  return cachedAuth;
 }

@@ -8,6 +8,9 @@ import {
   signInWithPhoneNumber,
   sendPasswordResetEmail,
   sendEmailVerification,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
   updateProfile as firebaseUpdateProfile,
 } from "firebase/auth";
 import { auth, googleProvider, githubProvider, facebookProvider } from "../firebase/config";
@@ -318,6 +321,42 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Magic-link / passwordless email sign-in.
+  // Sends a one-tap link to the user's email. The link returns to /login
+  // where completeMagicLink() finishes the sign-in.
+  const sendMagicLink = useCallback(async (email) => {
+    try {
+      const url = `${window.location.origin}/login?magic=1`;
+      await sendSignInLinkToEmail(auth, email, {
+        url,
+        handleCodeInApp: true,
+      });
+      // Stash for completion step (Firebase recommended pattern)
+      window.localStorage.setItem("magicLinkEmail", email);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || "Could not send sign-in link" };
+    }
+  }, []);
+
+  // Called on the /login page when the user clicks the magic link.
+  // Reads the email from localStorage; if missing (different device) it
+  // returns { needsEmail: true } so the UI can prompt for it.
+  const completeMagicLink = useCallback(async (emailOverride) => {
+    try {
+      if (!isSignInWithEmailLink(auth, window.location.href)) {
+        return { success: false, error: "Not a magic link URL" };
+      }
+      let email = emailOverride || window.localStorage.getItem("magicLinkEmail");
+      if (!email) return { success: false, needsEmail: true };
+      const credential = await signInWithEmailLink(auth, email, window.location.href);
+      window.localStorage.removeItem("magicLinkEmail");
+      return { success: true, user: credential.user };
+    } catch (error) {
+      return { success: false, error: error.message || "Magic link sign-in failed" };
+    }
+  }, []);
+
   // Start a 7-day trial of the requested plan. No card needed. Firestore tracks
   // onTrial=true + trialExpiresAt so the next login auto-reverts when the
   // window closes.
@@ -405,6 +444,8 @@ export function AuthProvider({ children }) {
     loginWithPhone,
     verifyPhoneCode,
     resetPassword,
+    sendMagicLink,
+    completeMagicLink,
     sendVerifyEmail,
     updatePlan,
     startTrial,

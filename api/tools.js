@@ -699,6 +699,83 @@ async function handleLeakCheck(req, res) {
   return res.status(200).json(out);
 }
 
+// ─── REFUND ─────────────────────────────────────────────────────────
+
+// Self-serve refund. Requires Authorization: Bearer <id-token> from a
+// signed-in user. Verifies the user owns the payment doc before calling
+// Cashfree's refund API. Records the refund attempt back to Firestore.
+async function handleRefund(req, res) {
+  const { orderId, reason } = req.body || {};
+  if (!orderId || typeof orderId !== "string") {
+    return res.status(400).json({ error: "orderId required" });
+  }
+
+  // Verify caller via Firebase ID token
+  const authHeader = req.headers.authorization || "";
+  const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!idToken) return res.status(401).json({ error: "Sign-in required" });
+
+  let uid;
+  try {
+    const adminMod = await import("./_firebaseAdmin.js");
+    const { getAdminAuth, getAdminFirestore } = adminMod;
+    const auth = getAdminAuth();
+    const decoded = await auth.verifyIdToken(idToken);
+    uid = decoded.uid;
+    const fs = getAdminFirestore();
+
+    // Confirm this user owns the payment + it's eligible for refund
+    const payDoc = await fs.collection("users").doc(uid)
+      .collection("payments").where("orderId", "==", orderId).limit(1).get();
+    if (payDoc.empty) return res.status(404).json({ error: "Payment not found" });
+    const pay = payDoc.docs[0].data();
+    const ageMs = Date.now() - (pay.date?.toMillis ? pay.date.toMillis() : 0);
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    if (ageMs > SEVEN_DAYS) return res.status(400).json({ error: "Refund window (7 days) elapsed" });
+    if (pay.refunded) return res.status(400).json({ error: "Already refunded" });
+
+    // Call Cashfree refund API
+    const base = process.env.CASHFREE_ENV === "production"
+      ? "https://api.cashfree.com/pg/orders"
+      : "https://sandbox.cashfree.com/pg/orders";
+    const refundResp = await fetch(`${base}/${orderId}/refunds`, {
+      method: "POST",
+      headers: {
+        "x-api-version": "2023-08-01",
+        "x-client-id": process.env.CASHFREE_APP_ID,
+        "x-client-secret": process.env.CASHFREE_SECRET_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refund_amount: pay.amount,
+        refund_id: `rf_${orderId}_${Date.now()}`,
+        refund_note: (reason || "User-requested refund").slice(0, 200),
+      }),
+    });
+    const refundData = await refundResp.json();
+    if (!refundResp.ok) {
+      return res.status(refundResp.status).json({ error: refundData.message || "Refund failed", details: refundData });
+    }
+
+    // Mark Firestore payment as refunded + downgrade plan
+    await payDoc.docs[0].ref.update({
+      refunded: true,
+      refundedAt: new Date(),
+      refundId: refundData.refund_id,
+      refundReason: reason || "",
+    });
+    await fs.collection("users").doc(uid).update({ plan: "free" });
+
+    return res.status(200).json({ success: true, refundId: refundData.refund_id, status: refundData.refund_status });
+  } catch (e) {
+    if (e.code === "auth/id-token-expired" || e.code === "auth/argument-error") {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+    console.error("refund error:", e.message);
+    return res.status(500).json({ error: e.message });
+  }
+}
+
 // ─── ROUTER ─────────────────────────────────────────────────────────
 
 const HANDLERS = {
@@ -711,6 +788,7 @@ const HANDLERS = {
   ip: handleIpLookup,
   "weekly-digest": handleWeeklyDigest,
   "leak-check": handleLeakCheck,
+  refund: handleRefund,
 };
 
 // Some tools accept GET (ip lookup, cron pings); others require POST.

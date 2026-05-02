@@ -292,12 +292,35 @@ export default function Login() {
     loginWithFacebook,
     loginWithPhone,
     verifyPhoneCode,
+    sendMagicLink,
+    completeMagicLink,
   } = useAuth();
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicSending, setMagicSending] = useState(false);
 
   // Redirect if already logged in (handles social login race condition)
   useEffect(() => {
     if (user) navigate("/home", { replace: true });
   }, [user, navigate]);
+
+  // If returning from a magic link (?magic=1 + Firebase code in hash/query),
+  // complete the sign-in automatically.
+  useEffect(() => {
+    if (searchParams.get("magic") !== "1") return;
+    (async () => {
+      const r = await completeMagicLink();
+      if (r.needsEmail) {
+        const email = window.prompt("Confirm the email this link was sent to:");
+        if (email) {
+          const r2 = await completeMagicLink(email);
+          if (!r2.success) setError(r2.error || "Magic link sign-in failed");
+        }
+      } else if (!r.success) {
+        setError(r.error || "Magic link sign-in failed");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── State ── */
   const [activeTab, setActiveTab] = useState("email");
@@ -621,6 +644,27 @@ export default function Login() {
               onMouseLeave={!loading ? hoverOut : undefined}
             >
               {loading ? <><SpinnerIcon /> Signing in...</> : "Sign In"}
+            </button>
+            {/* Magic link — passwordless email sign-in */}
+            <button
+              type="button"
+              onClick={async () => {
+                if (!email || magicSending) return;
+                setMagicSending(true); setError("");
+                const r = await sendMagicLink(email);
+                setMagicSending(false);
+                if (r.success) { setMagicSent(true); setSuccessMsg("Magic link sent — check your email"); }
+                else setError(r.error || "Could not send magic link");
+              }}
+              disabled={magicSending || magicSent || !email}
+              style={{
+                width: "100%", marginTop: 8, padding: "10px 14px", borderRadius: 8,
+                border: "1px solid rgba(99,102,241,0.4)", background: "transparent",
+                color: "#a5b4fc", fontSize: 13, fontWeight: 600, cursor: magicSending || !email ? "not-allowed" : "pointer",
+                fontFamily: "'Plus Jakarta Sans'",
+              }}
+            >
+              {magicSent ? "✓ Magic link sent" : magicSending ? "Sending..." : "Email me a sign-in link instead"}
             </button>
           </form>
         )}

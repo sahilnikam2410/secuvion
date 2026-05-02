@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { doc, updateDoc, collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { sendPaymentConfirmation } from "../../services/emailService";
 import { downloadInvoice, makeInvoiceNumber } from "../../services/invoiceService";
@@ -178,7 +178,40 @@ export default function Checkout() {
   const eduVerified = !!(user?.email && EDU_RE.test(user.email));
   const studentDiscount = studentRequested && eduVerified;
   const basePrice = billing === "annual" ? plan.annual : plan.price;
-  const price = studentDiscount ? Math.round(basePrice * 0.5) : basePrice;
+  const studentPrice = studentDiscount ? Math.round(basePrice * 0.5) : basePrice;
+
+  // Coupon state — looked up against Firestore `coupons/{CODE}` doc.
+  // Schema: { percentOff?: number, flatOff?: number, active: bool, expiresAt?: Timestamp, plans?: string[] }
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponChecking, setCouponChecking] = useState(false);
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponChecking(true); setCouponError(""); setCoupon(null);
+    try {
+      const snap = await getDoc(doc(db, "coupons", code));
+      if (!snap.exists()) { setCouponError("Invalid code"); return; }
+      const c = snap.data();
+      if (!c.active) { setCouponError("Code disabled"); return; }
+      if (c.expiresAt?.toDate && c.expiresAt.toDate() < new Date()) { setCouponError("Code expired"); return; }
+      if (c.plans && !c.plans.includes(normalizedPlanKey)) { setCouponError("Not valid for this plan"); return; }
+      setCoupon({ code, ...c });
+    } catch (e) {
+      setCouponError("Could not validate code");
+    } finally {
+      setCouponChecking(false);
+    }
+  };
+
+  const couponDiscount = coupon
+    ? coupon.percentOff
+      ? Math.round(studentPrice * (coupon.percentOff / 100))
+      : Math.min(coupon.flatOff || 0, studentPrice - 1)
+    : 0;
+  const price = Math.max(1, studentPrice - couponDiscount);
   const savings = billing === "annual" ? (plan.price * 12 - plan.annual) : 0;
 
   const merchantUpiId = localStorage.getItem("vrikaan_upi_id") || "vrikaan@upi";
@@ -592,6 +625,43 @@ export default function Checkout() {
                   {b === "monthly" ? "Monthly" : `Annual (Save \u20B9${savings || plan.price * 12 - plan.annual})`}
                 </button>
               ))}
+            </div>
+
+            {/* Coupon Code */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>Coupon code (optional)</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => { setCouponInput(e.target.value); setCouponError(""); }}
+                  placeholder="ENTER CODE"
+                  style={{
+                    flex: 1, padding: "10px 14px", borderRadius: 8, fontSize: 13,
+                    background: "rgba(15,23,42,0.5)", border: `1px solid ${T.border}`,
+                    color: T.white, fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase",
+                  }}
+                  disabled={!!coupon}
+                />
+                {!coupon ? (
+                  <button onClick={applyCoupon} disabled={!couponInput || couponChecking} style={{
+                    padding: "10px 18px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 600,
+                    background: `linear-gradient(135deg, ${T.accent}, ${T.cyan})`, color: "#fff",
+                    cursor: !couponInput || couponChecking ? "not-allowed" : "pointer", opacity: !couponInput || couponChecking ? 0.6 : 1,
+                  }}>{couponChecking ? "..." : "Apply"}</button>
+                ) : (
+                  <button onClick={() => { setCoupon(null); setCouponInput(""); setCouponError(""); }} style={{
+                    padding: "10px 18px", borderRadius: 8, border: `1px solid ${T.red}`, fontSize: 13, fontWeight: 600,
+                    background: "transparent", color: T.red, cursor: "pointer",
+                  }}>Remove</button>
+                )}
+              </div>
+              {couponError && <span style={{ fontSize: 12, color: T.red }}>{couponError}</span>}
+              {coupon && (
+                <span style={{ fontSize: 12, color: T.green, fontWeight: 600 }}>
+                  ✓ {coupon.code} applied — saved ₹{couponDiscount.toLocaleString("en-IN")}
+                </span>
+              )}
             </div>
 
             {/* Payment Method Tabs */}

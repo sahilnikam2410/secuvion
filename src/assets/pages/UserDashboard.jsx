@@ -644,6 +644,32 @@ export default function UserDashboard() {
     } catch { toast("Failed to clear history", "error"); }
   };
 
+  // Export tool history to CSV. RFC-4180 quoting; flattens result object to JSON
+  // string in a single column so any tool shape works.
+  const exportToolHistoryCsv = () => {
+    if (!toolHistory.length) return;
+    const esc = (v) => {
+      const s = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["timestamp", "tool", "input", "result"];
+    const rows = toolHistory.map((h) => {
+      const ts = h.timestamp?.toDate ? h.timestamp.toDate().toISOString() : String(h.timestamp || "");
+      return [ts, h.tool, h.input || "", h.result].map(esc).join(",");
+    });
+    const csv = [header.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vrikaan-tool-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Exported CSV", "success");
+  };
+
   // Chart data from activity
   const loginChartData = (() => {
     const map = {};
@@ -1277,6 +1303,7 @@ export default function UserDashboard() {
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, fontFamily: "'Space Grotesk'" }}><span className="dash-gradient-text">Tool History</span></h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={loadToolHistory} className="dash-btn" style={sty.btn("rgba(99,102,241,0.12)", T.cyan)}><HiOutlineRefresh size={14} /> Refresh</button>
+          {toolHistory.length > 0 && <button onClick={exportToolHistoryCsv} className="dash-btn" style={sty.btn("rgba(34,197,94,0.12)", T.green)}><HiOutlineDownload size={14} /> CSV</button>}
           {toolHistory.length > 0 && <button onClick={clearToolHistory} className="dash-btn" style={sty.btn("rgba(239,68,68,0.12)", T.red)}><HiOutlineTrash size={14} /> Clear</button>}
         </div>
       </div>
