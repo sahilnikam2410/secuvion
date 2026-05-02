@@ -19,6 +19,7 @@ import {
   HiOutlineBell, HiOutlineClipboard, HiOutlineHome, HiOutlineMap, HiOutlineAcademicCap,
   HiOutlineSearchCircle, HiOutlineFingerPrint, HiOutlineLightningBolt, HiOutlineNewspaper,
   HiOutlineClock, HiOutlinePhotograph, HiOutlineCog, HiOutlineMoon, HiOutlineSun,
+  HiOutlineSwitchHorizontal,
 } from "react-icons/hi";
 import { useTheme } from "../../context/ThemeContext";
 import { getAllBadgesWithState, getStreak } from "../../services/gamificationService";
@@ -427,6 +428,7 @@ export default function UserDashboard() {
   useEffect(() => { if (user) { setEditName(user.name || ""); setEditPhone(user.phoneNumber || ""); } }, [user]);
 
   const handleLogout = async () => { await logout(); navigate("/login"); };
+  const handleSwitchAccount = async () => { await logout(); navigate("/login?switch=1"); };
 
   const handleCancelSubscription = async () => {
     if (!user?.uid) return;
@@ -1662,6 +1664,13 @@ export default function UserDashboard() {
               </button>
             ))}
           </nav>
+          <button onClick={handleSwitchAccount} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+            background: "transparent", border: "none", borderRadius: 8, color: T.cyan,
+            fontSize: 13, cursor: "pointer", fontFamily: "'Plus Jakarta Sans'", textAlign: "left",
+          }}>
+            <HiOutlineSwitchHorizontal size={18} /> Switch Account
+          </button>
           <button onClick={handleLogout} style={{
             width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
             background: "transparent", border: "none", borderRadius: 8, color: T.red,
