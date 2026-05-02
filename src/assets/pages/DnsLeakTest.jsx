@@ -13,17 +13,10 @@ export default function DnsLeakTest() {
   const runTest = async () => {
     setTesting(true); setResult(null);
     try {
-      // Fetch user's IP info to detect DNS resolver
-      const ipRes = await fetch("https://ipinfo.io/json?token=");
+      // Fetch user's IP info via server-side proxy (avoids CORS)
+      const ipRes = await fetch("/api/ip-info");
       let ipData = {};
-      try { ipData = await ipRes.json(); } catch { /* free tier may fail */ }
-
-      // Fallback IP detection
-      if (!ipData.ip) {
-        const altRes = await fetch("https://api.ipify.org?format=json");
-        const altData = await altRes.json();
-        ipData.ip = altData.ip;
-      }
+      try { ipData = await ipRes.json(); } catch { /* ignore */ }
 
       // Check DNS resolver via Cloudflare's DNS trace (proxied to avoid CORS)
       const dnsRes = await fetch("/api/dns-trace");
@@ -58,7 +51,7 @@ export default function DnsLeakTest() {
 
       setResult({
         publicIP,
-        location: ipData.city ? `${ipData.city}, ${ipData.region || ""}, ${ipData.country || ""}` : dnsInfo.loc || "Unknown",
+        location: ipData.city ? `${ipData.city}, ${ipData.region || ""}, ${ipData.country_name || ipData.country || ""}` : dnsInfo.loc || "Unknown",
         org: ipData.org || "Unknown",
         dnsResolver: dnsProvider,
         webrtcIPs,
