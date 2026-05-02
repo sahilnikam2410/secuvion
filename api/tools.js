@@ -670,19 +670,17 @@ async function handleLeakCheck(req, res) {
     "";
   const out = { ip: {}, trace: "" };
   try {
-    // ipwho.is — free, no per-IP rate limits, reliable from serverless
-    const url = ip ? `https://ipwho.is/${ip}` : "https://ipwho.is/";
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    // ipinfo.io — free tier (50k/month) returns ip/city/region/country/org without a token
+    const url = ip ? `https://ipinfo.io/${ip}/json` : "https://ipinfo.io/json";
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" } });
     const j = await r.json();
-    // Normalize to a common shape so the client doesn't care which provider was used
     out.ip = {
       ip: j.ip,
       city: j.city,
       region: j.region,
-      country_name: j.country,
-      country: j.country_code,
-      org: j.connection?.isp || j.connection?.org || "",
-      _debug: { passedIp: ip, success: j.success, message: j.message },
+      country: j.country,
+      country_name: j.country, // ipinfo returns country code only; client uses either field
+      org: j.org || "",
     };
   } catch (e) {
     out.ip = { error: e.message };
