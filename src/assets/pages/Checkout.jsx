@@ -5,6 +5,7 @@ import { doc, getDoc, updateDoc, collection, addDoc, getDocs, query, where, serv
 import { db } from "../../firebase/config";
 import { sendPaymentConfirmation } from "../../services/emailService";
 import { downloadInvoice, makeInvoiceNumber } from "../../services/invoiceService";
+import { computeCouponDiscount, applyCoupon } from "../../utils/billing.js";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
@@ -206,12 +207,8 @@ export default function Checkout() {
     }
   };
 
-  const couponDiscount = coupon
-    ? coupon.percentOff
-      ? Math.round(studentPrice * (coupon.percentOff / 100))
-      : Math.min(coupon.flatOff || 0, studentPrice - 1)
-    : 0;
-  const price = Math.max(1, studentPrice - couponDiscount);
+  const couponDiscount = computeCouponDiscount(studentPrice, coupon);
+  const price = applyCoupon(studentPrice, coupon);
   const savings = billing === "annual" ? (plan.price * 12 - plan.annual) : 0;
 
   const merchantUpiId = localStorage.getItem("vrikaan_upi_id") || "vrikaan@upi";

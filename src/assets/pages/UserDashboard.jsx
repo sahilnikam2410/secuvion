@@ -644,6 +644,33 @@ export default function UserDashboard() {
     } catch { toast("Failed to clear history", "error"); }
   };
 
+  // Self-serve refund. Calls /api/tools?tool=refund with the user's Firebase
+  // ID token. Server enforces 7-day window and ownership; on success we
+  // refresh the payments list so the refunded badge shows.
+  const requestRefund = async (payment) => {
+    if (!payment.orderId) {
+      toast("Missing order ID — contact support", "error");
+      return;
+    }
+    const reason = window.prompt(`Request refund for ₹${payment.amount}?\nReason (optional):`, "");
+    if (reason === null) return; // cancelled
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      if (!idToken) { toast("Sign in required", "error"); return; }
+      const res = await fetch("/api/tools?tool=refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ orderId: payment.orderId, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Refund failed", "error"); return; }
+      toast(`Refund queued — status: ${data.status || "pending"}`, "success");
+      await loadData();
+    } catch (e) {
+      toast("Refund request failed", "error");
+    }
+  };
+
   // Export tool history to CSV. RFC-4180 quoting; flattens result object to JSON
   // string in a single column so any tool shape works.
   const exportToolHistoryCsv = () => {
@@ -1555,18 +1582,31 @@ export default function UserDashboard() {
           </div>
         ) : (
           <div>
-            {payments.map((p, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < payments.length - 1 ? `1px solid ${T.border}` : "none" }}>
-                <div>
-                  <span style={{ fontSize: 13, color: T.white }}>{p.description || p.plan || "Payment"}</span>
-                  <p style={{ fontSize: 11, color: T.muted, margin: "2px 0 0" }}>{p.date?.toDate ? p.date.toDate().toLocaleDateString() : p.date || ""}</p>
+            {payments.map((p, i) => {
+              const ageMs = p.date?.toDate ? Date.now() - p.date.toDate().getTime() : Infinity;
+              const refundEligible = !p.refunded && p.status === "success" && ageMs < 7 * 24 * 60 * 60 * 1000 && p.orderId;
+              return (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < payments.length - 1 ? `1px solid ${T.border}` : "none", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 13, color: T.white }}>{p.description || p.plan || "Payment"}</span>
+                    <p style={{ fontSize: 11, color: T.muted, margin: "2px 0 0" }}>{p.date?.toDate ? p.date.toDate().toLocaleDateString() : p.date || ""}</p>
+                  </div>
+                  <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: T.cyan }}>{p.amount ? `₹${p.amount}` : ""}</span>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      {p.refunded && <Badge color={T.muted}>refunded</Badge>}
+                      {!p.refunded && p.status && <Badge color={p.status === "success" ? T.green : T.orange}>{p.status}</Badge>}
+                      {refundEligible && (
+                        <button
+                          onClick={() => requestRefund(p)}
+                          style={{ padding: "3px 10px", fontSize: 11, borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.muted, cursor: "pointer", fontFamily: "'Plus Jakarta Sans'" }}
+                        >Refund</button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: T.cyan }}>{p.amount ? `₹${p.amount}` : ""}</span>
-                  {p.status && <Badge color={p.status === "success" ? T.green : T.orange}>{p.status}</Badge>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </AniCard>
