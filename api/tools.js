@@ -670,13 +670,25 @@ async function handleLeakCheck(req, res) {
     "";
   const out = { ip: {}, trace: "" };
   try {
-    const url = ip ? `https://ipapi.co/${ip}/json/` : "https://ipapi.co/json/";
+    // ipwho.is — free, no per-IP rate limits, reliable from serverless
+    const url = ip ? `https://ipwho.is/${ip}` : "https://ipwho.is/";
     const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    out.ip = await r.json();
+    const j = await r.json();
+    // Normalize to a common shape so the client doesn't care which provider was used
+    out.ip = {
+      ip: j.ip,
+      city: j.city,
+      region: j.region,
+      country_name: j.country,
+      country: j.country_code,
+      org: j.connection?.isp || j.connection?.org || "",
+    };
   } catch (e) {
     out.ip = { error: e.message };
   }
   try {
+    // Cloudflare trace from server gives the egress IP/colo that the Vercel
+    // function exits through — useful as a sanity check but NOT the user's resolver.
     const r = await fetch("https://1.1.1.1/cdn-cgi/trace", {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
