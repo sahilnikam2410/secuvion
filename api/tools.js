@@ -682,6 +682,7 @@ async function handleLeakCheck(req, res) {
       country_name: j.country,
       country: j.country_code,
       org: j.connection?.isp || j.connection?.org || "",
+      _debug: { passedIp: ip, success: j.success, message: j.message },
     };
   } catch (e) {
     out.ip = { error: e.message };
