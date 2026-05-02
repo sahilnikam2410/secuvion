@@ -37,11 +37,15 @@ jobs:
           # Poll for up to 5 min for a Ready Production deploy newer than this commit.
           deadline=$((SECONDS + 300))
           while [ $SECONDS -lt $deadline ]; do
-            line=$(vercel ls --token "$VERCEL_TOKEN" 2>&1 | grep -E "Ready.*Production.*https" | head -1 || true)
+            # vercel ls writes the table to stderr, URLs to stdout — merge with 2>&1.
+            # Strip ANSI colour codes; match rows that contain Ready + Production +
+            # an https URL in any column order.
+            line=$(vercel ls --token "$VERCEL_TOKEN" 2>&1 \
+              | sed -e 's/\x1b\[[0-9;]*m//g' \
+              | grep -F "Ready" | grep -F "Production" | grep -oE "https://\S+" | head -1 || true)
             if [ -n "$line" ]; then
-              url=$(echo "$line" | grep -oE "https://\S+" | head -1)
-              echo "Found ready deploy: $url"
-              echo "DEPLOY_URL=$url" >> $GITHUB_ENV
+              echo "Found ready deploy: $line"
+              echo "DEPLOY_URL=$line" >> $GITHUB_ENV
               break
             fi
             echo "Waiting for Ready deploy..."
