@@ -13,16 +13,12 @@ export default function DnsLeakTest() {
   const runTest = async () => {
     setTesting(true); setResult(null);
     try {
-      // Fetch user's IP info via server-side proxy (avoids CORS)
-      const ipRes = await fetch("/api/ip-info");
-      let ipData = {};
-      try { ipData = await ipRes.json(); } catch { /* ignore */ }
-
-      // Check DNS resolver via Cloudflare's DNS trace (proxied to avoid CORS)
-      const dnsRes = await fetch("/api/dns-trace");
-      const dnsText = await dnsRes.text();
+      // Fetch IP info + Cloudflare DNS trace via single server-side proxy
+      const leakRes = await fetch("/api/tools?tool=leak-check");
+      const leak = await leakRes.json();
+      const ipData = leak.ip || {};
       const dnsInfo = {};
-      dnsText.split("\n").forEach(line => { const [k, v] = line.split("="); if (k && v) dnsInfo[k.trim()] = v.trim(); });
+      (leak.trace || "").split("\n").forEach(line => { const [k, v] = line.split("="); if (k && v) dnsInfo[k.trim()] = v.trim(); });
 
       // WebRTC leak check
       let webrtcIPs = [];

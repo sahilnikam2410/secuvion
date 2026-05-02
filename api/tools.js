@@ -661,6 +661,33 @@ async function handleWeeklyDigest(req, res) {
   }
 }
 
+// ─── LEAK CHECK ─────────────────────────────────────────────────────
+
+async function handleLeakCheck(req, res) {
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    req.headers["x-real-ip"] ||
+    "";
+  const out = { ip: {}, trace: "" };
+  try {
+    const url = ip ? `https://ipapi.co/${ip}/json/` : "https://ipapi.co/json/";
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    out.ip = await r.json();
+  } catch (e) {
+    out.ip = { error: e.message };
+  }
+  try {
+    const r = await fetch("https://1.1.1.1/cdn-cgi/trace", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    out.trace = await r.text();
+  } catch (e) {
+    out.trace = "";
+    out.traceError = e.message;
+  }
+  return res.status(200).json(out);
+}
+
 // ─── ROUTER ─────────────────────────────────────────────────────────
 
 const HANDLERS = {
@@ -672,10 +699,11 @@ const HANDLERS = {
   "password-check": handlePasswordCheck,
   ip: handleIpLookup,
   "weekly-digest": handleWeeklyDigest,
+  "leak-check": handleLeakCheck,
 };
 
 // Some tools accept GET (ip lookup, cron pings); others require POST.
-const GET_ALLOWED = new Set(["ip", "weekly-digest"]);
+const GET_ALLOWED = new Set(["ip", "weekly-digest", "leak-check"]);
 // Tools that bypass shared rate-limit (cron uses its own auth)
 const RL_EXEMPT = new Set(["weekly-digest"]);
 
