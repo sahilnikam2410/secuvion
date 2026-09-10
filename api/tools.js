@@ -3657,6 +3657,80 @@ async function _recordScamSignal(fs, { idents, category, tactic, sample, keyPhra
   return docId;
 }
 
+// ─── HERD IMMUNITY ─────────────────────────────────────────────────────
+// The network's killer feature: check a message once and you're "vaccinated" —
+// if the SAME fingerprint is later confirmed as a scam by other reports, every
+// earlier checker gets warned automatically, even weeks later. One person's
+// report becomes an antibody for everyone who received that message.
+//
+// Watchers live in scamSignatures/{sigId}/watchers/{channel_to} and are only
+// registered by our own server-side bots (watchKey === CRON_SECRET), so the
+// public analyze endpoint can't be abused to spam arbitrary phones/chats.
+// Telegram alerts are free-form; WhatsApp tries free-form (24h session) and
+// falls back to the approved scam_alert template.
+
+// Register a watcher on a signature (idempotent — doc id = channel_to).
+async function _herdWatch(fs, sigId, watcher, riskAtCheck) {
+  try {
+    const wid = `${watcher.channel}_${String(watcher.to).replace(/[^a-zA-Z0-9+]/g, "")}`.slice(0, 120);
+    await fs.collection("scamSignatures").doc(sigId).collection("watchers").doc(wid).set({
+      channel: watcher.channel, to: String(watcher.to).slice(0, 32),
+      riskAtCheck: riskAtCheck || 0, at: Date.now(),
+    }, { merge: true });
+    return true;
+  } catch (e) { console.error("herd-watch:", e.message); return false; }
+}
+
+// Dangerousness threshold — one place so analyze/report/alert agree.
+function _herdDangerous(x) {
+  const reports = x?.count || 0;
+  return !!x?.verified || (x?.lossCount || 0) >= 1 || reports >= 3 ||
+    (reports >= 2 && (x?.lastRisk || 0) >= 80);
+}
+
+// If the signature has become dangerous, warn every watcher (one-shot: watcher
+// docs are deleted after the attempt so nobody is alerted twice or spammed).
+async function _herdAlert(fs, sigId, { excludeTo } = {}) {
+  try {
+    const ref = fs.collection("scamSignatures").doc(sigId);
+    const snap = await ref.get();
+    if (!snap.exists) return 0;
+    const x = snap.data();
+    if (!_herdDangerous(x)) return 0;
+    const ws = await ref.collection("watchers").limit(200).get();
+    if (ws.empty) return 0;
+    const reports = x.count || 0;
+    const lossLine = (x.lossCount || 0) >= 1 ? ` Money has already been lost to it.` : "";
+    const text = `🚨 *VRIKAAN Herd Alert*
+
+A message you checked earlier has now been CONFIRMED as a scam by the community network (${reports} report${reports === 1 ? "" : "s"}).${lossLine}
+
+Type: ${x.tactic || x.category || "scam"}
+
+❌ Do NOT click, pay or reply to that message.
+📞 Already acted on it? Call 1930 (cyber-fraud helpline) NOW — the first hour matters.
+
+🧬 Community immunity protected you — someone else's report triggered this warning. Keep forwarding suspicious messages.`;
+    let sent = 0;
+    for (const d of ws.docs) {
+      const w = d.data();
+      try {
+        if (excludeTo && String(w.to) === String(excludeTo)) { await d.ref.delete(); continue; }
+        let ok = false;
+        if (w.channel === "tg") ok = await _tgSend(w.to, text);
+        else if (w.channel === "wa") {
+          ok = await _waSend(w.to, text.replace(/\*/g, "*"));
+          if (!ok && process.env.WA_ALERT_TEMPLATE) ok = await _waSendTemplate(w.to, process.env.WA_ALERT_TEMPLATE);
+        }
+        if (ok) sent++;
+      } catch { /* per-watcher — keep going */ }
+      await d.ref.delete(); // one-shot: alerted or dead channel, either way done
+    }
+    console.log(`herd-alert: sig=${sigId} watchers=${ws.size} sent=${sent}`);
+    return sent;
+  } catch (e) { console.error("herd-alert:", e.message); return 0; }
+}
+
 // ─── AI SCAMBAITER — waste scammers' time, harvest their playbook ──────
 // Paste the scammer's message → an AI honeypot persona replies to keep them
 // talking and quietly extract their reusable identifiers + script, which feed
