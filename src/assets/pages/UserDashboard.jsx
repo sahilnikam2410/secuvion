@@ -7,6 +7,7 @@ import PlanGate, { isPlanAllowed } from "../../components/PlanGate";
 import OnboardingTour from "../../components/OnboardingTour";
 import { db } from "../../firebase/config";
 import { auth as firebaseAuth } from "../../firebase/config";
+import { apiFetch } from "../../lib/apiFetch";
 import { collection, getDocs, doc, getDoc, addDoc, deleteDoc, setDoc, updateDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 import { deleteUser as firebaseDeleteUser, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import {
@@ -527,27 +528,37 @@ export default function UserDashboard() {
   };
 
   const generateApiKey = async () => {
-    // New token format: vrk_<48 hex>. Mirrored to /api_tokens for
-    // server-side validation in api/tools.js.
-    const buf = crypto.getRandomValues(new Uint8Array(24));
-    const hex = Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
-    const key = `vrk_${hex}`;
+    // Minting happens server-side (api/tools.js → token-create) behind a
+    // verified ID token. The browser used to write api_tokens/{token}
+    // itself, including the `plan` the API then trusted as the caller's
+    // tier — so any free account could issue itself Enterprise access.
     try {
+      // Retire any existing key first: this dashboard shows exactly one.
       const snap = await getDocs(fsCol("apikeys"));
-      // Replace any existing single key for this user
-      if (!snap.empty) {
-        for (const d of snap.docs) {
-          const old = d.data();
-          if (old.key) { try { await deleteDoc(doc(db, "api_tokens", old.key)); } catch {} }
-          await deleteDoc(doc(db, "users", uid, "apikeys", d.id));
+      for (const d of snap.docs) {
+        const old = d.data();
+        const token = old.key || old.token;
+        if (token) {
+          await apiFetch("/api/tools?tool=token-delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          }).catch(() => {});
+        } else {
+          // Orphaned metadata with no token — safe to clear directly.
+          await deleteDoc(doc(db, "users", uid, "apikeys", d.id)).catch(() => {});
         }
       }
-      await addDoc(fsCol("apikeys"), { key, label: "Primary", active: true, createdAt: serverTimestamp(), callCount: 0 });
-      // Public-by-id mirror for serverless validation
-      await setDoc(doc(db, "api_tokens", key), {
-        uid, plan: userPlan || "starter", active: true, createdAt: serverTimestamp(),
+
+      const res = await apiFetch("/api/tools?tool=token-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: "Primary" }),
       });
-      setApiKey(key);
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "Could not create key");
+
+      setApiKey(out.token);
       await logActivity("api_key_generated", "API key generated");
       toast("API key generated", "success");
     } catch (err) {

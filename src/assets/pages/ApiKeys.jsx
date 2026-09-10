@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { collection, getDocs, doc, setDoc, updateDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase/config";
+import { apiFetch } from "../../lib/apiFetch";
 import { useAuth } from "../../context/AuthContext";
 import { LuKey, LuPlus, LuCopy, LuTrash2, LuCheck, LuTriangleAlert } from "react-icons/lu";
 import Navbar from "../../components/Navbar";
@@ -9,11 +10,9 @@ import Footer from "../../components/Footer";
 import SEO from "../../components/SEO";
 import { Section, Aurora, Card, Button, T, alpha } from "../../components/ui";
 
-function genToken() {
-  const b = new Uint8Array(24);
-  crypto.getRandomValues(b);
-  return "vrk_" + Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
-}
+// Tokens are minted server-side (api/tools.js → token-create). The browser
+// never writes api_tokens: it used to, and it chose its own `plan` field,
+// which the API then trusted as the caller's tier.
 
 export default function ApiKeys() {
   const { user } = useAuth();
@@ -40,15 +39,14 @@ export default function ApiKeys() {
     if (!user || creating) return;
     setCreating(true);
     try {
-      const token = genToken();
-      const batch = writeBatch(db);
-      // server-validated mirror (doc id = the secret token)
-      batch.set(doc(db, "api_tokens", token), { uid: user.uid, plan, active: true, createdAt: serverTimestamp() });
-      // owner-listable metadata (stores full token so the user can re-copy)
-      const metaRef = doc(collection(db, "users", user.uid, "apikeys"));
-      batch.set(metaRef, { label: label.trim() || "API key", token, preview: token.slice(0, 12) + "…" + token.slice(-4), active: true, createdAtMs: Date.now() });
-      await batch.commit();
-      setFresh(token); setLabel("");
+      const res = await apiFetch("/api/tools?tool=token-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: label.trim() || "API key" }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "Could not create key");
+      setFresh(out.token); setLabel("");
       await load();
     } catch (e) { alert("Could not create key: " + e.message); }
     setCreating(false);
@@ -57,8 +55,13 @@ export default function ApiKeys() {
   const revoke = async (k) => {
     if (!confirm("Revoke this key? Apps using it stop working immediately.")) return;
     try {
-      if (k.token) await updateDoc(doc(db, "api_tokens", k.token), { active: false });
-      await updateDoc(doc(db, "users", user.uid, "apikeys", k.id), { active: false });
+      const res = await apiFetch("/api/tools?tool=token-revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: k.token || k.key }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || "Revoke failed");
       await load();
     } catch (e) { alert("Revoke failed: " + e.message); }
   };

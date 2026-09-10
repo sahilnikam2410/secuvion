@@ -1,134 +1,20 @@
 import { applyRateLimit } from "./_rateLimit.js";
 import { getAdminFirestore, getAdminAuth } from "./_firebaseAdmin.js";
 import { waitUntil } from "@vercel/functions";
+import {
+  ACTION_TIERS,
+  planMeetsTier,
+  resolveCaller,
+  resolveUserPlan,
+  mintApiToken,
+  revokeApiToken,
+  deleteApiToken,
+} from "./_auth.js";
+import { requireCronSecret } from "./_cronAuth.js";
+import { consumeFreeQuota, consumeUsage, readUsage } from "./_quota.js";
 
-// ─── Tier gate (server-trusted) ─────────────────────────────────────
-// Map each action → required plan tier.
-// "free" = anyone (including unauthenticated)
-// "pro"  = paid Pro plan OR allowed daily free-quota slots
-// "enterprise" = Enterprise plan only, no free quota
-const ACTION_TIERS = {
-  // FREE tier (educational, public utility)
-  whois:               "free",
-  ip:                  "free",
-  "breach-check":      "free",
-  "password-check":    "free",
-  "weekly-digest":     "free", // cron auth handled separately inside handler
-  "leak-check":        "free",
-  "newsletter-subscribe": "free",
-  "enterprise-lead": "free",
-  "yt-lesson": "free",
-  "blog-list": "free",
-  "blog-get": "free",
-  "blog-generate": "free", // gated internally by CRON_SECRET
-  "blog-delete": "free",   // gated internally by CRON_SECRET
-  "referral-record": "free", // attributes a signup to a referrer (auth required)
-  "scamsig-delete": "free",  // admin purge of scamSignatures docs (CRON_SECRET)
-  "daily-alert": "free",   // cron, gated by CRON_SECRET
-  "wa-broadcast": "free",  // cron/admin, gated by CRON_SECRET
-  "cert-register": "free",
-  "cert-verify": "free",
-  "coupon-validate": "free",
-  "whatsapp-inbound": "free",  // Twilio webhook — no user auth, rate-limited by phone
-  "telegram": "free",          // Telegram bot webhook — no user auth
 
-  // PRO tier (AI, data-heavy, paid value)
-  "scam-check":         "pro",
-  "scam-dna":           "free",  // free → grows the community scam-intel network (the moat)
-  "scambait":           "free",  // free → viral + harvests scam intel into Scam DNA
-  "scam-dna-api":       "enterprise", // B2B: programmatic scam-intel for fintechs/banks (paid)
-  "whatsapp":           "free",  // Meta Cloud API webhook (scam-check via WhatsApp)
-  "risk-score":         "free",  // lead-gen — free to drive signups + upgrade intent
-  "headers-fix":        "pro",
-  "deepfake-audio":     "pro",
-  "security-headers":   "pro",
-  "file-hash-check":    "pro",
-  "ai-explain":         "pro",
-  "vuln-scan":          "pro",
-  "vuln-synthesize":    "pro",
 
-  // ENTERPRISE tier (team / webhooks / refunds / 2FA admin)
-  "team-create":         "enterprise",
-  "team-invite":         "enterprise",
-  "team-accept-invite":  "enterprise",
-  "team-remove-member":  "enterprise",
-  // Family — accept/info/set-mode open to any plan (invited members may be
-  // free-tier). create/invite/remove are owner-only and require Family plan.
-  "family-create":         "family",
-  "family-invite":         "family",
-  "family-remove-member":  "family",
-  "family-set-mode":       "family",
-  "family-add-seat":       "family",
-  "family-accept-invite":  "free",
-  "family-info":           "free",
-  "webhook-set":         "enterprise",
-  "webhook-clear":       "enterprise",
-  "webhook-test":        "enterprise",
-  refund:                "enterprise",
-  "totp-setup":          "free",  // 2FA available to all
-  "totp-confirm":        "free",
-  "totp-verify":         "free",
-  "totp-disable":        "free",
-};
-
-// family = same Pro-tool access + family-specific features. Mirror of
-// src/lib/toolTiers.js TIER_LEVEL — drift here = silent UI/backend mismatch.
-const TIER_LEVEL = { free: 0, starter: 0, pro: 1, family: 1, enterprise: 2 };
-function planMeetsTier(plan, required) {
-  return (TIER_LEVEL[plan || "free"] ?? 0) >= (TIER_LEVEL[required || "free"] ?? 0);
-}
-
-// Daily free-quota for Pro tools — per-uid for authed users, per-IP fallback.
-// 3 free uses per tool per day. In-memory; resets on cold start (acceptable).
-const PRO_FREE_QUOTA_PER_DAY = 3;
-const _quotaCounter = new Map(); // key: `${uid|ip}|${tool}|${YYYY-MM-DD}` → count
-function _quotaKey(scope, tool) {
-  const day = new Date().toISOString().slice(0, 10);
-  return `${scope}|${tool}|${day}`;
-}
-function getFreeQuota(scope, tool) {
-  const k = _quotaKey(scope, tool);
-  const used = _quotaCounter.get(k) || 0;
-  return { used, limit: PRO_FREE_QUOTA_PER_DAY, remaining: Math.max(0, PRO_FREE_QUOTA_PER_DAY - used) };
-}
-function bumpFreeQuota(scope, tool) {
-  const k = _quotaKey(scope, tool);
-  _quotaCounter.set(k, (_quotaCounter.get(k) || 0) + 1);
-}
-
-/**
- * Resolve caller plan from request — try Firebase ID token first
- * (browser users) then API token (external clients). Returns:
- *   { plan, uid, source } where source = "id-token" | "api-token" | "anon"
- */
-async function resolveCaller(req) {
-  const header = req.headers["authorization"] || "";
-  // 1) Firebase ID token (Authorization: Bearer <jwt> from browser)
-  const jwtMatch = /^Bearer\s+(eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+)\s*$/i.exec(header);
-  if (jwtMatch) {
-    const auth = getAdminAuth();
-    const fs = getAdminFirestore();
-    if (auth && fs) {
-      try {
-        const decoded = await auth.verifyIdToken(jwtMatch[1]);
-        const uid = decoded.uid;
-        let plan = "free";
-        try {
-          const snap = await fs.collection("users").doc(uid).get();
-          plan = snap.exists ? (snap.data().plan || "free") : "free";
-        } catch {}
-        return { plan, uid, source: "id-token" };
-      } catch {
-        // Invalid/expired ID token → fall through to API token then anon
-      }
-    }
-  }
-  // 2) Long-lived API token (existing flow)
-  const apiTok = await validateApiToken(header);
-  if (apiTok.valid) return { plan: apiTok.plan || "free", uid: apiTok.uid, source: "api-token" };
-  // 3) Anonymous
-  return { plan: "free", uid: null, source: "anon" };
-}
 
 // ─── WHOIS ──────────────────────────────────────────────────────────
 
@@ -1096,9 +982,7 @@ async function runActivityCleanup({ retentionDays = 90, batchLimit = 500 } = {})
 
 async function handleWeeklyDigest(req, res) {
   // Cron auth
-  const expected = process.env.CRON_SECRET;
-  const got = (req.headers["authorization"] || "").replace(/^Bearer\s+/i, "");
-  if (!expected || got !== expected) return res.status(401).json({ error: "Unauthorized" });
+  if (!requireCronSecret(req, res)) return;
 
   // Always run activity-log cleanup (cheap; piggy-backs on the weekly slot)
   const cleanup = await runActivityCleanup();
@@ -2058,32 +1942,9 @@ async function checkSslLabs(host) {
 }
 
 // ─── Check 2: HTTP security headers ─────────────────────────────────
-// Reuses the existing internal handleSecurityHeaders by issuing a self-call.
-async function checkHeaders(fullUrl) {
-  const r = await fetchWithTimeout(fullUrl, { redirect: "follow" }, 8000);
-  if (!r) return { name: "headers", ok: false, severity: "info", note: "Site unreachable" };
-  const expected = {
-    "content-security-policy": "high",
-    "strict-transport-security": "high",
-    "x-frame-options": "medium",
-    "x-content-type-options": "low",
-    "referrer-policy": "low",
-    "permissions-policy": "low",
-  };
-  const findings = [];
-  let worstSev = "info";
-  for (const [h, sev] of Object.entries(expected)) {
-    if (!r.headers.get(h)) {
-      findings.push(`Missing ${h}`);
-      if (severityRank(sev) > severityRank(worstSev)) worstSev = sev;
-    }
-  }
-  return {
-    name: "headers", ok: !findings.length, severity: findings.length ? worstSev : "info",
-    findings,
-    note: findings.length ? `${findings.length} security headers missing` : "All key headers present",
-  };
-}
+// Removed: checkHeaders() was dead code with no caller, and it fetched a
+// caller-supplied URL with redirect:"follow" — the same SSRF shape fixed in
+// api/ssl.js. If this check comes back, route it through api/_safeHost.js.
 
 function severityRank(s) {
   return { info: 0, low: 1, medium: 2, high: 3, critical: 4 }[s] || 0;
@@ -2590,9 +2451,9 @@ Use exactly 4 sections. Practical Indian context (UPI, 1930 helpline, cybercrime
 }
 
 async function handleBlogGenerate(req, res) {
-  // Gate with CRON_SECRET so it can be triggered manually to seed posts.
-  const key = req.query.key || req.body?.key;
-  if (!process.env.CRON_SECRET || key !== process.env.CRON_SECRET) return res.status(403).json({ error: "forbidden" });
+  // Gate with CRON_SECRET (Authorization: Bearer <secret>) so it can be
+  // triggered manually to seed posts.
+  if (!requireCronSecret(req, res)) return;
   const fs = getAdminFirestore();
   const out = await _genBlogPost(fs);
   return res.status(out.ok ? 200 : 500).json(out);
@@ -2601,8 +2462,7 @@ async function handleBlogGenerate(req, res) {
 // Admin prune: delete a blog post by slug (CRON_SECRET gated). Used to clear
 // duplicate / low-quality auto-posts. Accepts ?slug= or ?slugs=a,b,c.
 async function handleBlogDelete(req, res) {
-  const key = req.query.key || req.body?.key;
-  if (!process.env.CRON_SECRET || key !== process.env.CRON_SECRET) return res.status(403).json({ error: "forbidden" });
+  if (!requireCronSecret(req, res)) return;
   const raw = String(req.query.slug || req.query.slugs || req.body?.slug || req.body?.slugs || "");
   const slugs = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50);
   if (!slugs.length) return res.status(400).json({ error: "slug required" });
@@ -2620,8 +2480,7 @@ async function handleBlogDelete(req, res) {
 // ?ids=identifier1,identifier2 (raw identifiers; doc id = id_<identifier>) or
 // full doc ids beginning with id_/sig_.
 async function handleScamSigDelete(req, res) {
-  const key = req.query.key || req.body?.key;
-  if (!process.env.CRON_SECRET || key !== process.env.CRON_SECRET) return res.status(403).json({ error: "forbidden" });
+  if (!requireCronSecret(req, res)) return;
   const raw = String(req.query.ids || req.query.id || req.body?.ids || req.body?.id || "");
   const items = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50);
   if (!items.length) return res.status(400).json({ error: "ids required" });
@@ -2746,9 +2605,7 @@ const DAILY_TIPS = [
   ["Sextortion threat", "Don't pay — it never stops. Cut contact, keep evidence, report to 1930."],
 ];
 async function handleDailyAlert(req, res) {
-  const expected = process.env.CRON_SECRET;
-  const got = (req.headers["authorization"] || "").replace(/^Bearer\s+/i, "");
-  if (!expected || got !== expected) return res.status(401).json({ error: "Unauthorized" });
+  if (!requireCronSecret(req, res)) return;
   const dayIdx = Math.floor(Date.now() / 86400000) % DAILY_TIPS.length;
   const tip = DAILY_TIPS[dayIdx];
   const sid = process.env.VITE_EMAILJS_SERVICE_ID, tpl = process.env.VITE_EMAILJS_NOTIFY_TEMPLATE, pub = process.env.VITE_EMAILJS_PUBLIC_KEY, priv = process.env.EMAILJS_PRIVATE_KEY;
@@ -2793,9 +2650,7 @@ async function _waSendTemplate(to, templateName, lang = "en") {
   } catch { return false; }
 }
 async function handleWaBroadcast(req, res) {
-  const expected = process.env.CRON_SECRET;
-  const got = (req.headers["authorization"] || "").replace(/^Bearer\s+/i, "") || req.query.key;
-  if (!expected || got !== expected) return res.status(401).json({ error: "Unauthorized" });
+  if (!requireCronSecret(req, res)) return;
   const template = process.env.WA_ALERT_TEMPLATE;
   if (!template) return res.status(400).json({ error: "WA_ALERT_TEMPLATE not set (create + approve a template in Meta first)" });
   const adminMod = await import("./_firebaseAdmin.js");
@@ -3894,8 +3749,82 @@ Message:"""${msg.slice(0, 3000)}"""`;
   return;
 }
 
+// ─── API tokens (server-minted) ─────────────────────────────────────
+// The browser used to write api_tokens/{token} itself, choosing its own
+// `plan` field — which the dispatcher then trusted. Minting now happens
+// here, behind a verified Firebase ID token, and the stored document
+// carries no plan at all: api/_auth.js resolves the tier from
+// users/{uid} on every request instead.
+
+async function handleTokenCreate(req, res) {
+  const uid = req.apiClient?.uid;
+  if (!uid || req.apiClient?.source !== "id-token") {
+    return res.status(401).json({ error: "Sign in to manage API keys" });
+  }
+  const label = String(req.body?.label || "API key").trim() || "API key";
+  const out = await mintApiToken(uid, label);
+  if (!out.ok) {
+    if (out.error === "too-many-keys") {
+      return res.status(409).json({ error: `You already have ${out.limit} active keys. Revoke one first.`, code: "TOO_MANY_KEYS" });
+    }
+    return res.status(500).json({ error: "Could not create key", code: out.error });
+  }
+  // The full token is returned exactly once — it is never re-derivable.
+  return res.status(200).json({ ok: true, token: out.token, keyId: out.keyId, label: out.label });
+}
+
+async function handleTokenRevoke(req, res) {
+  const uid = req.apiClient?.uid;
+  if (!uid || req.apiClient?.source !== "id-token") {
+    return res.status(401).json({ error: "Sign in to manage API keys" });
+  }
+  const out = await revokeApiToken(uid, req.body?.token);
+  if (!out.ok) {
+    const code = out.error === "forbidden" ? 403 : out.error === "not-found" ? 404 : 400;
+    return res.status(code).json({ error: "Could not revoke key", code: out.error });
+  }
+  return res.status(200).json({ ok: true });
+}
+
+async function handleTokenDelete(req, res) {
+  const uid = req.apiClient?.uid;
+  if (!uid || req.apiClient?.source !== "id-token") {
+    return res.status(401).json({ error: "Sign in to manage API keys" });
+  }
+  const out = await deleteApiToken(uid, req.body?.token);
+  if (!out.ok) {
+    const code = out.error === "forbidden" ? 403 : out.error === "not-found" ? 404 : 400;
+    return res.status(code).json({ error: "Could not delete key", code: out.error });
+  }
+  return res.status(200).json({ ok: true });
+}
+
+// ─── Daily usage counters (server-authoritative) ────────────────────
+// usage/{uid}_{date} is now written only here. The browser reads it to
+// render "3 of 5 left"; it no longer decides whether a run is allowed.
+
+async function handleUsageConsume(req, res) {
+  const uid = req.apiClient?.uid;
+  if (!uid) return res.status(401).json({ error: "Sign in to use this tool", allowed: false });
+  const plan = await resolveUserPlan(getAdminFirestore(), uid);
+  const result = await consumeUsage(uid, plan, String(req.body?.toolId || ""));
+  return res.status(result.allowed ? 200 : 402).json(result);
+}
+
+async function handleUsageRead(req, res) {
+  const uid = req.apiClient?.uid;
+  if (!uid) return res.status(401).json({ error: "Sign in first" });
+  const plan = await resolveUserPlan(getAdminFirestore(), uid);
+  return res.status(200).json(await readUsage(uid, plan));
+}
+
 const HANDLERS = {
   whois: handleWhois,
+  "token-create": handleTokenCreate,
+  "token-revoke": handleTokenRevoke,
+  "token-delete": handleTokenDelete,
+  "usage-consume": handleUsageConsume,
+  "usage-read": handleUsageRead,
   "newsletter-subscribe": handleNewsletterSubscribe,
   "enterprise-lead": handleEnterpriseLead,
   "yt-lesson": handleYtLesson,
@@ -3954,34 +3883,15 @@ const HANDLERS = {
 };
 
 // Some tools accept GET (ip lookup, cron pings); others require POST.
-const GET_ALLOWED = new Set(["ip", "weekly-digest", "leak-check", "yt-lesson", "blog-list", "blog-get", "blog-generate", "blog-delete", "scamsig-delete", "daily-alert", "wa-broadcast", "cert-verify"]);
+// GET is for reads and for the two Vercel cron paths (Vercel issues a GET).
+// blog-generate / blog-delete / scamsig-delete / wa-broadcast are destructive
+// or fan-out actions and now require POST — a GET is reachable from a bare
+// URL with no preflight, which is exactly how a leaked secret gets replayed.
+const GET_ALLOWED = new Set(["ip", "weekly-digest", "leak-check", "yt-lesson", "blog-list", "blog-get", "daily-alert", "cert-verify", "usage-read"]);
 // Tools that bypass shared rate-limit (cron uses its own auth)
 const RL_EXEMPT = new Set(["weekly-digest", "daily-alert", "wa-broadcast"]);
 
-/**
- * Validate an incoming Bearer token against /api_tokens/{token} in
- * Firestore using the public REST API. Returns { valid, uid, plan }.
- */
-async function validateApiToken(authHeader) {
-  if (!authHeader) return { valid: false };
-  const m = /^Bearer\s+(vrk_[a-f0-9]{48})\s*$/i.exec(authHeader);
-  if (!m) return { valid: false };
-  const token = m[1];
-  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
-  const apiKey = process.env.VITE_FIREBASE_API_KEY;
-  if (!projectId || !apiKey) return { valid: false };
-  try {
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/api_tokens/${encodeURIComponent(token)}?key=${apiKey}`;
-    const r = await fetch(url);
-    if (!r.ok) return { valid: false };
-    const doc = await r.json();
-    const f = doc.fields || {};
-    if (f.active?.booleanValue !== true) return { valid: false };
-    return { valid: true, uid: f.uid?.stringValue, plan: f.plan?.stringValue || "starter" };
-  } catch {
-    return { valid: false };
-  }
-}
+
 
 export default async function handler(req, res) {
   // WhatsApp Cloud API webhook verification (Meta GET with hub.* params).
@@ -4033,10 +3943,12 @@ export default async function handler(req, res) {
         hint: caller.source === "anon" ? "Server could not verify your sign-in. Check that FIREBASE_SERVICE_ACCOUNT env var is set in Vercel." : undefined,
       });
     }
-    // required === "pro" → check daily free quota
+    // required === "pro" → spend one daily free-quota slot.
+    // Check-and-increment happens inside a single Firestore transaction
+    // so two concurrent requests can't both see the last slot as free.
     const scope = caller.uid || (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "ip-unknown").split(",")[0].trim();
-    const q = getFreeQuota(scope, tool);
-    if (q.remaining <= 0) {
+    const q = await consumeFreeQuota(scope, tool);
+    if (!q.allowed) {
       res.setHeader("X-Quota-Used", String(q.used));
       res.setHeader("X-Quota-Limit", String(q.limit));
       return res.status(402).json({
@@ -4049,17 +3961,18 @@ export default async function handler(req, res) {
         upgradeUrl: "/pricing",
       });
     }
-    bumpFreeQuota(scope, tool);
-    res.setHeader("X-Quota-Used", String(q.used + 1));
+    res.setHeader("X-Quota-Used", String(q.used));
     res.setHeader("X-Quota-Limit", String(q.limit));
-    res.setHeader("X-Quota-Remaining", String(q.remaining - 1));
+    res.setHeader("X-Quota-Remaining", String(q.remaining));
   }
 
   if (!RL_EXEMPT.has(tool)) {
     const rateLimits = (caller.plan === "pro" || caller.plan === "enterprise")
       ? { ipLimit: 200, userLimit: 600, windowMs: 60000 }   // Pro+
       : { ipLimit: 20, userLimit: 60, windowMs: 60000 };    // Free / anon
-    const rl = applyRateLimit(req, rateLimits);
+    // Pass the VERIFIED uid. Reading it from an x-user-id header let a
+    // caller rotate buckets at will, or burn another user's allowance.
+    const rl = applyRateLimit(req, { ...rateLimits, uid: caller.uid });
     if (!rl.allowed) {
       res.setHeader("Retry-After", rl.retryAfter);
       return res.status(429).json({ error: "Too many requests", retryAfter: rl.retryAfter });

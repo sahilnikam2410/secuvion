@@ -1,16 +1,24 @@
 import { db } from "../firebase/config";
-import { doc, getDoc, setDoc, increment, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
+import { apiFetch } from "../lib/apiFetch";
 
 /**
  * Daily usage limits per plan tier.
- * Keys are tool categories, values are max daily uses.
+ *
+ * These values are for DISPLAY ONLY — "3 of 5 left today". The decision
+ * of whether a run is allowed is made server-side in api/_quota.js and
+ * usage/{uid}_{date} is now write-protected in firestore.rules.
+ *
+ * Keep this table in sync with PLAN_LIMITS in api/_quota.js; drift shows
+ * up as a wrong remaining-count in the UI, never as a wrong verdict.
  */
 const PLAN_LIMITS = {
-  free:       { scan: 5,  lookup: 10, ai: 3,  export: 2  },
-  starter:    { scan: 25, lookup: 50, ai: 20, export: 10 },
-  standard:   { scan: 25, lookup: 50, ai: 20, export: 10 },
+  free:       { scan: 5,   lookup: 10,  ai: 3,  export: 2  },
+  starter:    { scan: 25,  lookup: 50,  ai: 20, export: 10 },
+  standard:   { scan: 25,  lookup: 50,  ai: 20, export: 10 },
   pro:        { scan: 100, lookup: 200, ai: 50, export: 50 },
   advanced:   { scan: 100, lookup: 200, ai: 50, export: 50 },
+  family:     { scan: 100, lookup: 200, ai: 50, export: 50 },
   enterprise: { scan: -1, lookup: -1, ai: -1, export: -1 }, // unlimited
 };
 
@@ -43,9 +51,15 @@ function getTodayKey() {
 }
 
 /**
- * Check if the user can use a tool, and increment usage if allowed.
+ * Ask the server to spend one unit of the user's daily allowance.
+ *
+ * The check and the increment happen together inside a Firestore
+ * transaction on the server. This function previously did both in the
+ * browser against a user-writable document, so resetting the counter —
+ * or just not calling this at all — removed the limit entirely.
+ *
  * @param {string} uid - User's Firebase UID
- * @param {string} plan - User's current plan
+ * @param {string} plan - User's current plan (display fallback only)
  * @param {string} toolId - The tool being used (key from TOOL_CATEGORY)
  * @returns {{ allowed: boolean, remaining: number, limit: number, category: string }}
  */
@@ -59,47 +73,50 @@ export async function checkAndTrackUsage(uid, plan, toolId) {
     return { allowed: true, remaining: -1, limit: -1, category };
   }
 
-  const todayKey = getTodayKey();
-  const usageRef = doc(db, "usage", `${uid}_${todayKey}`);
-
   try {
-    const snap = await getDoc(usageRef);
-    const data = snap.exists() ? snap.data() : {};
-    const currentCount = data[category] || 0;
-
-    if (currentCount >= dailyLimit) {
-      return { allowed: false, remaining: 0, limit: dailyLimit, category };
+    const res = await apiFetch("/api/tools?tool=usage-consume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toolId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (res.status === 402) {
+      return { allowed: false, remaining: 0, limit: out.limit ?? dailyLimit, category: out.category || category };
     }
-
-    // Increment usage
-    await setDoc(usageRef, {
-      [category]: increment(1),
-      uid,
-      date: todayKey,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-
-    return { allowed: true, remaining: dailyLimit - currentCount - 1, limit: dailyLimit, category };
+    if (!res.ok) throw new Error(out.error || "usage-consume failed");
+    return {
+      allowed: out.allowed !== false,
+      remaining: out.remaining ?? dailyLimit,
+      limit: out.limit ?? dailyLimit,
+      category: out.category || category,
+    };
   } catch (err) {
     console.warn("Usage tracking error:", err);
-    // Allow on error to not block users
+    // Allow on transport error so a network blip doesn't block a paying
+    // user. The tool's own /api/tools call still enforces the tier gate.
     return { allowed: true, remaining: dailyLimit, limit: dailyLimit, category };
   }
 }
 
 /**
- * Get current usage stats for a user today.
+ * Get current usage stats for a user today. Read-only: the document is
+ * written by the server, and clients have read access to their own.
  * @param {string} uid
  * @param {string} plan
  * @returns {object} { scan: { used, limit }, lookup: { used, limit }, ai: { used, limit }, export: { used, limit } }
  */
 export async function getUsageStats(uid, plan) {
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  const todayKey = getTodayKey();
-  const usageRef = doc(db, "usage", `${uid}_${todayKey}`);
+  const empty = {
+    scan:   { used: 0, limit: limits.scan },
+    lookup: { used: 0, limit: limits.lookup },
+    ai:     { used: 0, limit: limits.ai },
+    export: { used: 0, limit: limits.export },
+  };
+  if (!uid) return empty;
 
   try {
-    const snap = await getDoc(usageRef);
+    const snap = await getDoc(doc(db, "usage", `${uid}_${getTodayKey()}`));
     const data = snap.exists() ? snap.data() : {};
     return {
       scan:   { used: data.scan || 0, limit: limits.scan },
@@ -108,12 +125,7 @@ export async function getUsageStats(uid, plan) {
       export: { used: data.export || 0, limit: limits.export },
     };
   } catch {
-    return {
-      scan:   { used: 0, limit: limits.scan },
-      lookup: { used: 0, limit: limits.lookup },
-      ai:     { used: 0, limit: limits.ai },
-      export: { used: 0, limit: limits.export },
-    };
+    return empty;
   }
 }
 

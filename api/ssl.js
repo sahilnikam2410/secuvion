@@ -1,4 +1,27 @@
 import { checkRateLimit } from './_rateLimit.js';
+import { normalizeHost, assertPublicHost, isPrivateAddress, HOST_REJECTION_MESSAGE } from './_safeHost.js';
+
+/**
+ * Validate one redirect hop before following it. Returns the absolute URL
+ * to fetch, or null to stop. `isPrivateAddress` covers the case where the
+ * Location is a bare IP; assertPublicHost re-resolves a named target.
+ */
+async function safeRedirectTarget(location, fromHost) {
+  if (!location) return null;
+  let url;
+  try {
+    url = new URL(location, `https://${fromHost}`);
+  } catch { return null; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+
+  const host = normalizeHost(url.origin);
+  if (!host) return null;
+  if (isPrivateAddress(host)) return null;
+  const guard = await assertPublicHost(host);
+  if (!guard.ok) return null;
+  return url.toString();
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -17,12 +40,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Host parameter required" });
   }
 
-  // Clean the host - extract domain only
-  let domain = host;
-  try {
-    const url = new URL(host.includes("://") ? host : `https://${host}`);
-    domain = url.hostname;
-  } catch {}
+  // Clean the host — hostname only, no path, no credentials.
+  const domain = normalizeHost(host);
+  if (!domain) {
+    return res.status(400).json({ error: HOST_REJECTION_MESSAGE["invalid-host"] });
+  }
+
+  // SSRF guard. Steps 2 and 3 below fetch this host from inside our own
+  // network, so every address it resolves to has to be public first.
+  const guard = await assertPublicHost(domain);
+  if (!guard.ok) {
+    return res.status(400).json({
+      error: HOST_REJECTION_MESSAGE[guard.reason] || "That host can't be scanned.",
+      code: guard.reason,
+    });
+  }
 
   const result = {
     host: domain,
@@ -74,13 +106,28 @@ export default async function handler(req, res) {
       }
     } catch {}
 
-    // 2. Check security headers by fetching the actual site
+    // 2. Check security headers by fetching the actual site.
+    //    redirect: "manual" — following redirects here would hand path
+    //    and host control straight back to the caller: point `host` at a
+    //    domain you own, 302 to http://169.254.169.254/, and the guard
+    //    above is bypassed. One hop is allowed, re-validated below.
     try {
-      const siteRes = await fetch(`https://${domain}`, {
+      let siteRes = await fetch(`https://${domain}`, {
         method: "HEAD",
-        redirect: "follow",
+        redirect: "manual",
         signal: AbortSignal.timeout(8000),
       });
+
+      if (siteRes.status >= 300 && siteRes.status < 400) {
+        const next = await safeRedirectTarget(siteRes.headers.get("location"), domain);
+        if (next) {
+          siteRes = await fetch(next, {
+            method: "HEAD",
+            redirect: "manual",
+            signal: AbortSignal.timeout(8000),
+          });
+        }
+      }
 
       const headers = {};
       const secHeaders = [

@@ -1,26 +1,34 @@
 /**
  * API token management for Pro/Enterprise users.
- * Tokens stored in Firestore at /users/{uid}/apikeys/{keyId}.
  *
- * Token format: vrk_<32-char-base36>
+ * Tokens are MINTED SERVER-SIDE by api/tools.js (token-create /
+ * token-revoke / token-delete) behind a verified Firebase ID token.
+ * This module only reads the owner-listable metadata at
+ * /users/{uid}/apikeys/{keyId} and calls those endpoints.
+ *
+ * It used to write /api_tokens/{token} straight from the browser,
+ * including the `plan` field the backend then trusted as the caller's
+ * tier — which let any signed-in account issue itself an Enterprise
+ * key. That collection is now server-only in firestore.rules, and the
+ * stored document carries no plan: api/_auth.js resolves the tier from
+ * users/{uid} on every request.
+ *
+ * Token format: vrk_<48 hex>
  * Sent via Authorization: Bearer header to /api/* endpoints.
- *
- * The dispatcher in api/tools.js validates the token by reading
- * the Firestore doc directly (public REST API), checking that
- * doc.active === true and incrementing its lastUsedAt timestamp.
  */
-import { collection, doc, getDocs, addDoc, deleteDoc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { apiFetch } from "../lib/apiFetch";
 
-function generateToken() {
-  const buf = new Uint8Array(24);
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    crypto.getRandomValues(buf);
-  } else {
-    for (let i = 0; i < buf.length; i++) buf[i] = Math.floor(Math.random() * 256);
-  }
-  const hex = Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `vrk_${hex}`;
+async function post(tool, body) {
+  const res = await apiFetch(`/api/tools?tool=${tool}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || `${tool} failed`);
+  return out;
 }
 
 export async function listTokens(uid) {
@@ -29,47 +37,24 @@ export async function listTokens(uid) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function createToken(uid, plan, label = "API Key") {
+/**
+ * Mint a new token. The full secret comes back exactly once — it is
+ * not re-derivable, so surface it to the user immediately.
+ */
+export async function createToken(uid, _plan, label = "API Key") {
   if (!uid) throw new Error("Not signed in");
-  const token = generateToken();
-  // 1. Owner-only record with metadata
-  const docRef = await addDoc(collection(db, "users", uid, "apikeys"), {
-    token,
-    label,
-    active: true,
-    createdAt: serverTimestamp(),
-    lastUsedAt: null,
-    callCount: 0,
-  });
-  // 2. Public-by-id-only mirror so server endpoints can validate without
-  //    admin SDK. Doc ID == the secret token; rules block listing the
-  //    collection but allow get on exact ID.
-  await setDoc(doc(db, "api_tokens", token), {
-    uid,
-    plan: plan || "starter",
-    active: true,
-    createdAt: serverTimestamp(),
-  });
-  return { id: docRef.id, token, label };
+  const out = await post("token-create", { label });
+  return { id: out.keyId, token: out.token, label: out.label };
 }
 
 export async function revokeToken(uid, keyId, token) {
-  if (!uid || !keyId) return false;
-  await updateDoc(doc(db, "users", uid, "apikeys", keyId), {
-    active: false,
-    revokedAt: serverTimestamp(),
-  });
-  if (token) {
-    await updateDoc(doc(db, "api_tokens", token), { active: false }).catch(() => {});
-  }
+  if (!uid || !token) return false;
+  await post("token-revoke", { token });
   return true;
 }
 
 export async function deleteToken(uid, keyId, token) {
-  if (!uid || !keyId) return false;
-  await deleteDoc(doc(db, "users", uid, "apikeys", keyId));
-  if (token) {
-    await deleteDoc(doc(db, "api_tokens", token)).catch(() => {});
-  }
+  if (!uid || !token) return false;
+  await post("token-delete", { token });
   return true;
 }
